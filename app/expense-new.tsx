@@ -30,7 +30,7 @@ export default function NewExpenseScreen() {
   const [saving, setSaving] = useState(false);
 
   const [isInvestmentTransfer, setIsInvestmentTransfer] = useState(false);
-  const [investmentCategory, setInvestmentCategory] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
 
   const suggestedBucket = useMemo(() => detectExpenseBucket(title), [title]);
   const amountCents = useMemo(() => parseMoneyToCents(amount), [amount]);
@@ -38,8 +38,7 @@ export default function NewExpenseScreen() {
   const canSave =
     title.trim().length > 0 &&
     amountCents > 0 &&
-    !saving &&
-    (!isInvestmentTransfer || investmentCategory.trim().length > 0);
+    !saving;
 
   async function handleSave() {
     if (!canSave) return;
@@ -54,10 +53,20 @@ export default function NewExpenseScreen() {
         note,
         finalBucket: bucket,
         createInvestmentRecord: isInvestmentTransfer,
-        investmentCategory,
+        isRecurring,
       });
 
-      router.replace('/(tabs)/home');
+      if (isInvestmentTransfer) {
+        router.replace({
+          pathname: '/investment-new' as any,
+          params: {
+            prefillName: title,
+            prefillAmountCents: String(amountCents),
+          },
+        });
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } finally {
       setSaving(false);
     }
@@ -116,28 +125,42 @@ export default function NewExpenseScreen() {
           </Pressable>
 
           {showDatePicker && (
-            <DateTimePicker
-              value={spentOn}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              maximumDate={new Date()}
-              onChange={(_, selectedDate) => {
-                if (Platform.OS !== 'ios') setShowDatePicker(false);
-                if (selectedDate) setSpentOn(selectedDate);
-              }}
-            />
-          )}
-
-          {Platform.OS === 'ios' && showDatePicker && (
-            <View style={styles.inlinePickerFooter}>
-              <Pressable
-                onPress={() => setShowDatePicker(false)}
-                style={styles.smallButton}
-              >
-                <Text style={styles.smallButtonText}>Done</Text>
-              </Pressable>
+            <View style={Platform.OS === 'ios' ? styles.pickerContainer : undefined}>
+              <DateTimePicker
+                value={spentOn}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                textColor={colors.text}
+                maximumDate={new Date()}
+                onChange={(_, selectedDate) => {
+                  if (Platform.OS !== 'ios') setShowDatePicker(false);
+                  if (selectedDate) setSpentOn(selectedDate);
+                }}
+              />
+              {Platform.OS === 'ios' && (
+                <View style={styles.inlinePickerFooter}>
+                  <Pressable onPress={() => setShowDatePicker(false)} style={styles.smallButton}>
+                    <Text style={styles.smallButtonText}>Done</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
+        </View>
+
+        <View style={styles.switchRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>Recurring expense</Text>
+            <Text style={styles.switchHint}>
+              Repeats monthly — rent, subscriptions, insurance.
+            </Text>
+          </View>
+          <Switch
+            value={isRecurring}
+            onValueChange={setIsRecurring}
+            trackColor={{ false: colors.border, true: colors.switchTrackOn }}
+            thumbColor={isRecurring ? colors.primary : colors.white}
+          />
         </View>
 
         <View style={styles.switchRow}>
@@ -150,21 +173,16 @@ export default function NewExpenseScreen() {
           <Switch
             value={isInvestmentTransfer}
             onValueChange={setIsInvestmentTransfer}
-            trackColor={{ false: '#D6E7DE', true: '#9FC9B3' }}
-            thumbColor={isInvestmentTransfer ? colors.primary : '#FFFFFF'}
+            trackColor={{ false: colors.border, true: colors.switchTrackOn }}
+            thumbColor={isInvestmentTransfer ? colors.primary : colors.white}
           />
         </View>
 
         {isInvestmentTransfer ? (
-          <View style={styles.field}>
-            <Text style={styles.label}>Investment type</Text>
-            <TextInput
-              value={investmentCategory}
-              onChangeText={setInvestmentCategory}
-              placeholder="ETF, stock, savings, real estate..."
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-            />
+          <View style={styles.investNotice}>
+            <Text style={styles.investNoticeText}>
+              This amount will be tracked under Invest. You'll be taken to the investment form to add more details.
+            </Text>
           </View>
         ) : (
           <>
@@ -323,9 +341,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  pickerContainer: {
+    marginTop: 8,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   inlinePickerFooter: {
     alignItems: 'flex-end',
-    marginTop: 8,
+    padding: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   smallButton: {
     backgroundColor: colors.surfaceSoft,
@@ -350,6 +378,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: colors.textMuted,
+  },
+  investNotice: {
+    marginTop: 12,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 14,
+    padding: 14,
+  },
+  investNoticeText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.primary,
+    fontWeight: '500',
   },
   suggestionBox: {
     minHeight: 52,
@@ -401,7 +441,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   buttonDisabled: {
-    backgroundColor: '#9DB8AA',
+    backgroundColor: colors.buttonDisabled,
   },
   buttonText: {
     color: colors.white,

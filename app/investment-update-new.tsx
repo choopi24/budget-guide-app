@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
-import { useInvestmentDetailDb } from '../db/investment-detail';
+import { useInvestmentDetailDb, type InvestmentDetail } from '../db/investment-detail';
 import { formatDateDisplay } from '../lib/date';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
@@ -24,7 +24,7 @@ export default function InvestmentUpdateNewScreen() {
 
   const { addInvestmentUpdate, getInvestmentDetail } = useInvestmentDetailDb();
 
-  const [detail, setDetail] = useState<any>(null);
+  const [detail, setDetail] = useState<InvestmentDetail | null>(null);
   const [value, setValue] = useState('');
   const [note, setNote] = useState('');
   const [quantityDelta, setQuantityDelta] = useState('');
@@ -54,14 +54,15 @@ export default function InvestmentUpdateNewScreen() {
     };
   }, [investmentId, getInvestmentDetail]);
 
-  const valueCents = parseMoneyToCents(value);
   const quantityNumber = useMemo(() => Number(quantityDelta || 0), [quantityDelta]);
 
   const isCrypto = detail?.category === 'Crypto';
   const needsQuantity = isCrypto && cryptoMode !== 'value';
 
+  const inputCents = parseMoneyToCents(value);
+
   const canSave =
-    valueCents > 0 &&
+    inputCents > 0 &&
     investmentId > 0 &&
     (!needsQuantity || quantityNumber > 0) &&
     !saving;
@@ -79,10 +80,23 @@ export default function InvestmentUpdateNewScreen() {
         computedDelta = cryptoMode === 'sell' ? -quantityNumber : quantityNumber;
       }
 
+      let finalValueCents: number;
+      if (isCrypto && cryptoMode === 'buy') {
+        finalValueCents = (detail?.current_value_cents ?? 0) + inputCents;
+      } else if (isCrypto && cryptoMode === 'sell') {
+        finalValueCents = Math.max(0, (detail?.current_value_cents ?? 0) - inputCents);
+      } else if (isCrypto) {
+        // Value-only crypto mode: set the new total directly
+        finalValueCents = inputCents;
+      } else {
+        // Non-crypto: add the amount to the current total
+        finalValueCents = (detail?.current_value_cents ?? 0) + inputCents;
+      }
+
       await addInvestmentUpdate({
         investmentId,
         effectiveDate: effectiveDate.toISOString(),
-        valueCents,
+        valueCents: finalValueCents,
         note,
         quantityDelta: computedDelta,
       });
@@ -202,37 +216,38 @@ export default function InvestmentUpdateNewScreen() {
           </Pressable>
 
           {showDatePicker && (
-            <DateTimePicker
-              value={effectiveDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              maximumDate={new Date()}
-              onChange={(_, selectedDate) => {
-                if (Platform.OS !== 'ios') {
-                  setShowDatePicker(false);
-                }
-                if (selectedDate) {
-                  setEffectiveDate(selectedDate);
-                }
-              }}
-            />
-          )}
-
-          {Platform.OS === 'ios' && showDatePicker && (
-            <View style={styles.inlinePickerFooter}>
-              <Pressable
-                onPress={() => setShowDatePicker(false)}
-                style={styles.smallButton}
-              >
-                <Text style={styles.smallButtonText}>Done</Text>
-              </Pressable>
+            <View style={Platform.OS === 'ios' ? styles.pickerContainer : undefined}>
+              <DateTimePicker
+                value={effectiveDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                textColor={colors.text}
+                maximumDate={new Date()}
+                onChange={(_, selectedDate) => {
+                  if (Platform.OS !== 'ios') setShowDatePicker(false);
+                  if (selectedDate) setEffectiveDate(selectedDate);
+                }}
+              />
+              {Platform.OS === 'ios' && (
+                <View style={styles.inlinePickerFooter}>
+                  <Pressable onPress={() => setShowDatePicker(false)} style={styles.smallButton}>
+                    <Text style={styles.smallButtonText}>Done</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
         </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>
-            What is the current total value after this change?
+            {isCrypto && cryptoMode === 'buy'
+              ? 'How much did you purchase?'
+              : isCrypto && cryptoMode === 'sell'
+              ? 'How much did you sell?'
+              : isCrypto
+              ? 'New total value'
+              : 'How much did you add?'}
           </Text>
           <TextInput
             value={value}
@@ -268,7 +283,7 @@ export default function InvestmentUpdateNewScreen() {
           ]}
         >
           <Text style={styles.buttonText}>
-            {saving ? 'Saving...' : 'Save update'}
+            {saving ? 'Saving...' : 'Confirm Entry'}
           </Text>
         </Pressable>
       </View>
@@ -347,9 +362,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  pickerContainer: {
+    marginTop: 8,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   inlinePickerFooter: {
     alignItems: 'flex-end',
-    marginTop: 8,
+    padding: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   smallButton: {
     backgroundColor: colors.surfaceSoft,
@@ -391,7 +416,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     marginTop: 14,
-    color: '#B6523A',
+    color: colors.danger,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -407,7 +432,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   buttonDisabled: {
-    backgroundColor: '#9DB8AA',
+    backgroundColor: colors.buttonDisabled,
   },
   buttonText: {
     color: colors.white,

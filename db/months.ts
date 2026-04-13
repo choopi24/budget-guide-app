@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getCurrentMonthKey } from '../lib/date';
 
@@ -10,7 +11,7 @@ export type DefaultSplit = {
 export function useMonthsDb() {
   const db = useSQLiteContext();
 
-  async function getDefaultSplit(): Promise<DefaultSplit> {
+  const getDefaultSplit = useCallback(async function getDefaultSplit(): Promise<DefaultSplit> {
     const result = await db.getFirstAsync<{
       default_must_pct: number;
       default_want_pct: number;
@@ -29,9 +30,9 @@ export function useMonthsDb() {
       wantPct: result?.default_want_pct ?? 20,
       keepPct: result?.default_keep_pct ?? 30,
     };
-  }
+  }, [db]);
 
-  async function getActiveMonth() {
+  const getActiveMonth = useCallback(function getActiveMonth() {
     return db.getFirstAsync<{
       id: number;
       month_key: string;
@@ -42,9 +43,37 @@ export function useMonthsDb() {
       ORDER BY id DESC
       LIMIT 1
     `);
-  }
+  }, [db]);
 
-  async function createCurrentMonth(input: { incomeCents: number }) {
+  const getPreviousMonthRollover = useCallback(async function getPreviousMonthRollover() {
+    const prevMonth = await db.getFirstAsync<{
+      must_budget_cents: number;
+      must_spent_cents: number;
+      want_budget_cents: number;
+      want_spent_cents: number;
+    }>(`
+      SELECT must_budget_cents, must_spent_cents, want_budget_cents, want_spent_cents
+      FROM months
+      WHERE status = 'active'
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+
+    const rolloverSettings = await db.getFirstAsync<{
+      must_rollover_target: string;
+      want_rollover_target: string;
+    }>(`SELECT must_rollover_target, want_rollover_target FROM app_settings WHERE id = 1`);
+
+    const mustRemainder = Math.max(0, (prevMonth?.must_budget_cents ?? 0) - (prevMonth?.must_spent_cents ?? 0));
+    const wantRemainder = Math.max(0, (prevMonth?.want_budget_cents ?? 0) - (prevMonth?.want_spent_cents ?? 0));
+
+    const keepBonus = (rolloverSettings?.must_rollover_target ?? 'invest') === 'invest' ? mustRemainder : 0;
+    const wantBonus = (rolloverSettings?.want_rollover_target ?? 'want') === 'want' ? wantRemainder : 0;
+
+    return { mustRemainder, wantRemainder, keepBonus, wantBonus };
+  }, [db]);
+
+  const createCurrentMonth = useCallback(async function createCurrentMonth(input: { incomeCents: number }) {
     const monthKey = getCurrentMonthKey();
     const now = new Date().toISOString();
 
@@ -68,6 +97,31 @@ export function useMonthsDb() {
     const wantBudgetCents = Math.round(input.incomeCents * (split.wantPct / 100));
     const keepBudgetCents =
       input.incomeCents - mustBudgetCents - wantBudgetCents;
+
+    // Read previous active month data and rollover settings before the transaction
+    const prevMonth = await db.getFirstAsync<{
+      must_budget_cents: number;
+      must_spent_cents: number;
+      want_budget_cents: number;
+      want_spent_cents: number;
+    }>(`
+      SELECT must_budget_cents, must_spent_cents, want_budget_cents, want_spent_cents
+      FROM months
+      WHERE status = 'active'
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+
+    const rolloverSettings = await db.getFirstAsync<{
+      must_rollover_target: string;
+      want_rollover_target: string;
+    }>(`SELECT must_rollover_target, want_rollover_target FROM app_settings WHERE id = 1`);
+
+    const mustRemainder = Math.max(0, (prevMonth?.must_budget_cents ?? 0) - (prevMonth?.must_spent_cents ?? 0));
+    const wantRemainder = Math.max(0, (prevMonth?.want_budget_cents ?? 0) - (prevMonth?.want_spent_cents ?? 0));
+
+    const keepBonus = (rolloverSettings?.must_rollover_target ?? 'invest') === 'invest' ? mustRemainder : 0;
+    const wantBonus = (rolloverSettings?.want_rollover_target ?? 'want') === 'want' ? wantRemainder : 0;
 
     await db.withTransactionAsync(async () => {
       await db.runAsync(
@@ -105,7 +159,7 @@ export function useMonthsDb() {
           created_at,
           updated_at
         )
-        VALUES (?, 'active', ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, NULL, NULL, ?, NULL, ?, ?)
+        VALUES (?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NULL, NULL, ?, NULL, ?, ?)
         `,
         [
           monthKey,
@@ -114,8 +168,10 @@ export function useMonthsDb() {
           split.wantPct,
           split.keepPct,
           mustBudgetCents,
-          wantBudgetCents,
-          keepBudgetCents,
+          wantBudgetCents + wantBonus,
+          keepBudgetCents + keepBonus,
+          wantBonus,
+          keepBonus,
           now,
           now,
           now,
@@ -132,11 +188,12 @@ export function useMonthsDb() {
       WHERE month_key = ?
       LIMIT 1
     `, [monthKey]);
-  }
+  }, [db, getDefaultSplit]);
 
   return {
     getDefaultSplit,
     getActiveMonth,
     createCurrentMonth,
+    getPreviousMonthRollover,
   };
 }

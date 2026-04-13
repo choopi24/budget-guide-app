@@ -9,7 +9,7 @@ import { colors } from '../theme/colors';
 
 export default function MonthSetupScreen() {
   const router = useRouter();
-  const { getDefaultSplit, getActiveMonth, createCurrentMonth } = useMonthsDb();
+  const { getDefaultSplit, getActiveMonth, createCurrentMonth, getPreviousMonthRollover } = useMonthsDb();
 
   const currentMonthKey = getCurrentMonthKey();
 
@@ -19,6 +19,8 @@ export default function MonthSetupScreen() {
   const [keepPct, setKeepPct] = useState(30);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [keepBonus, setKeepBonus] = useState(0);
+  const [wantBonus, setWantBonus] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -31,13 +33,18 @@ export default function MonthSetupScreen() {
         return;
       }
 
-      const split = await getDefaultSplit();
+      const [split, rollover] = await Promise.all([
+        getDefaultSplit(),
+        getPreviousMonthRollover(),
+      ]);
 
       if (!mounted) return;
 
       setMustPct(split.mustPct);
       setWantPct(split.wantPct);
       setKeepPct(split.keepPct);
+      setKeepBonus(rollover.keepBonus);
+      setWantBonus(rollover.wantBonus);
       setLoading(false);
     }
 
@@ -46,7 +53,7 @@ export default function MonthSetupScreen() {
     return () => {
       mounted = false;
     };
-  }, [currentMonthKey, getActiveMonth, getDefaultSplit, router]);
+  }, [currentMonthKey, getActiveMonth, getDefaultSplit, getPreviousMonthRollover, router]);
 
   const incomeCents = useMemo(() => parseMoneyToCents(income), [income]);
 
@@ -101,7 +108,7 @@ export default function MonthSetupScreen() {
           Build your plan for {getMonthLabelFromKey(currentMonthKey)}.
         </Text>
         <Text style={styles.body}>
-          Enter your net income and we’ll map it into your default Must, Want, and Keep plan.
+          Enter your net income and we'll map it into your default Must, Want, and Keep plan.
         </Text>
 
         <View style={styles.field}>
@@ -117,7 +124,7 @@ export default function MonthSetupScreen() {
         </View>
 
         <View style={styles.previewCard}>
-          <Text style={styles.previewTitle}>This month’s plan</Text>
+          <Text style={styles.previewTitle}>This month's plan</Text>
 
           <PreviewRow
             label={`Must (${mustPct}%)`}
@@ -134,10 +141,32 @@ export default function MonthSetupScreen() {
             value={formatCentsToMoney(keepBudget)}
             color={colors.keep}
           />
+
+          {wantBonus > 0 && (
+            <PreviewRow
+              label="+ Want rollover"
+              value={formatCentsToMoney(wantBonus)}
+              color={colors.want}
+              isBonus
+            />
+          )}
+          {keepBonus > 0 && (
+            <PreviewRow
+              label="+ Invest rollover"
+              value={formatCentsToMoney(keepBonus)}
+              color={colors.keep}
+              isBonus
+            />
+          )}
         </View>
 
         <Text style={styles.note}>
-          Rollover will be added in the next step.
+          {keepBonus > 0 || wantBonus > 0
+            ? `Rollover from last month: ${[
+                keepBonus > 0 ? `Invest ${formatCentsToMoney(keepBonus)}` : '',
+                wantBonus > 0 ? `Want ${formatCentsToMoney(wantBonus)}` : '',
+              ].filter(Boolean).join(', ')}`
+            : 'No rollover from last month.'}
         </Text>
 
         <Pressable
@@ -162,18 +191,20 @@ function PreviewRow({
   label,
   value,
   color,
+  isBonus = false,
 }: {
   label: string;
   value: string;
   color: string;
+  isBonus?: boolean;
 }) {
   return (
     <View style={styles.previewRow}>
       <View style={styles.previewLeft}>
         <View style={[styles.dot, { backgroundColor: color }]} />
-        <Text style={styles.previewLabel}>{label}</Text>
+        <Text style={[styles.previewLabel, isBonus && { color: '#2F7D57' }]}>{label}</Text>
       </View>
-      <Text style={styles.previewValue}>{value}</Text>
+      <Text style={[styles.previewValue, isBonus && { color: '#2F7D57' }]}>{value}</Text>
     </View>
   );
 }
@@ -284,7 +315,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   buttonDisabled: {
-    backgroundColor: '#9DB8AA',
+    backgroundColor: colors.buttonDisabled,
   },
   buttonText: {
     color: colors.white,

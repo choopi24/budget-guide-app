@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
 export type ExpenseHistoryItem = {
@@ -8,12 +9,13 @@ export type ExpenseHistoryItem = {
   note: string | null;
   suggested_bucket: 'must' | 'want';
   final_bucket: 'must' | 'want';
+  is_investment: number;
 };
 
 export function useExpenseHistoryDb() {
   const db = useSQLiteContext();
 
-  async function getActiveMonthExpenses() {
+  const getActiveMonthExpenses = useCallback(() => {
     return db.getAllAsync<ExpenseHistoryItem>(`
       SELECT
         e.id,
@@ -22,15 +24,16 @@ export function useExpenseHistoryDb() {
         e.spent_on,
         e.note,
         e.suggested_bucket,
-        e.final_bucket
+        e.final_bucket,
+        e.is_investment
       FROM expenses e
       INNER JOIN months m ON m.id = e.month_id
       WHERE m.status = 'active'
       ORDER BY e.spent_on DESC, e.id DESC
     `);
-  }
+  }, [db]);
 
-  async function getExpenseById(id: number) {
+  const getExpenseById = useCallback((id: number) => {
     return db.getFirstAsync<{
       id: number;
       month_id: number;
@@ -39,6 +42,7 @@ export function useExpenseHistoryDb() {
       spent_on: string;
       note: string | null;
       final_bucket: 'must' | 'want';
+      is_investment: number;
     }>(
       `
       SELECT
@@ -48,16 +52,17 @@ export function useExpenseHistoryDb() {
         amount_cents,
         spent_on,
         note,
-        final_bucket
+        final_bucket,
+        is_investment
       FROM expenses
       WHERE id = ?
       LIMIT 1
       `,
       [id]
     );
-  }
+  }, [db]);
 
-  async function updateExpense(input: {
+  const updateExpense = useCallback(async function updateExpense(input: {
     id: number;
     title: string;
     amountCents: number;
@@ -73,26 +78,20 @@ export function useExpenseHistoryDb() {
     }
 
     await db.withTransactionAsync(async () => {
-      if (existing.final_bucket === 'must') {
+      // Reverse the old amount from whichever counter it came from
+      if (existing.is_investment) {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            must_spent_cents = must_spent_cents - ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET invest_spent_cents = invest_spent_cents - ?, updated_at = ? WHERE id = ?`,
+          [existing.amount_cents, now, existing.month_id]
+        );
+      } else if (existing.final_bucket === 'must') {
+        await db.runAsync(
+          `UPDATE months SET must_spent_cents = must_spent_cents - ?, updated_at = ? WHERE id = ?`,
           [existing.amount_cents, now, existing.month_id]
         );
       } else {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            want_spent_cents = want_spent_cents - ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET want_spent_cents = want_spent_cents - ?, updated_at = ? WHERE id = ?`,
           [existing.amount_cents, now, existing.month_id]
         );
       }
@@ -120,33 +119,27 @@ export function useExpenseHistoryDb() {
         ]
       );
 
-      if (input.finalBucket === 'must') {
+      // Investment expenses keep going to invest_spent_cents even after edit
+      if (existing.is_investment) {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            must_spent_cents = must_spent_cents + ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET invest_spent_cents = invest_spent_cents + ?, updated_at = ? WHERE id = ?`,
+          [input.amountCents, now, existing.month_id]
+        );
+      } else if (input.finalBucket === 'must') {
+        await db.runAsync(
+          `UPDATE months SET must_spent_cents = must_spent_cents + ?, updated_at = ? WHERE id = ?`,
           [input.amountCents, now, existing.month_id]
         );
       } else {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            want_spent_cents = want_spent_cents + ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET want_spent_cents = want_spent_cents + ?, updated_at = ? WHERE id = ?`,
           [input.amountCents, now, existing.month_id]
         );
       }
     });
-  }
+  }, [db, getExpenseById]);
 
-  async function deleteExpense(id: number) {
+  const deleteExpense = useCallback(async function deleteExpense(id: number) {
     const now = new Date().toISOString();
     const existing = await getExpenseById(id);
 
@@ -155,39 +148,26 @@ export function useExpenseHistoryDb() {
     }
 
     await db.withTransactionAsync(async () => {
-      if (existing.final_bucket === 'must') {
+      if (existing.is_investment) {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            must_spent_cents = must_spent_cents - ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET invest_spent_cents = invest_spent_cents - ?, updated_at = ? WHERE id = ?`,
+          [existing.amount_cents, now, existing.month_id]
+        );
+      } else if (existing.final_bucket === 'must') {
+        await db.runAsync(
+          `UPDATE months SET must_spent_cents = must_spent_cents - ?, updated_at = ? WHERE id = ?`,
           [existing.amount_cents, now, existing.month_id]
         );
       } else {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            want_spent_cents = want_spent_cents - ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET want_spent_cents = want_spent_cents - ?, updated_at = ? WHERE id = ?`,
           [existing.amount_cents, now, existing.month_id]
         );
       }
 
-      await db.runAsync(
-        `
-        DELETE FROM expenses
-        WHERE id = ?
-        `,
-        [id]
-      );
+      await db.runAsync(`DELETE FROM expenses WHERE id = ?`, [id]);
     });
-  }
+  }, [db, getExpenseById]);
 
   return {
     getActiveMonthExpenses,

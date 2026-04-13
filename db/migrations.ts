@@ -6,7 +6,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   );
 
   const currentVersion = result?.user_version ?? 0;
-  const targetVersion = 5;
+  const targetVersion = 12;
 
   if (currentVersion >= targetVersion) {
     return;
@@ -24,6 +24,8 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         default_want_pct REAL NOT NULL DEFAULT 20,
         default_keep_pct REAL NOT NULL DEFAULT 30,
         currency TEXT NOT NULL DEFAULT 'ILS',
+        must_rollover_target TEXT NOT NULL DEFAULT 'invest',
+        want_rollover_target TEXT NOT NULL DEFAULT 'want',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -54,6 +56,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         keep_rollover_cents INTEGER NOT NULL DEFAULT 0,
         must_spent_cents INTEGER NOT NULL DEFAULT 0,
         want_spent_cents INTEGER NOT NULL DEFAULT 0,
+        invest_spent_cents INTEGER NOT NULL DEFAULT 0,
         plan_score INTEGER,
         plan_status TEXT,
         opened_at TEXT NOT NULL,
@@ -71,6 +74,8 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         note TEXT,
         suggested_bucket TEXT NOT NULL CHECK (suggested_bucket IN ('must', 'want')),
         final_bucket TEXT NOT NULL CHECK (final_bucket IN ('must', 'want')),
+        is_investment INTEGER NOT NULL DEFAULT 0,
+        is_recurring INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
@@ -147,9 +152,39 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         datetime('now'),
         datetime('now')
       );
+
+      CREATE TABLE IF NOT EXISTS avatar_config (
+        id         INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+        skin_tone  TEXT NOT NULL DEFAULT 's2',
+        hair_style TEXT NOT NULL DEFAULT 'clean',
+        hair_color TEXT NOT NULL DEFAULT 'dkbrown',
+        suit_color TEXT NOT NULL DEFAULT 'navy',
+        hat        TEXT NOT NULL DEFAULT 'none',
+        glasses    TEXT NOT NULL DEFAULT 'none',
+        extra      TEXT NOT NULL DEFAULT 'none',
+        eye_shape  TEXT NOT NULL DEFAULT 'default'
+      );
+
+      CREATE TABLE IF NOT EXISTS achievements (
+        id TEXT PRIMARY KEY NOT NULL,
+        unlocked_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS streak (
+        id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+        join_date TEXT NOT NULL,
+        last_open_date TEXT NOT NULL,
+        current_streak INTEGER NOT NULL DEFAULT 1,
+        longest_streak INTEGER NOT NULL DEFAULT 1
+      );
+
+      INSERT OR IGNORE INTO avatar_config (id, skin_tone, hair_style, hair_color, suit_color, hat, glasses, extra, eye_shape)
+        VALUES (1, 's2', 'clean', 'dkbrown', 'navy', 'none', 'none', 'none', 'default');
+      INSERT OR IGNORE INTO streak (id, join_date, last_open_date, current_streak, longest_streak)
+        VALUES (1, date('now'), date('now'), 1, 1);
     `);
 
-    await db.execAsync(`PRAGMA user_version = 5`);
+    await db.execAsync(`PRAGMA user_version = 11`);
     return;
   }
 
@@ -159,7 +194,9 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       ALTER TABLE savings_items ADD COLUMN asset_symbol TEXT;
       ALTER TABLE savings_items ADD COLUMN asset_quantity REAL;
       ALTER TABLE savings_items ADD COLUMN asset_coin_id TEXT;
-      PRAGMA user_version = 5;
+      ALTER TABLE app_settings ADD COLUMN must_rollover_target TEXT NOT NULL DEFAULT 'invest';
+      ALTER TABLE app_settings ADD COLUMN want_rollover_target TEXT NOT NULL DEFAULT 'want';
+      PRAGMA user_version = 6;
     `);
     return;
   }
@@ -169,7 +206,9 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       ALTER TABLE savings_items ADD COLUMN asset_symbol TEXT;
       ALTER TABLE savings_items ADD COLUMN asset_quantity REAL;
       ALTER TABLE savings_items ADD COLUMN asset_coin_id TEXT;
-      PRAGMA user_version = 5;
+      ALTER TABLE app_settings ADD COLUMN must_rollover_target TEXT NOT NULL DEFAULT 'invest';
+      ALTER TABLE app_settings ADD COLUMN want_rollover_target TEXT NOT NULL DEFAULT 'want';
+      PRAGMA user_version = 6;
     `);
     return;
   }
@@ -178,7 +217,9 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     await db.execAsync(`
       ALTER TABLE savings_items ADD COLUMN asset_quantity REAL;
       ALTER TABLE savings_items ADD COLUMN asset_coin_id TEXT;
-      PRAGMA user_version = 5;
+      ALTER TABLE app_settings ADD COLUMN must_rollover_target TEXT NOT NULL DEFAULT 'invest';
+      ALTER TABLE app_settings ADD COLUMN want_rollover_target TEXT NOT NULL DEFAULT 'want';
+      PRAGMA user_version = 6;
     `);
     return;
   }
@@ -186,7 +227,100 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   if (currentVersion === 4) {
     await db.execAsync(`
       ALTER TABLE savings_items ADD COLUMN asset_coin_id TEXT;
-      PRAGMA user_version = 5;
+      ALTER TABLE app_settings ADD COLUMN must_rollover_target TEXT NOT NULL DEFAULT 'invest';
+      ALTER TABLE app_settings ADD COLUMN want_rollover_target TEXT NOT NULL DEFAULT 'want';
+      PRAGMA user_version = 6;
+    `);
+    return;
+  }
+
+  if (currentVersion === 5) {
+    await db.execAsync(`
+      ALTER TABLE app_settings ADD COLUMN must_rollover_target TEXT NOT NULL DEFAULT 'invest';
+      ALTER TABLE app_settings ADD COLUMN want_rollover_target TEXT NOT NULL DEFAULT 'want';
+      PRAGMA user_version = 6;
+    `);
+  }
+
+  if (currentVersion === 6) {
+    await db.execAsync(`
+      ALTER TABLE months ADD COLUMN invest_spent_cents INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE expenses ADD COLUMN is_investment INTEGER NOT NULL DEFAULT 0;
+      PRAGMA user_version = 7;
+    `);
+  }
+
+  if (currentVersion === 7) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS avatar_config (
+        id         INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+        skin_tone  TEXT NOT NULL DEFAULT 's2',
+        hair_style TEXT NOT NULL DEFAULT 'clean',
+        hair_color TEXT NOT NULL DEFAULT 'dkbrown',
+        hat        TEXT NOT NULL DEFAULT 'none',
+        glasses    TEXT NOT NULL DEFAULT 'none',
+        extra      TEXT NOT NULL DEFAULT 'none'
+      );
+
+      CREATE TABLE IF NOT EXISTS achievements (
+        id TEXT PRIMARY KEY NOT NULL,
+        unlocked_at TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS streak (
+        id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+        join_date TEXT NOT NULL,
+        last_open_date TEXT NOT NULL,
+        current_streak INTEGER NOT NULL DEFAULT 1,
+        longest_streak INTEGER NOT NULL DEFAULT 1
+      );
+
+      INSERT OR IGNORE INTO avatar_config (id, skin_tone, hair_style, hair_color, hat, glasses, extra)
+        VALUES (1, 's2', 'clean', 'dkbrown', 'none', 'none', 'none');
+      INSERT OR IGNORE INTO streak (id, join_date, last_open_date, current_streak, longest_streak)
+        VALUES (1, date('now'), date('now'), 1, 1);
+
+      PRAGMA user_version = 8;
+    `);
+  }
+
+  if (currentVersion === 8) {
+    // Columns may already exist if the user went through the v7→v8 migration
+    // (which created avatar_config with all 6 columns). Check before adding.
+    const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(avatar_config)`);
+    const colNames = new Set(cols.map((c) => c.name));
+
+    if (!colNames.has('skin_tone')) {
+      await db.execAsync(`ALTER TABLE avatar_config ADD COLUMN skin_tone TEXT NOT NULL DEFAULT 's2'`);
+    }
+    if (!colNames.has('hair_style')) {
+      await db.execAsync(`ALTER TABLE avatar_config ADD COLUMN hair_style TEXT NOT NULL DEFAULT 'clean'`);
+    }
+    if (!colNames.has('hair_color')) {
+      await db.execAsync(`ALTER TABLE avatar_config ADD COLUMN hair_color TEXT NOT NULL DEFAULT 'dkbrown'`);
+    }
+
+    await db.execAsync(`PRAGMA user_version = 9`);
+  }
+
+  if (currentVersion === 9) {
+    await db.execAsync(`
+      ALTER TABLE expenses ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0;
+      PRAGMA user_version = 10;
+    `);
+  }
+
+  if (currentVersion === 10) {
+    await db.execAsync(`
+      ALTER TABLE avatar_config ADD COLUMN suit_color TEXT NOT NULL DEFAULT 'navy';
+      PRAGMA user_version = 11;
+    `);
+  }
+
+  if (currentVersion === 11) {
+    await db.execAsync(`
+      ALTER TABLE avatar_config ADD COLUMN eye_shape TEXT NOT NULL DEFAULT 'default';
+      PRAGMA user_version = 12;
     `);
   }
 }

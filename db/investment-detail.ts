@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import type { SupportedCurrency } from './settings';
 
@@ -30,7 +31,7 @@ function mapCurrencyToVs(currency: SupportedCurrency) {
 export function useInvestmentDetailDb() {
   const db = useSQLiteContext();
 
-  async function getInvestmentDetail(id: number) {
+  const getInvestmentDetail = useCallback((id: number) => {
     return db.getFirstAsync<InvestmentDetail>(
       `
       SELECT
@@ -50,9 +51,9 @@ export function useInvestmentDetailDb() {
       `,
       [id]
     );
-  }
+  }, [db]);
 
-  async function getInvestmentUpdates(id: number) {
+  const getInvestmentUpdates = useCallback((id: number) => {
     return db.getAllAsync<InvestmentUpdateRow>(
       `
       SELECT
@@ -66,9 +67,9 @@ export function useInvestmentDetailDb() {
       `,
       [id]
     );
-  }
+  }, [db]);
 
-  async function addInvestmentUpdate(input: {
+  const addInvestmentUpdate = useCallback(async function addInvestmentUpdate(input: {
     investmentId: number;
     effectiveDate: string;
     valueCents: number;
@@ -120,9 +121,9 @@ export function useInvestmentDetailDb() {
         [input.valueCents, nextQuantity ?? null, now, input.investmentId]
       );
     });
-  }
+  }, [db, getInvestmentDetail]);
 
-  async function deleteInvestment(investmentId: number) {
+  const deleteInvestment = useCallback(async function deleteInvestment(investmentId: number) {
     await db.runAsync(
       `
       DELETE FROM savings_items
@@ -130,9 +131,9 @@ export function useInvestmentDetailDb() {
       `,
       [investmentId]
     );
-  }
+  }, [db]);
 
-  async function refreshCryptoCurrentValue(input: {
+  const refreshCryptoCurrentValue = useCallback(async function refreshCryptoCurrentValue(input: {
     investmentId: number;
     coinId: string;
     quantity: number;
@@ -161,23 +162,40 @@ export function useInvestmentDetailDb() {
 
     const currentValueCents = Math.round(unitPrice * input.quantity * 100);
     const now = new Date().toISOString();
+    const today = now.slice(0, 10);
 
-    await db.runAsync(
-      `
-      UPDATE savings_items
-      SET
-        current_value_cents = ?,
-        updated_at = ?
-      WHERE id = ?
-      `,
-      [currentValueCents, now, input.investmentId]
-    );
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `
+        UPDATE savings_items
+        SET
+          current_value_cents = ?,
+          updated_at = ?
+        WHERE id = ?
+        `,
+        [currentValueCents, now, input.investmentId]
+      );
+
+      await db.runAsync(
+        `
+        INSERT OR REPLACE INTO savings_updates (
+          saving_item_id,
+          effective_date,
+          value_cents,
+          note,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [input.investmentId, today, currentValueCents, 'Live price refresh', now]
+      );
+    });
 
     return {
       unitPrice,
       currentValueCents,
     };
-  }
+  }, [db]);
 
   return {
     getInvestmentDetail,

@@ -179,30 +179,25 @@ export default function ExpensesScreen() {
             </Pressable>
 
             {showDatePicker && (
-              <DateTimePicker
-                value={spentOn}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                maximumDate={new Date()}
-                onChange={(_, selectedDate) => {
-                  if (Platform.OS !== 'ios') {
-                    setShowDatePicker(false);
-                  }
-                  if (selectedDate) {
-                    setSpentOn(selectedDate);
-                  }
-                }}
-              />
-            )}
-
-            {Platform.OS === 'ios' && showDatePicker && (
-              <View style={styles.inlinePickerFooter}>
-                <Pressable
-                  onPress={() => setShowDatePicker(false)}
-                  style={styles.smallButton}
-                >
-                  <Text style={styles.smallButtonText}>Done</Text>
-                </Pressable>
+              <View style={Platform.OS === 'ios' ? styles.pickerContainer : undefined}>
+                <DateTimePicker
+                  value={spentOn}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  textColor={colors.text}
+                  maximumDate={new Date()}
+                  onChange={(_, selectedDate) => {
+                    if (Platform.OS !== 'ios') setShowDatePicker(false);
+                    if (selectedDate) setSpentOn(selectedDate);
+                  }}
+                />
+                {Platform.OS === 'ios' && (
+                  <View style={styles.inlinePickerFooter}>
+                    <Pressable onPress={() => setShowDatePicker(false)} style={styles.smallButton}>
+                      <Text style={styles.smallButtonText}>Done</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -289,13 +284,19 @@ export default function ExpensesScreen() {
                       <View
                         style={[
                           styles.badge,
-                          item.final_bucket === 'must'
+                          item.is_investment
+                            ? styles.badgeInvest
+                            : item.final_bucket === 'must'
                             ? styles.badgeMust
                             : styles.badgeWant,
                         ]}
                       >
                         <Text style={styles.badgeText}>
-                          {item.final_bucket === 'must' ? 'Must' : 'Want'}
+                          {item.is_investment
+                            ? 'Invest'
+                            : item.final_bucket === 'must'
+                            ? 'Must'
+                            : 'Want'}
                         </Text>
                       </View>
 
@@ -428,9 +429,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
+  pickerContainer: {
+    marginTop: 8,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   inlinePickerFooter: {
     alignItems: 'flex-end',
-    marginTop: 8,
+    padding: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
   smallButton: {
     backgroundColor: colors.surfaceSoft,
@@ -550,10 +561,13 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   badgeMust: {
-    backgroundColor: '#E5F3EB',
+    backgroundColor: colors.mustSoft,
   },
   badgeWant: {
-    backgroundColor: '#F7EBDD',
+    backgroundColor: colors.wantSoft,
+  },
+  badgeInvest: {
+    backgroundColor: '#D6E4F7',
   },
   badgeText: {
     fontSize: 12,
@@ -583,6 +597,6 @@ const styles = StyleSheet.create({
   deleteLink: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#B6523A',
+    color: colors.danger,
   },
 });

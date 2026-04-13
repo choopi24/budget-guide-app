@@ -26,6 +26,7 @@ export default function RootLayout() {
         <Stack.Screen name="investment-edit" options={{ headerShown: false }} />
         <Stack.Screen name="investment/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="investment-update-new" options={{ headerShown: false }} />
+        <Stack.Screen name="avatar-edit" options={{ headerShown: false }} />
       </Stack>
     </SQLiteProvider>
   );

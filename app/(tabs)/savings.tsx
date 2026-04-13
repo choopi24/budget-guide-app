@@ -159,15 +159,13 @@ export default function SavingsScreen() {
 const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 28,
-    padding: 22,
-    marginBottom: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    padding: 24,
+    marginBottom: 24,
+    shadowColor: colors.text,
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   heroTopRow: {
@@ -246,10 +244,13 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 24,
     padding: 22,
+    shadowColor: colors.text,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   emptyTitle: {
     fontSize: 18,
@@ -264,11 +265,14 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 18,
-    marginBottom: 12,
+    marginBottom: 10,
+    shadowColor: colors.text,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   itemCardPressed: {
     opacity: 0.93,
@@ -306,7 +310,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   negative: {
-    color: '#B6523A',
+    color: colors.danger,
   },
   fab: {
     position: 'absolute',

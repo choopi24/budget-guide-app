@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { detectExpenseBucket, ExpenseBucket } from '../lib/expenseClassifier';
 
@@ -9,12 +10,13 @@ export type AddExpenseInput = {
   finalBucket?: ExpenseBucket;
   createInvestmentRecord?: boolean;
   investmentCategory?: string;
+  isRecurring?: boolean;
 };
 
 export function useExpensesDb() {
   const db = useSQLiteContext();
 
-  async function addExpense(input: AddExpenseInput) {
+  const addExpense = useCallback(async function addExpense(input: AddExpenseInput) {
     const now = new Date().toISOString();
 
     const activeMonth = await db.getFirstAsync<{ id: number }>(`
@@ -30,9 +32,9 @@ export function useExpensesDb() {
     }
 
     const suggestedBucket = detectExpenseBucket(input.title);
-    const finalBucket = input.createInvestmentRecord
-      ? 'want'
-      : input.finalBucket ?? suggestedBucket;
+    const isInvestment = input.createInvestmentRecord ? 1 : 0;
+    const isRecurring = input.isRecurring ? 1 : 0;
+    const finalBucket = input.finalBucket ?? suggestedBucket;
 
     await db.withTransactionAsync(async () => {
       await db.runAsync(
@@ -45,10 +47,12 @@ export function useExpensesDb() {
           note,
           suggested_bucket,
           final_bucket,
+          is_investment,
+          is_recurring,
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           activeMonth.id,
@@ -58,82 +62,27 @@ export function useExpensesDb() {
           input.note?.trim() || null,
           suggestedBucket,
           finalBucket,
+          isInvestment,
+          isRecurring,
           now,
           now,
         ]
       );
 
-      if (finalBucket === 'must') {
+      if (isInvestment) {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            must_spent_cents = must_spent_cents + ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET invest_spent_cents = invest_spent_cents + ?, updated_at = ? WHERE id = ?`,
+          [input.amountCents, now, activeMonth.id]
+        );
+      } else if (finalBucket === 'must') {
+        await db.runAsync(
+          `UPDATE months SET must_spent_cents = must_spent_cents + ?, updated_at = ? WHERE id = ?`,
           [input.amountCents, now, activeMonth.id]
         );
       } else {
         await db.runAsync(
-          `
-          UPDATE months
-          SET
-            want_spent_cents = want_spent_cents + ?,
-            updated_at = ?
-          WHERE id = ?
-          `,
+          `UPDATE months SET want_spent_cents = want_spent_cents + ?, updated_at = ? WHERE id = ?`,
           [input.amountCents, now, activeMonth.id]
-        );
-      }
-
-      if (input.createInvestmentRecord) {
-        const result = await db.runAsync(
-          `
-          INSERT INTO savings_items (
-            name,
-            category,
-            opening_date,
-            opening_amount_cents,
-            current_value_cents,
-            note,
-            created_at,
-            updated_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          [
-            input.title.trim(),
-            input.investmentCategory?.trim() || 'Investment',
-            input.spentOn,
-            input.amountCents,
-            input.amountCents,
-            input.note?.trim() || 'Created from expense entry',
-            now,
-            now,
-          ]
-        );
-
-        const itemId = result.lastInsertRowId;
-
-        await db.runAsync(
-          `
-          INSERT INTO savings_updates (
-            saving_item_id,
-            effective_date,
-            value_cents,
-            note,
-            created_at
-          )
-          VALUES (?, ?, ?, ?, ?)
-          `,
-          [
-            itemId,
-            input.spentOn,
-            input.amountCents,
-            'Initial investment entry',
-            now,
-          ]
         );
       }
     });
@@ -142,7 +91,7 @@ export function useExpensesDb() {
       suggestedBucket,
       finalBucket,
     };
-  }
+  }, [db]);
 
   return {
     addExpense,

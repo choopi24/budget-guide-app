@@ -12,6 +12,35 @@ export function parseMoneyToCents(input: string) {
   return Math.round(value * 100);
 }
 
+export function formatCompactMoney(
+  cents: number,
+  currency: SupportedCurrency = 'ILS'
+) {
+  const value = cents / 100;
+  if (Math.abs(value) >= 1_000_000) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+  if (Math.abs(value) >= 1_000) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function formatCentsToMoney(
   cents: number,
   currency: SupportedCurrency = 'ILS'

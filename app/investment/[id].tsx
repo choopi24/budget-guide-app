@@ -3,9 +3,9 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
 import { InvestmentLineChart } from '../../components/InvestmentLineChart';
-import { useInvestmentDetailDb } from '../../db/investment-detail';
+import { useInvestmentDetailDb, type InvestmentDetail, type InvestmentUpdateRow } from '../../db/investment-detail';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
-import { formatDateDisplay } from '../../lib/date';
+import { formatDateDisplay, formatShortDate } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
 
@@ -22,8 +22,8 @@ export default function InvestmentDetailScreen() {
   } = useInvestmentDetailDb();
   const { getCurrency } = useSettingsDb();
 
-  const [detail, setDetail] = useState<any>(null);
-  const [updates, setUpdates] = useState<any[]>([]);
+  const [detail, setDetail] = useState<InvestmentDetail | null>(null);
+  const [updates, setUpdates] = useState<InvestmentUpdateRow[]>([]);
   const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
   const [refreshingPrice, setRefreshingPrice] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState('');
@@ -119,7 +119,10 @@ export default function InvestmentDetailScreen() {
       (a, b) =>
         new Date(a.effective_date).getTime() - new Date(b.effective_date).getTime()
     )
-    .map((item) => ({ value: item.value_cents / 100 }));
+    .map((item) => ({
+      value: item.value_cents / 100,
+      label: formatShortDate(item.effective_date),
+    }));
 
   return (
     <AppScreen scroll>
@@ -237,7 +240,7 @@ export default function InvestmentDetailScreen() {
             pressed && styles.buttonPressed,
           ]}
         >
-          <Text style={styles.buttonText}>+ Update value</Text>
+          <Text style={styles.buttonText}>Log Value Entry</Text>
         </Pressable>
       </View>
 
@@ -246,7 +249,7 @@ export default function InvestmentDetailScreen() {
       </View>
 
       <View style={styles.chartCard}>
-        <InvestmentLineChart data={chartData} />
+        <InvestmentLineChart data={chartData} currency={currency} />
       </View>
 
       <View style={styles.sectionHeader}>
@@ -302,19 +305,17 @@ const styles = StyleSheet.create({
   deleteText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#B6523A',
+    color: colors.danger,
   },
   heroCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 28,
-    padding: 22,
-    marginBottom: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    padding: 24,
+    marginBottom: 20,
+    shadowColor: colors.text,
+    shadowOpacity: 0.07,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
   heroTopRow: {
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   positive: { color: colors.primary },
-  negative: { color: '#B6523A' },
+  negative: { color: colors.danger },
   secondaryButton: {
     marginTop: 18,
     height: 46,
@@ -417,19 +418,25 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 24,
     padding: 16,
     marginBottom: 18,
+    shadowColor: colors.text,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   historyCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 24,
     paddingHorizontal: 18,
     paddingVertical: 6,
+    shadowColor: colors.text,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   historyRow: {
     flexDirection: 'row',

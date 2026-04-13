@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
 export type InvestmentCategory =
@@ -38,7 +39,7 @@ export type UpdateInvestmentInput = {
 export function useInvestmentsDb() {
   const db = useSQLiteContext();
 
-  async function createInvestment(input: CreateInvestmentInput) {
+  const createInvestment = useCallback(async function createInvestment(input: CreateInvestmentInput) {
     const now = new Date().toISOString();
 
     await db.withTransactionAsync(async () => {
@@ -96,9 +97,9 @@ export function useInvestmentsDb() {
         ]
       );
     });
-  }
+  }, [db]);
 
-  async function updateInvestment(input: UpdateInvestmentInput) {
+  const updateInvestment = useCallback(async function updateInvestment(input: UpdateInvestmentInput) {
     const now = new Date().toISOString();
 
     await db.runAsync(
@@ -131,9 +132,9 @@ export function useInvestmentsDb() {
         input.id,
       ]
     );
-  }
+  }, [db]);
 
-  async function getInvestmentById(id: number) {
+  const getInvestmentById = useCallback((id: number) => {
     return db.getFirstAsync<{
       id: number;
       name: string;
@@ -164,9 +165,9 @@ export function useInvestmentsDb() {
       `,
       [id]
     );
-  }
+  }, [db]);
 
-  async function getInvestmentsList() {
+  const getInvestmentsList = useCallback(() => {
     return db.getAllAsync<{
       id: number;
       name: string;
@@ -193,7 +194,7 @@ export function useInvestmentsDb() {
       FROM savings_items
       ORDER BY updated_at DESC, id DESC
     `);
-  }
+  }, [db]);
 
   return {
     createInvestment,

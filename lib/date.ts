@@ -1,3 +1,9 @@
+export function formatShortDate(value?: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function formatDateDisplay(value?: string | null) {
   if (!value) return '';
 

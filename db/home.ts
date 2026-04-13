@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 
 export type HomeData = {
@@ -8,12 +9,13 @@ export type HomeData = {
   keep_budget_cents: number;
   must_spent_cents: number;
   want_spent_cents: number;
+  invest_spent_cents: number;
 };
 
 export function useHomeDb() {
   const db = useSQLiteContext();
 
-  async function getActiveMonthHomeData() {
+  const getActiveMonthHomeData = useCallback(() => {
     return db.getFirstAsync<HomeData>(`
       SELECT
         month_key,
@@ -22,13 +24,14 @@ export function useHomeDb() {
         want_budget_cents,
         keep_budget_cents,
         must_spent_cents,
-        want_spent_cents
+        want_spent_cents,
+        invest_spent_cents
       FROM months
       WHERE status = 'active'
       ORDER BY id DESC
       LIMIT 1
     `);
-  }
+  }, [db]);
 
   return {
     getActiveMonthHomeData,
