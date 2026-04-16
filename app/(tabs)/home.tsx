@@ -6,7 +6,13 @@ import { AppScreen } from '../../components/AppScreen';
 import { useHomeDb, type HomeData } from '../../db/home';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { getMonthLabelFromKey } from '../../lib/date';
-import { computeBudgetGrade, GRADE_COLOR, type BudgetGrade } from '../../lib/grade';
+import {
+  buildGradeExplanation,
+  computeBudgetGrade,
+  GRADE_COLOR,
+  type BudgetGrade,
+  type GradeExplanation,
+} from '../../lib/grade';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
 
@@ -23,9 +29,11 @@ export default function HomeScreen() {
   const { getActiveMonthHomeData } = useHomeDb();
   const { getCurrency } = useSettingsDb();
 
-  const [month, setMonth] = useState<HomeData | null>(null);
-  const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
-  const [grade, setGrade] = useState<BudgetGrade | null>(null);
+  const [month, setMonth]           = useState<HomeData | null>(null);
+  const [currency, setCurrency]     = useState<SupportedCurrency>('ILS');
+  const [grade, setGrade]           = useState<BudgetGrade | null>(null);
+  const [gradeExp, setGradeExp]     = useState<GradeExplanation | null>(null);
+  const [showGradeExp, setShowGradeExp] = useState(false);
 
   const load = useCallback(async () => {
     const [monthData, savedCurrency] = await Promise.all([
@@ -35,11 +43,23 @@ export default function HomeScreen() {
     setMonth(monthData ?? null);
     setCurrency(savedCurrency);
     if (monthData) {
-      setGrade(computeBudgetGrade(
+      const g = computeBudgetGrade(
         monthData.must_spent_cents,
         monthData.must_budget_cents,
         monthData.want_spent_cents,
         monthData.want_budget_cents,
+        monthData.invest_spent_cents,
+        monthData.keep_budget_cents,
+      );
+      setGrade(g);
+      setGradeExp(buildGradeExplanation(
+        g,
+        monthData.must_spent_cents,
+        monthData.must_budget_cents,
+        monthData.want_spent_cents,
+        monthData.want_budget_cents,
+        monthData.invest_spent_cents,
+        monthData.keep_budget_cents,
       ));
     }
   }, [getActiveMonthHomeData, getCurrency]);
@@ -118,9 +138,23 @@ export default function HomeScreen() {
             </View>
             <View style={styles.heroTopRight}>
               {grade && (
-                <View style={[styles.gradeBadge, { backgroundColor: GRADE_COLOR[grade] + '18' }]}>
+                <Pressable
+                  onPress={() => setShowGradeExp(v => !v)}
+                  style={({ pressed }) => [
+                    styles.gradeBadge,
+                    { backgroundColor: GRADE_COLOR[grade] + '18' },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  hitSlop={8}
+                >
                   <Text style={[styles.gradeText, { color: GRADE_COLOR[grade] }]}>{grade}</Text>
-                </View>
+                  <Ionicons
+                    name={showGradeExp ? 'chevron-up' : 'chevron-down'}
+                    size={12}
+                    color={GRADE_COLOR[grade]}
+                    style={{ marginLeft: 4 }}
+                  />
+                </Pressable>
               )}
               <Pressable
                 onPress={() => router.push('/expenses' as any)}
@@ -161,6 +195,29 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
+
+        {/* ── Grade explanation (shown when badge is tapped) ── */}
+        {showGradeExp && grade && gradeExp && (
+          <View style={[styles.gradeExpCard, { borderLeftColor: GRADE_COLOR[grade] }]}>
+            <Text style={[styles.gradeExpHeader, { color: GRADE_COLOR[grade] }]}>
+              Grade {grade}
+            </Text>
+            {gradeExp.reasons.map((r, i) => (
+              <View key={i} style={styles.gradeExpRow}>
+                <Ionicons name="ellipse" size={5} color={GRADE_COLOR[grade]} style={styles.gradeExpDot} />
+                <Text style={styles.gradeExpReason}>{r}</Text>
+              </View>
+            ))}
+            {gradeExp.improve && (
+              <View style={styles.gradeExpImproveRow}>
+                <Ionicons name="arrow-up-circle-outline" size={13} color={GRADE_COLOR[grade]} />
+                <Text style={[styles.gradeExpImprove, { color: GRADE_COLOR[grade] }]}>
+                  {gradeExp.improve}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* ── Breakdown ── */}
         <Text style={styles.sectionTitle}>Breakdown</Text>
@@ -269,16 +326,70 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   gradeBadge: {
-    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   gradeText: {
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+
+  // ── Grade explanation card ────────────────────────────────────────────
+  gradeExpCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderLeftWidth: 3,
+    paddingVertical: 14,
+    paddingLeft: 16,
+    paddingRight: 18,
+    marginBottom: 14,
+    gap: 6,
+    shadowColor: colors.text,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  gradeExpHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  gradeExpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gradeExpDot: {
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  gradeExpReason: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  gradeExpImproveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  gradeExpImprove: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   heroAmount: {
     fontSize: 40,

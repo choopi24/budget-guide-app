@@ -2,6 +2,8 @@
 
 A focused personal finance app for iPhone. Allocate your income into three buckets — **Must**, **Want**, and **Invest** — then track every spend and watch your portfolio grow.
 
+> **Branding note:** `app.json` still uses `"name": "budget-app"` and `"slug": "budget-app"`. The display name visible to users should be updated to `"BullBudget"` when you're ready to publish.
+
 ---
 
 ## What it does
@@ -15,19 +17,22 @@ Most budgeting apps are overwhelming. BullBudget does one thing well: it forces 
 
 ---
 
-## Key features
+## Core features
 
 | Feature | Details |
 |---|---|
-| Must / Want / Invest split | Set percentages once at onboarding, adjust anytime |
-| Monthly budget cycle | Income-based, rolls over unspent balances per your rules |
-| Expense tracking | Auto-suggested bucket, markable as investment |
-| Investment portfolio | Manual tracking with full value history and line chart |
+| Must / Want / Invest split | Set percentages at onboarding, adjust anytime in Settings |
+| Monthly budget cycle | Income-based, rolls over unspent balances per your rollover rules |
+| Expense tracking | Auto-suggested bucket (Must/Want), editable after the fact |
+| Past-month corrections | Log missed expenses to closed months; carryover auto-adjusts |
+| Investment portfolio | Manual tracking with full value history and SVG line chart |
 | Crypto support | CoinGecko live price refresh for tracked coins |
-| Budget grading | A–F grade based on Must and Want adherence |
-| Rollover settings | Per-bucket rules: move surplus to Invest, Want, or Must |
-| Profile & streaks | Avatar, achievements, daily streak tracking |
+| Budget grading | A+–F grade with per-bucket explanation and improvement hints |
+| Rollover settings | Per-bucket rules: route surplus to Invest, Want, or Must |
+| Profile & streaks | Avatar customisation, achievements, daily streak tracking |
+| League system | Iron → Bronze → Silver → Gold → Apex, gated by score + months |
 | Multi-currency | ILS, USD, EUR throughout |
+| Local-first | All data stored on-device in SQLite — no account, no sync |
 
 ---
 
@@ -36,13 +41,21 @@ Most budgeting apps are overwhelming. BullBudget does one thing well: it forces 
 | Layer | Choice |
 |---|---|
 | Framework | React Native via Expo SDK 54 |
-| Routing | Expo Router (file-based) |
+| Routing | Expo Router (file-based, typed routes) |
 | Database | SQLite via `expo-sqlite` with versioned migrations |
-| Language | TypeScript |
+| Language | TypeScript (strict) |
 | State | React hooks — no external state library |
 | Charts | Custom SVG line chart via `react-native-svg` |
 | Icons | Ionicons (`@expo/vector-icons`) |
-| Crypto prices | CoinGecko public API |
+| Crypto prices | CoinGecko public API (no key required) |
+
+---
+
+## Prerequisites
+
+- Node.js 18+ and npm
+- Expo CLI: `npm install -g expo-cli` (or use `npx expo`)
+- iOS Simulator (Xcode) or physical iPhone with **Expo Go**
 
 ---
 
@@ -56,40 +69,54 @@ npm install
 npx expo start
 ```
 
-Open the app in Expo Go (scan the QR code) or in an iOS/Android simulator.
+Scan the QR code with Expo Go, or press `i` to open the iOS Simulator.
 
-> **Note:** The app targets iPhone first. Most UI decisions and safe area handling are iOS-optimised.
+> The app targets iPhone first. Most UI decisions and safe area handling are iOS-optimised. Android works but is not the primary focus.
 
 ---
 
-## Architecture overview
+## App structure
 
 ```
 app/
-  (tabs)/           # Main tab screens: home, savings, history, profile, settings
-  investment/       # Investment detail (dynamic route)
+  (tabs)/           # Tab screens: home, savings, history, profile, settings, tips
+  investment/[id].tsx   # Investment detail (dynamic route)
   onboarding.tsx    # 3-step onboarding wizard
-  expense-new.tsx   # Add expense modal
-  investment-*.tsx  # Investment create / edit / update screens
+  month-setup.tsx   # New-month setup flow
+  expense-new.tsx   # Quick add expense modal
+  expense-edit.tsx  # Edit or delete an expense
+  expenses.tsx      # Full expense list (current month)
+  past-month-expense.tsx  # Log a missed expense on a closed month
+  investment-new.tsx      # Add investment
+  investment-edit.tsx     # Edit investment metadata
+  investment-update-new.tsx  # Record a new investment value
+  avatar-edit.tsx   # Avatar customisation screen
 
-components/         # Shared UI: AppScreen, InvestmentForm, InvestmentLineChart, avatars
+components/
+  AppScreen.tsx     # Scrollable/static screen wrapper with safe area
+  AppLogo.tsx       # Brand mark
+  DatePickerField.tsx     # Reusable Today / Yesterday / Pick date chip row
+  HumanAvatar.tsx   # Composable SVG avatar
+  InvestmentForm.tsx      # Shared investment create/edit form
+  InvestmentLineChart.tsx # SVG portfolio chart
 
 db/                 # All SQLite logic, one file per domain
-  migrations.ts     # Versioned schema migrations (current: v14)
-  home.ts           # Home dashboard query
+  migrations.ts     # Versioned schema (current: v14)
+  home.ts           # Active month dashboard query
   months.ts         # Month lifecycle: create, close, rollover
-  expenses.ts       # Expense CRUD
+  expenses.ts       # Expense CRUD + past-month correction
+  expense-history.ts  # History tab queries
   investments.ts    # Investment CRUD
   investment-detail.ts  # Detail view + value updates
-  settings.ts       # App settings: currency, rollover rules
-  profile.ts        # User profile
+  settings.ts       # Currency, rollover rules, split defaults
+  profile.ts        # User profile, league, score
   achievements.ts   # Achievement unlock logic
   avatar.ts         # Avatar configuration
 
 lib/
   money.ts          # Parse and format cents ↔ display strings
   date.ts           # Date formatting and month key utilities
-  grade.ts          # A–F budget grade calculation
+  grade.ts          # A+–F budget grade + per-bucket explanation
   coins.ts          # CoinGecko coin search
   expenseClassifier.ts  # Suggest Must vs Want for new expenses
 
@@ -97,16 +124,60 @@ theme/
   colors.ts         # Single source of truth for the colour palette
 ```
 
-**Data model key points:**
-- All monetary values are stored as integer cents to avoid floating-point issues
-- Monthly budget state lives in the `months` table; expenses are tied to a `month_id`
-- Investments live independently in `savings_items`; value history is in `savings_updates`
-- App settings (currency, rollover targets, split defaults) are a single row in `app_settings`
+---
+
+## Data model
+
+- All monetary values are stored as **integer cents** to avoid floating-point issues.
+- Monthly budget state lives in the `months` table; expenses are tied to a `month_id`.
+- Investments live in `savings_items`; value snapshots are in `savings_updates`.
+- App settings (currency, rollover targets, split defaults) are a single row in `app_settings`.
+- All data is **local-only** — nothing leaves the device.
 
 ---
 
 ## Database migrations
 
-Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v14**. Each version gate is a separate `if` block that runs `ALTER TABLE` statements and bumps `PRAGMA user_version`.
+Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v14**. Each version gate runs `ALTER TABLE` statements and bumps `PRAGMA user_version`. Fresh installs skip straight to the full schema at v0 and set `user_version = 14`.
 
-Fresh installs skip straight to v0 (full schema creation) and set `user_version = 14`.
+---
+
+## Budget grading
+
+Each month earns a grade (A+ down to F) based on how well spending stayed within the Must and Want budgets, with a bonus for any Keep/Invest contribution.
+
+- **Must** overspending is penalised more heavily than Want overspending, because essential costs are less discretionary.
+- **Keep/Invest** activity adds a small bonus to the score.
+- Two consecutive A+ months earn an **S** grade.
+
+The Home screen shows the current grade alongside a 2–3 line plain-language explanation and one actionable improvement hint.
+
+---
+
+## Current status
+
+The app is in active personal development. Core budgeting flows are complete and stable.
+
+**Working now:**
+- Full monthly cycle (setup → track → close → rollover)
+- Expense add / edit / delete, including corrections to past months
+- Investment portfolio with value history and chart
+- Grading with explanation
+- Streaks, achievements, avatar, league progression
+- Multi-currency, rollover settings, onboarding
+
+**Possible future improvements:**
+- Recurring expenses (infrastructure exists via `is_recurring` column)
+- iCloud / local backup / export to CSV
+- Widgets (Expo Widget extension)
+- Notification reminders
+- Multi-hop rollover cascade for past-month corrections
+- App Store distribution
+
+---
+
+## Local data note
+
+BullBudget stores everything in an SQLite database on your device. There is no backend, no account, and no network calls except for CoinGecko crypto price lookups (optional, used only on the Savings tab).
+
+Uninstalling the app will erase all data. Back up your device regularly if this data matters to you.

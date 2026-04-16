@@ -21,10 +21,12 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
-# debug
+# debug / logs
 npm-debug.*
+npd-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
 # macOS
 .DS_Store
@@ -32,6 +34,7 @@ yarn-error.*
 
 # local env files
 .env
+.env.local
 .env*.local
 
 # SQLite database files (may contain personal financial data)
@@ -39,11 +42,14 @@ yarn-error.*
 *.db-shm
 *.db-wal
 
-# typescript
+# TypeScript build info
 *.tsbuildinfo
-
-app-example
 
 # generated native folders
 /ios
 /android
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
