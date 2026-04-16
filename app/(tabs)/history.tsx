@@ -160,9 +160,19 @@ export default function HistoryScreen() {
             ) : (
               <View style={styles.card}>
                 {group.expenses.map((item, idx) => (
-                  <View
+                  <Pressable
                     key={item.id}
-                    style={[styles.row, idx !== 0 && styles.rowBorder]}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/expense-edit' as any,
+                        params: { id: String(item.id) },
+                      })
+                    }
+                    style={({ pressed }) => [
+                      styles.row,
+                      idx !== 0 && styles.rowBorder,
+                      pressed && styles.rowPressed,
+                    ]}
                   >
                     <View
                       style={[
@@ -182,15 +192,18 @@ export default function HistoryScreen() {
                         {formatFriendlyDate(item.spent_on)}
                       </Text>
                     </View>
-                    <Text
-                      style={[
-                        styles.rowAmount,
-                        item.is_investment && styles.rowAmountInvest,
-                      ]}
-                    >
-                      {formatCentsToMoney(item.amount_cents, currency)}
-                    </Text>
-                  </View>
+                    <View style={styles.rowRight}>
+                      <Text
+                        style={[
+                          styles.rowAmount,
+                          item.is_investment && styles.rowAmountInvest,
+                        ]}
+                      >
+                        {formatCentsToMoney(item.amount_cents, currency)}
+                      </Text>
+                      <Ionicons name="chevron-forward" size={14} color={colors.border} />
+                    </View>
+                  </Pressable>
                 ))}
               </View>
             )}
@@ -330,6 +343,16 @@ const styles = StyleSheet.create({
   rowMeta: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+
+  rowPressed: {
+    opacity: 0.6,
+  },
+
+  rowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 
   rowAmount: {
