@@ -106,36 +106,58 @@ export function useInvestmentsDb() {
   const updateInvestment = useCallback(async function updateInvestment(input: UpdateInvestmentInput) {
     const now = new Date().toISOString();
 
-    await db.runAsync(
-      `
-      UPDATE savings_items
-      SET
-        name = ?,
-        category = ?,
-        asset_symbol = ?,
-        asset_coin_id = ?,
-        asset_quantity = ?,
-        opening_date = ?,
-        opening_amount_cents = ?,
-        current_value_cents = ?,
-        note = ?,
-        updated_at = ?
-      WHERE id = ?
-      `,
-      [
-        input.name.trim(),
-        input.category,
-        input.assetSymbol?.trim().toUpperCase() || null,
-        input.assetCoinId?.trim() || null,
-        input.assetQuantity ?? null,
-        input.openingDate,
-        input.openingAmountCents,
-        input.currentValueCents,
-        input.note?.trim() || null,
-        now,
-        input.id,
-      ]
-    );
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `
+        UPDATE savings_items
+        SET
+          name = ?,
+          category = ?,
+          asset_symbol = ?,
+          asset_coin_id = ?,
+          asset_quantity = ?,
+          opening_date = ?,
+          opening_amount_cents = ?,
+          current_value_cents = ?,
+          note = ?,
+          updated_at = ?
+        WHERE id = ?
+        `,
+        [
+          input.name.trim(),
+          input.category,
+          input.assetSymbol?.trim().toUpperCase() || null,
+          input.assetCoinId?.trim() || null,
+          input.assetQuantity ?? null,
+          input.openingDate,
+          input.openingAmountCents,
+          input.currentValueCents,
+          input.note?.trim() || null,
+          now,
+          input.id,
+        ]
+      );
+
+      // Keep the initial savings_updates row in sync so the chart
+      // reflects the updated opening date and opening amount.
+      await db.runAsync(
+        `
+        UPDATE savings_updates
+        SET
+          effective_date = ?,
+          value_cents     = ?,
+          amount_cents    = ?
+        WHERE saving_item_id = ?
+          AND type = 'initial'
+        `,
+        [
+          input.openingDate,
+          input.openingAmountCents,
+          input.openingAmountCents,
+          input.id,
+        ]
+      );
+    });
   }, [db]);
 
   const getInvestmentById = useCallback((id: number) => {
