@@ -188,9 +188,15 @@ export function useInvestmentDetailDb() {
         [currentValueCents, now, input.investmentId]
       );
 
+      // Remove any existing live-price entry for today before inserting a fresh one.
+      await db.runAsync(
+        `DELETE FROM savings_updates
+         WHERE saving_item_id = ? AND effective_date = ? AND type = 'value_update'`,
+        [input.investmentId, today]
+      );
       await db.runAsync(
         `
-        INSERT OR REPLACE INTO savings_updates (
+        INSERT INTO savings_updates (
           saving_item_id,
           effective_date,
           value_cents,

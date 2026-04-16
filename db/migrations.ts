@@ -6,7 +6,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   );
 
   const currentVersion = result?.user_version ?? 0;
-  const targetVersion = 14;
+  const targetVersion = 15;
 
   if (currentVersion >= targetVersion) {
     return;
@@ -122,9 +122,6 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       CREATE INDEX IF NOT EXISTS idx_savings_updates_item_id
         ON savings_updates(saving_item_id);
 
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_savings_updates_item_date
-        ON savings_updates(saving_item_id, effective_date);
-
       INSERT OR IGNORE INTO app_settings (
         id,
         onboarding_completed,
@@ -188,7 +185,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         VALUES (1, date('now'), date('now'), 1, 1);
     `);
 
-    await db.execAsync(`PRAGMA user_version = 14`);
+    await db.execAsync(`PRAGMA user_version = 15`);
     return;
   }
 
@@ -341,6 +338,15 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       ALTER TABLE savings_updates ADD COLUMN type TEXT NOT NULL DEFAULT 'value_update';
       ALTER TABLE savings_updates ADD COLUMN amount_cents INTEGER;
       PRAGMA user_version = 14;
+    `);
+  }
+
+  if (currentVersion === 14) {
+    // Allow multiple events on the same day (e.g. a purchase and a value update
+    // on the same calendar day). The unique constraint was too restrictive.
+    await db.execAsync(`
+      DROP INDEX IF EXISTS idx_savings_updates_item_date;
+      PRAGMA user_version = 15;
     `);
   }
 }

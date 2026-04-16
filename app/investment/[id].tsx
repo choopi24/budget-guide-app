@@ -256,20 +256,40 @@ export default function InvestmentDetailScreen() {
             </>
           )}
 
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/investment-update-new' as any,
-              params: { id: String(detail.id) },
-            })
-          }
-          style={({ pressed }) => [
-            styles.button,
-            pressed && styles.buttonPressed,
-          ]}
-        >
-          <Text style={styles.buttonText}>Log Value Entry</Text>
-        </Pressable>
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/investment-value-update' as any,
+                params: { id: String(detail.id) },
+              })
+            }
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <Text style={styles.actionButtonText}>Update value</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/investment-purchase' as any,
+                params: { id: String(detail.id) },
+              })
+            }
+            style={({ pressed }) => [
+              styles.actionButton,
+              styles.actionButtonSecondary,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>
+              Add purchase
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.sectionHeader}>
@@ -470,20 +490,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
   },
-  button: {
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
     marginTop: 16,
+  },
+  actionButton: {
+    flex: 1,
     height: 48,
     borderRadius: 14,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonPressed: { opacity: 0.9 },
-  buttonText: {
+  actionButtonSecondary: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  actionButtonText: {
     color: colors.white,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
+  actionButtonTextSecondary: {
+    color: colors.text,
+  },
+  buttonPressed: { opacity: 0.9 },
   sectionHeader: { marginBottom: 10 },
   sectionTitle: {
     fontSize: 20,
