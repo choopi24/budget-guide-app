@@ -306,11 +306,21 @@ export default function InvestmentDetailScreen() {
 
       <View style={styles.historyCard}>
         {updates.map((item, index) => (
-          <View
+          <Pressable
             key={item.id}
-            style={[
+            onPress={() =>
+              router.push({
+                pathname: '/investment-update-edit' as any,
+                params: {
+                  updateId:     String(item.id),
+                  investmentId: String(investmentId),
+                },
+              })
+            }
+            style={({ pressed }) => [
               styles.historyRow,
               index !== 0 && styles.historyRowBorder,
+              pressed && styles.historyRowPressed,
             ]}
           >
             <View style={{ flex: 1 }}>
@@ -335,7 +345,13 @@ export default function InvestmentDetailScreen() {
                 </Text>
               )}
             </View>
-          </View>
+            <Ionicons
+              name="chevron-forward"
+              size={14}
+              color={colors.border}
+              style={{ marginLeft: 6 }}
+            />
+          </Pressable>
         ))}
       </View>
     </AppScreen>
@@ -555,6 +571,9 @@ const styles = StyleSheet.create({
   historyRowBorder: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  historyRowPressed: {
+    opacity: 0.6,
   },
   historyTopLine: {
     flexDirection: 'row',

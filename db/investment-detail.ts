@@ -217,10 +217,106 @@ export function useInvestmentDetailDb() {
     };
   }, [db]);
 
+  /** Fetch a single savings_updates row by its id. */
+  const getInvestmentUpdate = useCallback((updateId: number) => {
+    return db.getFirstAsync<InvestmentUpdateRow>(
+      `SELECT id, effective_date, value_cents, type, amount_cents, note
+       FROM savings_updates WHERE id = ? LIMIT 1`,
+      [updateId]
+    );
+  }, [db]);
+
+  /**
+   * Edit an existing savings_updates row, then recalculate the parent
+   * investment's current_value_cents from the most recent remaining row.
+   * For 'initial' rows, also keeps savings_items.opening_date and
+   * opening_amount_cents in sync.
+   */
+  const editInvestmentUpdate = useCallback(async function editInvestmentUpdate(input: {
+    updateId: number;
+    investmentId: number;
+    type: InvestmentUpdateType;
+    effectiveDate: string;
+    valueCents: number;
+    amountCents: number | null;
+    note: string;
+  }) {
+    const now = new Date().toISOString();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `UPDATE savings_updates
+         SET effective_date = ?, value_cents = ?, amount_cents = ?, note = ?
+         WHERE id = ?`,
+        [
+          input.effectiveDate,
+          input.valueCents,
+          input.amountCents ?? null,
+          input.note.trim() || null,
+          input.updateId,
+        ]
+      );
+
+      // Recalculate current value from the latest remaining row.
+      await db.runAsync(
+        `UPDATE savings_items
+         SET current_value_cents = (
+           SELECT value_cents FROM savings_updates
+           WHERE saving_item_id = ?
+           ORDER BY effective_date DESC, id DESC
+           LIMIT 1
+         ), updated_at = ?
+         WHERE id = ?`,
+        [input.investmentId, now, input.investmentId]
+      );
+
+      // Keep opening metadata in sync when the initial row is edited.
+      if (input.type === 'initial') {
+        await db.runAsync(
+          `UPDATE savings_items
+           SET opening_date = ?, opening_amount_cents = ?, updated_at = ?
+           WHERE id = ?`,
+          [input.effectiveDate, input.valueCents, now, input.investmentId]
+        );
+      }
+    });
+  }, [db]);
+
+  /**
+   * Delete a savings_updates row, then recalculate current_value_cents.
+   * Falls back to opening_amount_cents if no updates remain.
+   */
+  const deleteInvestmentUpdate = useCallback(async function deleteInvestmentUpdate(input: {
+    updateId: number;
+    investmentId: number;
+  }) {
+    const now = new Date().toISOString();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `DELETE FROM savings_updates WHERE id = ?`,
+        [input.updateId]
+      );
+      await db.runAsync(
+        `UPDATE savings_items
+         SET current_value_cents = COALESCE(
+           (SELECT value_cents FROM savings_updates
+            WHERE saving_item_id = ?
+            ORDER BY effective_date DESC, id DESC
+            LIMIT 1),
+           opening_amount_cents
+         ), updated_at = ?
+         WHERE id = ?`,
+        [input.investmentId, now, input.investmentId]
+      );
+    });
+  }, [db]);
+
   return {
     getInvestmentDetail,
     getInvestmentUpdates,
+    getInvestmentUpdate,
     addInvestmentUpdate,
+    editInvestmentUpdate,
+    deleteInvestmentUpdate,
     deleteInvestment,
     refreshCryptoCurrentValue,
   };
