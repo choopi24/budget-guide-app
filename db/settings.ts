@@ -3,12 +3,14 @@ import { useSQLiteContext } from 'expo-sqlite';
 
 export type SupportedCurrency = 'ILS' | 'USD' | 'EUR';
 
-export type RolloverTarget = 'invest' | 'discard';
-export type WantRolloverTarget = 'want' | 'discard';
+export type RolloverTarget = 'invest' | 'want' | 'must';
+export type WantRolloverTarget = 'invest' | 'want' | 'must';
+export type InvestRolloverTarget = 'invest' | 'want' | 'must';
 
 export type RolloverSettings = {
-  mustRolloverTarget: RolloverTarget;
-  wantRolloverTarget: WantRolloverTarget;
+  mustRolloverTarget:   RolloverTarget;
+  wantRolloverTarget:   WantRolloverTarget;
+  investRolloverTarget: InvestRolloverTarget;
 };
 
 export type AppBootState = {
@@ -115,12 +117,21 @@ export function useSettingsDb() {
 
   const getRolloverSettings = useCallback(async function getRolloverSettings(): Promise<RolloverSettings> {
     const result = await db.getFirstAsync<{
-      must_rollover_target: string;
-      want_rollover_target: string;
-    }>(`SELECT must_rollover_target, want_rollover_target FROM app_settings WHERE id = 1`);
+      must_rollover_target:   string;
+      want_rollover_target:   string;
+      invest_rollover_target: string;
+    }>(`SELECT must_rollover_target, want_rollover_target, invest_rollover_target FROM app_settings WHERE id = 1`);
+
+    const VALID: RolloverTarget[] = ['invest', 'want', 'must'];
+    function normalize(val: string | undefined | null, fallback: RolloverTarget): RolloverTarget {
+      const v = val === 'keep' ? 'invest' : val;
+      return (VALID.includes(v as RolloverTarget) ? v : fallback) as RolloverTarget;
+    }
+
     return {
-      mustRolloverTarget: (result?.must_rollover_target ?? 'invest') as RolloverTarget,
-      wantRolloverTarget: (result?.want_rollover_target ?? 'want') as WantRolloverTarget,
+      mustRolloverTarget:   normalize(result?.must_rollover_target,   'invest'),
+      wantRolloverTarget:   normalize(result?.want_rollover_target,   'want'),
+      investRolloverTarget: normalize(result?.invest_rollover_target, 'invest'),
     };
   }, [db]);
 
@@ -131,6 +142,9 @@ export function useSettingsDb() {
     }
     if (input.wantRolloverTarget !== undefined) {
       await db.runAsync(`UPDATE app_settings SET want_rollover_target = ?, updated_at = ? WHERE id = 1`, [input.wantRolloverTarget, now]);
+    }
+    if (input.investRolloverTarget !== undefined) {
+      await db.runAsync(`UPDATE app_settings SET invest_rollover_target = ?, updated_at = ? WHERE id = 1`, [input.investRolloverTarget, now]);
     }
   }, [db]);
 

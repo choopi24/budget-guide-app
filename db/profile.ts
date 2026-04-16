@@ -30,11 +30,11 @@ export const GRADE_SCORE: Record<BudgetGrade, number> = {
   F: 5,
 };
 
-export function getLeague(avgScore: number): League {
-  if (avgScore >= 90) return 'Apex';
-  if (avgScore >= 75) return 'Gold';
-  if (avgScore >= 58) return 'Silver';
-  if (avgScore >= 38) return 'Bronze';
+export function getLeague(avgScore: number, monthCount: number): League {
+  if (avgScore >= 90 && monthCount >= 12) return 'Apex';
+  if (avgScore >= 77 && monthCount >= 8)  return 'Gold';
+  if (avgScore >= 62 && monthCount >= 4)  return 'Silver';
+  if (avgScore >= 42 && monthCount >= 2)  return 'Bronze';
   return 'Iron';
 }
 
@@ -74,11 +74,13 @@ export const LEAGUE_META: Record<
   },
 };
 
-export function getNextLeagueThreshold(league: League): number | null {
-  if (league === 'Iron') return 38;
-  if (league === 'Bronze') return 58;
-  if (league === 'Silver') return 75;
-  if (league === 'Gold') return 90;
+export type NextLeagueRequirements = { score: number; months: number };
+
+export function getNextLeagueRequirements(league: League): NextLeagueRequirements | null {
+  if (league === 'Iron')   return { score: 42, months: 2 };
+  if (league === 'Bronze') return { score: 62, months: 4 };
+  if (league === 'Silver') return { score: 77, months: 8 };
+  if (league === 'Gold')   return { score: 90, months: 12 };
   return null; // Apex — top
 }
 

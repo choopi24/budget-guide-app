@@ -113,7 +113,7 @@ const PLACEHOLDER_TOPICS: Record<Category, { icon: string; label: string }[]> = 
 const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     padding: 24,
     marginBottom: 16,
     shadowColor: colors.text,

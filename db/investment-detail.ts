@@ -15,10 +15,14 @@ export type InvestmentDetail = {
   note: string | null;
 };
 
+export type InvestmentUpdateType = 'initial' | 'buy' | 'sell' | 'value_update';
+
 export type InvestmentUpdateRow = {
   id: number;
   effective_date: string;
   value_cents: number;
+  type: InvestmentUpdateType;
+  amount_cents: number | null;
   note: string | null;
 };
 
@@ -60,6 +64,8 @@ export function useInvestmentDetailDb() {
         id,
         effective_date,
         value_cents,
+        type,
+        amount_cents,
         note
       FROM savings_updates
       WHERE saving_item_id = ?
@@ -73,6 +79,8 @@ export function useInvestmentDetailDb() {
     investmentId: number;
     effectiveDate: string;
     valueCents: number;
+    type?: InvestmentUpdateType;
+    amountCents?: number | null;
     note?: string;
     quantityDelta?: number | null;
   }) {
@@ -95,15 +103,19 @@ export function useInvestmentDetailDb() {
           saving_item_id,
           effective_date,
           value_cents,
+          type,
+          amount_cents,
           note,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           input.investmentId,
           input.effectiveDate,
           input.valueCents,
+          input.type ?? 'value_update',
+          input.amountCents ?? null,
           input.note?.trim() || null,
           now,
         ]
@@ -182,12 +194,14 @@ export function useInvestmentDetailDb() {
           saving_item_id,
           effective_date,
           value_cents,
+          type,
+          amount_cents,
           note,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
-        [input.investmentId, today, currentValueCents, 'Live price refresh', now]
+        [input.investmentId, today, currentValueCents, 'value_update', null, 'Live price refresh', now]
       );
     });
 

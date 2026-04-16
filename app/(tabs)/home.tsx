@@ -1,9 +1,11 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
 import { useHomeDb, type HomeData } from '../../db/home';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
+import { getMonthLabelFromKey } from '../../lib/date';
 import { computeBudgetGrade, GRADE_COLOR, type BudgetGrade } from '../../lib/grade';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
@@ -48,15 +50,28 @@ export default function HomeScreen() {
     }, [load])
   );
 
+  // ── Empty state ──────────────────────────────────────────────────────────────
   if (!month) {
     return (
       <AppScreen scroll>
+        <View style={styles.pageHeader}>
+          <Text style={styles.eyebrow}>Dashboard</Text>
+          <Text style={styles.pageTitle}>Budget</Text>
+        </View>
         <View style={styles.emptyCard}>
-          <Text style={styles.eyebrow}>Budget</Text>
-          <Text style={styles.pageTitle}>No active month yet</Text>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name="calendar-outline" size={28} color={colors.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>No active month</Text>
           <Text style={styles.emptyText}>
-            Start your month setup to unlock the dashboard.
+            Set up this month to unlock your budget dashboard and start tracking.
           </Text>
+          <Pressable
+            onPress={() => router.push('/month-setup' as any)}
+            style={({ pressed }) => [styles.emptyBtn, pressed && styles.emptyBtnPressed]}
+          >
+            <Text style={styles.emptyBtnText}>Set up this month</Text>
+          </Pressable>
         </View>
       </AppScreen>
     );
@@ -87,17 +102,18 @@ export default function HomeScreen() {
   ];
 
   const totalSpent = month.must_spent_cents + month.want_spent_cents;
-  const totalPlanned =
-    month.must_budget_cents + month.want_budget_cents + month.keep_budget_cents;
+  const spendBudget = month.must_budget_cents + month.want_budget_cents;
+  const spendLeft = spendBudget - totalSpent;
 
   return (
     <View style={{ flex: 1 }}>
       <AppScreen scroll>
-        {/* Hero */}
+
+        {/* ── Hero card ── */}
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View>
-              <Text style={styles.eyebrow}>This month</Text>
+              <Text style={styles.eyebrow}>{getMonthLabelFromKey(month.month_key)}</Text>
               <Text style={styles.pageTitle}>Budget</Text>
             </View>
             <View style={styles.heroTopRight}>
@@ -106,7 +122,10 @@ export default function HomeScreen() {
                   <Text style={[styles.gradeText, { color: GRADE_COLOR[grade] }]}>{grade}</Text>
                 </View>
               )}
-              <Pressable onPress={() => router.push('/expenses' as any)} style={styles.viewAllButton}>
+              <Pressable
+                onPress={() => router.push('/expenses' as any)}
+                style={({ pressed }) => [styles.viewAllButton, pressed && { opacity: 0.75 }]}
+              >
                 <Text style={styles.viewAllText}>All expenses</Text>
               </Pressable>
             </View>
@@ -128,22 +147,22 @@ export default function HomeScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Budgeted</Text>
-              <Text style={styles.statValue}>
-                {formatCentsToMoney(totalPlanned, currency)}
+              <Text style={styles.statLabel}>Left</Text>
+              <Text style={[styles.statValue, spendLeft < 0 && { color: colors.danger }]}>
+                {formatCentsToMoney(Math.abs(spendLeft), currency)}
               </Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Invest</Text>
+              <Text style={styles.statLabel}>Invested</Text>
               <Text style={styles.statValue}>
-                {formatCentsToMoney(month.keep_budget_cents, currency)}
+                {formatCentsToMoney(month.invest_spent_cents, currency)}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Breakdown */}
+        {/* ── Breakdown ── */}
         <Text style={styles.sectionTitle}>Breakdown</Text>
 
         {rows.map((row) => {
@@ -185,22 +204,29 @@ export default function HomeScreen() {
         })}
       </AppScreen>
 
+      {/* ── FAB ── */}
       <Pressable
         onPress={() => router.push('/expense-new' as any)}
         style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  pageHeader: {
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+
+  // ── Hero ──────────────────────────────────────────────────────────────
   heroCard: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
-    padding: 24,
-    marginBottom: 24,
+    borderRadius: 24,
+    padding: 22,
+    marginBottom: 20,
     shadowColor: colors.text,
     shadowOpacity: 0.07,
     shadowRadius: 20,
@@ -211,7 +237,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   eyebrow: {
     fontSize: 11,
@@ -223,7 +249,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: 32,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.5,
   },
@@ -250,12 +276,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gradeText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   heroAmount: {
-    fontSize: 42,
+    fontSize: 40,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -1,
@@ -292,17 +318,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
   },
+
+  // ── Breakdown ─────────────────────────────────────────────────────────
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 12,
+    marginBottom: 10,
     marginLeft: 4,
   },
   rowCard: {
@@ -312,8 +340,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     shadowColor: colors.text,
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   rowTop: {
@@ -326,6 +354,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 999,
+    flexShrink: 0,
   },
   rowTitle: {
     fontSize: 16,
@@ -360,46 +389,80 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
   },
-  fab: {
-    position: 'absolute',
-    right: 22,
-    bottom: 28,
-    width: 54,
-    height: 54,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  fabPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.96 }],
-  },
-  fabText: {
-    color: colors.white,
-    fontSize: 28,
-    fontWeight: '400',
-    lineHeight: 32,
-  },
+
+  // ── Empty state ───────────────────────────────────────────────────────
   emptyCard: {
     backgroundColor: colors.surface,
     borderRadius: 24,
-    padding: 24,
+    padding: 28,
+    alignItems: 'center',
     shadowColor: colors.text,
     shadowOpacity: 0.06,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
   emptyText: {
-    marginTop: 8,
     fontSize: 15,
     lineHeight: 22,
     color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyBtn: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  emptyBtnPressed: { opacity: 0.88 },
+  emptyBtnText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  // ── FAB ──────────────────────────────────────────────────────────────
+  fab: {
+    position: 'absolute',
+    right: 22,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
+  fabPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.96 }],
   },
 });

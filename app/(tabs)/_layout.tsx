@@ -23,13 +23,13 @@ function TabIcon({
       style={{
         alignItems: 'center',
         justifyContent: 'center',
-        width: 44,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: focused ? colors.mustSoft : 'transparent',
+        width: 46,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: focused ? colors.primary + '14' : 'transparent',
       }}
     >
-      <Ionicons name={focused ? focusedName : name} size={size} color={color} />
+      <Ionicons name={focused ? focusedName : name} size={22} color={color} />
     </View>
   );
 }
@@ -44,22 +44,24 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopWidth: 0,
-          shadowColor: colors.text,
-          shadowOpacity: 0.08,
-          shadowRadius: 20,
-          shadowOffset: { width: 0, height: -4 },
-          elevation: 12,
-          height: 84,
-          paddingTop: 10,
-          paddingBottom: 12,
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: -2 },
+          elevation: 10,
+          height: 82,
+          paddingTop: 8,
+          paddingBottom: 14,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
-          letterSpacing: 0.2,
+          letterSpacing: 0.1,
+          marginTop: 2,
         },
       }}
     >
+      {/* 1 — Home */}
       <Tabs.Screen
         name="home"
         options={{
@@ -69,15 +71,8 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="savings"
-        options={{
-          title: 'Invest',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name="stats-chart-outline" focusedName="stats-chart" color={color} size={size} focused={focused} />
-          ),
-        }}
-      />
+
+      {/* 2 — History */}
       <Tabs.Screen
         name="history"
         options={{
@@ -87,6 +82,19 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      {/* 3 — Invest */}
+      <Tabs.Screen
+        name="savings"
+        options={{
+          title: 'Invest',
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="stats-chart-outline" focusedName="stats-chart" color={color} size={size} focused={focused} />
+          ),
+        }}
+      />
+
+      {/* 4 — Profile */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -96,21 +104,26 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="tips"
-        options={{
-          title: 'Tips',
-          tabBarIcon: ({ color, size, focused }) => (
-            <TabIcon name="bulb-outline" focusedName="bulb" color={color} size={size} focused={focused} />
-          ),
-        }}
-      />
+
+      {/* 5 — Settings */}
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon name="settings-outline" focusedName="settings" color={color} size={size} focused={focused} />
+          ),
+        }}
+      />
+
+      {/* Tips — hidden from tab bar, route still accessible */}
+      <Tabs.Screen
+        name="tips"
+        options={{
+          title: 'Tips',
+          tabBarItemStyle: { display: 'none' },
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon name="bulb-outline" focusedName="bulb" color={color} size={size} focused={focused} />
           ),
         }}
       />

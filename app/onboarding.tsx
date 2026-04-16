@@ -155,15 +155,15 @@ export default function OnboardingScreen() {
           <View style={welcome.copyBlock}>
             <Text style={welcome.headline}>Your income,{'\n'}working for you.</Text>
             <Text style={welcome.subline}>
-              A focused tool for people who want full clarity over where their money goes — and where it grows.
+              Know exactly where your money goes — and make sure some of it grows.
             </Text>
           </View>
 
           {/* Value props */}
           <View style={welcome.propsBlock}>
-            <ValueProp icon="↗" label="Track every spend in seconds" />
-            <ValueProp icon="◎" label="Allocate Must, Want, and Invest each month" />
-            <ValueProp icon="◆" label="Build savings and investments consistently" />
+            <ValueProp icon="↗" label="Log an expense in under 10 seconds" />
+            <ValueProp icon="◎" label="Split your income into Must, Want & Invest — once" />
+            <ValueProp icon="◆" label="Track every investment and see your net worth grow" />
           </View>
 
           {/* CTA */}
@@ -209,7 +209,7 @@ export default function OnboardingScreen() {
               <Text style={s.stepEyebrow}>Step 1 of 3</Text>
               <Text style={s.stepTitle}>A bit about you</Text>
               <Text style={s.stepBody}>
-                Optional, but used to personalise the experience.
+                Optional. Used to personalise your dashboard and greet you by name.
               </Text>
 
               <FieldRow label="Nickname">
@@ -272,7 +272,7 @@ export default function OnboardingScreen() {
               <Text style={s.stepEyebrow}>Step 2 of 3</Text>
               <Text style={s.stepTitle}>Your budget split</Text>
               <Text style={s.stepBody}>
-                Choose how to divide each month's income between essentials, lifestyle, and the future.
+                Decide once how to divide your income. Every month, your budget builds itself from this rule.
               </Text>
 
               {/* Preset cards */}
@@ -356,7 +356,7 @@ export default function OnboardingScreen() {
               <Text style={s.stepEyebrow}>Step 3 of 3</Text>
               <Text style={s.stepTitle}>This month's income</Text>
               <Text style={s.stepBody}>
-                Enter your net take-home income for the current month. This sets your budget for right now.
+                Your net take-home pay. This sets your Must, Want, and Invest budgets for the month.
               </Text>
 
               <FieldRow label="Net income">
@@ -581,15 +581,15 @@ const welcome = StyleSheet.create({
     gap: 14,
   },
   primaryBtn: {
-    height: 56,
+    height: 52,
     borderRadius: 999,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
   primaryBtnPressed: {
@@ -636,7 +636,7 @@ const s = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 24,
@@ -793,7 +793,7 @@ const s = StyleSheet.create({
   // Buttons
   btn: {
     marginTop: 28,
-    height: 54,
+    height: 52,
     borderRadius: 999,
     backgroundColor: colors.primary,
     alignItems: 'center',

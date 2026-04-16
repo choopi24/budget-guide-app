@@ -1,16 +1,14 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { DatePickerField } from './DatePickerField';
 import { type InvestmentCategory } from '../db/investments';
 import type { SupportedCurrency } from '../db/settings';
-import { formatDateDisplay } from '../lib/date';
 import { parseMoneyToCents } from '../lib/money';
 import { searchCoins, type CoinOption } from '../lib/coins';
 import { colors } from '../theme/colors';
@@ -68,6 +66,7 @@ type Props = {
   currency?: SupportedCurrency;
   initialData?: InvestmentFormInitialData;
   onSave: (values: InvestmentFormValues) => void;
+  onCancel?: () => void;
 };
 
 export function InvestmentForm({
@@ -80,6 +79,7 @@ export function InvestmentForm({
   currency = 'ILS',
   initialData,
   onSave,
+  onCancel,
 }: Props) {
   const [name, setName] = useState(initialData?.name ?? '');
   const [category, setCategory] = useState<InvestmentCategory>(
@@ -99,7 +99,6 @@ export function InvestmentForm({
 
   const [isNew, setIsNew] = useState(true);
   const [openingDate, setOpeningDate] = useState(initialData?.openingDate ?? new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [openingAmount, setOpeningAmount] = useState(initialData?.openingAmount ?? '');
   const [currentValue, setCurrentValue] = useState(initialData?.currentValue ?? '');
   const [note, setNote] = useState(initialData?.note ?? '');
@@ -170,9 +169,11 @@ export function InvestmentForm({
   const isRealEstate = category === 'Real Estate';
 
   // For new investments: current value = opening amount, date = today
-  const isNewFlow = showIsNew && isNew;
+  const isNewFlow  = showIsNew && isNew;
+  // "Already had it" — single "Value" field, no separate opening/current split
+  const alreadyHad = showIsNew && !isNew;
   const needsQuantity = isMarketAsset && !(isCrypto && isNewFlow);
-  const needsCurrentValue = !isNewFlow;
+  const needsCurrentValue = !isNewFlow && !alreadyHad;
   const showDatePicker_ = !isNewFlow;
 
   const canSave =
@@ -225,7 +226,7 @@ export function InvestmentForm({
       isNew,
       openingDate: isNewFlow ? new Date().toISOString() : openingDate.toISOString(),
       openingAmountCents,
-      currentValueCents: isNewFlow ? openingAmountCents : currentValueCents,
+      currentValueCents: (isNewFlow || alreadyHad) ? openingAmountCents : currentValueCents,
       note,
       isMarketAsset,
       isCrypto,
@@ -233,6 +234,67 @@ export function InvestmentForm({
   }
 
   function renderTypeQuestions() {
+    // "Already had it" — all categories: show coin picker (crypto only) + single Value field
+    if (alreadyHad) {
+      return (
+        <>
+          {isCrypto && (
+            <>
+              <View style={styles.field}>
+                <Text style={styles.label}>Which coin is it?</Text>
+                <View style={styles.searchRow}>
+                  <TextInput
+                    value={coinQuery}
+                    onChangeText={handleCoinSearch}
+                    placeholder="Bitcoin, ETH, Solana..."
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.input, styles.searchInput]}
+                  />
+                </View>
+              </View>
+              {coinResults.length > 0 && (
+                <View style={styles.resultsCard}>
+                  {coinResults.map((item) => (
+                    <Pressable key={item.id} onPress={() => selectCoin(item)} style={styles.resultRow}>
+                      <Text style={styles.resultName}>{item.name}</Text>
+                      <Text style={styles.resultMeta}>{item.symbol} · {item.id}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              {!!assetCoinId && (
+                <View style={styles.selectedPill}>
+                  <Text style={styles.selectedPillText}>{assetSymbol} · {assetCoinId}</Text>
+                </View>
+              )}
+              <View style={styles.field}>
+                <Text style={styles.label}>How much do you hold?</Text>
+                <TextInput
+                  value={assetQuantity}
+                  onChangeText={setAssetQuantity}
+                  placeholder="0.5"
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.input}
+                />
+              </View>
+            </>
+          )}
+          <View style={styles.field}>
+            <Text style={styles.label}>Value ({currencyLabel})</Text>
+            <TextInput
+              value={openingAmount}
+              onChangeText={setOpeningAmount}
+              placeholder="5000"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="decimal-pad"
+              style={styles.input}
+            />
+          </View>
+        </>
+      );
+    }
+
     if (isCrypto) {
       return (
         <>
@@ -509,6 +571,17 @@ export function InvestmentForm({
 
   return (
     <View style={styles.card}>
+      {/* Close button */}
+      {!!onCancel && (
+        <Pressable
+          onPress={onCancel}
+          hitSlop={12}
+          style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
+        >
+          <Text style={styles.closeBtnText}>✕</Text>
+        </Pressable>
+      )}
+
       <Text style={styles.eyebrow}>{eyebrow}</Text>
       <Text style={styles.title}>{title}</Text>
       {!!subtitle && <Text style={styles.body}>{subtitle}</Text>}
@@ -576,37 +649,7 @@ export function InvestmentForm({
       {showDatePicker_ && (
         <View style={styles.field}>
           <Text style={styles.label}>When did you first open / buy it?</Text>
-          <Pressable
-            onPress={() => setShowDatePicker(true)}
-            style={styles.inputButton}
-          >
-            <Text style={styles.inputButtonText}>
-              {formatDateDisplay(openingDate.toISOString())}
-            </Text>
-          </Pressable>
-
-          {showDatePicker && (
-            <View style={Platform.OS === 'ios' ? styles.pickerContainer : undefined}>
-              <DateTimePicker
-                value={openingDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                textColor={colors.text}
-                maximumDate={new Date()}
-                onChange={(_, selectedDate) => {
-                  if (Platform.OS !== 'ios') setShowDatePicker(false);
-                  if (selectedDate) setOpeningDate(selectedDate);
-                }}
-              />
-              {Platform.OS === 'ios' && (
-                <View style={styles.inlinePickerFooter}>
-                  <Pressable onPress={() => setShowDatePicker(false)} style={styles.smallButton}>
-                    <Text style={styles.smallButtonText}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          )}
+          <DatePickerField value={openingDate} onChange={setOpeningDate} />
         </View>
       )}
 
@@ -642,7 +685,7 @@ export function InvestmentForm({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     padding: 24,
     shadowColor: colors.text,
     shadowOpacity: 0.07,
@@ -726,35 +769,6 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     textAlignVertical: 'top',
   },
-  inputButton: {
-    minHeight: 52,
-    borderRadius: 14,
-    backgroundColor: colors.background,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-  },
-  inputButtonText: { fontSize: 16, color: colors.text },
-  pickerContainer: {
-    marginTop: 8,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  inlinePickerFooter: {
-    alignItems: 'flex-end',
-    padding: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  smallButton: {
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  smallButtonText: { color: colors.text, fontWeight: '600', fontSize: 14 },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     borderRadius: 999,
@@ -788,4 +802,22 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.88 },
   buttonDisabled: { backgroundColor: colors.buttonDisabled },
   buttonText: { color: colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  closeBtn: {
+    position: 'absolute',
+    top: 18,
+    right: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  closeBtnText: {
+    fontSize: 15,
+    color: colors.textMuted,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
 });

@@ -12,8 +12,53 @@ export type ExpenseHistoryItem = {
   is_investment: number;
 };
 
+export type AllExpensesItem = {
+  id: number;
+  month_id: number;
+  title: string;
+  amount_cents: number;
+  spent_on: string;
+  note: string | null;
+  final_bucket: 'must' | 'want';
+  is_investment: number;
+  month_key: string;
+};
+
+export type ClosedMonth = {
+  id: number;
+  month_key: string;
+};
+
 export function useExpenseHistoryDb() {
   const db = useSQLiteContext();
+
+  const getAllExpenses = useCallback(() => {
+    return db.getAllAsync<AllExpensesItem>(`
+      SELECT
+        e.id,
+        e.month_id,
+        e.title,
+        e.amount_cents,
+        e.spent_on,
+        e.note,
+        e.final_bucket,
+        e.is_investment,
+        m.month_key
+      FROM expenses e
+      INNER JOIN months m ON m.id = e.month_id
+      ORDER BY m.month_key DESC, e.spent_on DESC, e.id DESC
+    `);
+  }, [db]);
+
+  /** Returns all closed (not active) months, newest first. */
+  const getClosedMonths = useCallback(() => {
+    return db.getAllAsync<ClosedMonth>(`
+      SELECT id, month_key
+      FROM months
+      WHERE status = 'closed'
+      ORDER BY month_key DESC
+    `);
+  }, [db]);
 
   const getActiveMonthExpenses = useCallback(() => {
     return db.getAllAsync<ExpenseHistoryItem>(`
@@ -170,6 +215,8 @@ export function useExpenseHistoryDb() {
   }, [db, getExpenseById]);
 
   return {
+    getAllExpenses,
+    getClosedMonths,
     getActiveMonthExpenses,
     getExpenseById,
     updateExpense,

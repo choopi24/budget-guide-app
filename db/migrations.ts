@@ -6,7 +6,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   );
 
   const currentVersion = result?.user_version ?? 0;
-  const targetVersion = 12;
+  const targetVersion = 14;
 
   if (currentVersion >= targetVersion) {
     return;
@@ -24,8 +24,9 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         default_want_pct REAL NOT NULL DEFAULT 20,
         default_keep_pct REAL NOT NULL DEFAULT 30,
         currency TEXT NOT NULL DEFAULT 'ILS',
-        must_rollover_target TEXT NOT NULL DEFAULT 'invest',
-        want_rollover_target TEXT NOT NULL DEFAULT 'want',
+        must_rollover_target   TEXT NOT NULL DEFAULT 'invest',
+        want_rollover_target   TEXT NOT NULL DEFAULT 'want',
+        invest_rollover_target TEXT NOT NULL DEFAULT 'invest',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -52,8 +53,9 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         must_budget_cents INTEGER NOT NULL,
         want_budget_cents INTEGER NOT NULL,
         keep_budget_cents INTEGER NOT NULL,
-        want_rollover_cents INTEGER NOT NULL DEFAULT 0,
-        keep_rollover_cents INTEGER NOT NULL DEFAULT 0,
+        want_rollover_cents  INTEGER NOT NULL DEFAULT 0,
+        keep_rollover_cents  INTEGER NOT NULL DEFAULT 0,
+        must_rollover_cents  INTEGER NOT NULL DEFAULT 0,
         must_spent_cents INTEGER NOT NULL DEFAULT 0,
         want_spent_cents INTEGER NOT NULL DEFAULT 0,
         invest_spent_cents INTEGER NOT NULL DEFAULT 0,
@@ -101,6 +103,8 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         saving_item_id INTEGER NOT NULL,
         effective_date TEXT NOT NULL,
         value_cents INTEGER NOT NULL,
+        type TEXT NOT NULL DEFAULT 'value_update',
+        amount_cents INTEGER,
         note TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY (saving_item_id) REFERENCES savings_items(id) ON DELETE CASCADE
@@ -184,7 +188,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         VALUES (1, date('now'), date('now'), 1, 1);
     `);
 
-    await db.execAsync(`PRAGMA user_version = 11`);
+    await db.execAsync(`PRAGMA user_version = 14`);
     return;
   }
 
@@ -321,6 +325,22 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     await db.execAsync(`
       ALTER TABLE avatar_config ADD COLUMN eye_shape TEXT NOT NULL DEFAULT 'default';
       PRAGMA user_version = 12;
+    `);
+  }
+
+  if (currentVersion === 12) {
+    await db.execAsync(`
+      ALTER TABLE app_settings ADD COLUMN invest_rollover_target TEXT NOT NULL DEFAULT 'invest';
+      ALTER TABLE months ADD COLUMN must_rollover_cents INTEGER NOT NULL DEFAULT 0;
+      PRAGMA user_version = 13;
+    `);
+  }
+
+  if (currentVersion === 13) {
+    await db.execAsync(`
+      ALTER TABLE savings_updates ADD COLUMN type TEXT NOT NULL DEFAULT 'value_update';
+      ALTER TABLE savings_updates ADD COLUMN amount_cents INTEGER;
+      PRAGMA user_version = 14;
     `);
   }
 }

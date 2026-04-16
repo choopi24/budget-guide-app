@@ -15,7 +15,7 @@ import {
   GRADE_SCORE,
   LEAGUE_META,
   getLeague,
-  getNextLeagueThreshold,
+  getNextLeagueRequirements,
   useProfileDb,
   type League,
   type MonthScoreRow,
@@ -102,18 +102,18 @@ export default function ProfileScreen() {
     return Math.round(total / months.length);
   }, [months]);
 
-  const league: League | null = avgScore !== null ? getLeague(avgScore) : null;
+  const totalMonths = months.length;
+
+  const league: League | null = avgScore !== null ? getLeague(avgScore, totalMonths) : null;
   const leagueMeta = league ? LEAGUE_META[league] : null;
-  const nextThreshold = league ? getNextLeagueThreshold(league) : null;
+  const nextReq = league ? getNextLeagueRequirements(league) : null;
 
   const progressToNext = useMemo(() => {
-    if (avgScore === null || nextThreshold === null) return 1;
-    const bounds: Record<League, number> = { Iron: 0, Bronze: 38, Silver: 58, Gold: 75, Apex: 90 };
+    if (avgScore === null || nextReq === null) return 1;
+    const bounds: Record<League, number> = { Iron: 0, Bronze: 42, Silver: 62, Gold: 77, Apex: 90 };
     const lower = league ? bounds[league] : 0;
-    return Math.min(1, (avgScore - lower) / (nextThreshold - lower));
-  }, [avgScore, nextThreshold, league]);
-
-  const totalMonths = months.length;
+    return Math.min(1, (avgScore - lower) / (nextReq.score - lower));
+  }, [avgScore, nextReq, league]);
 
   const gradeDistribution = useMemo(() => {
     const dist: Partial<Record<BudgetGrade, number>> = {};
@@ -228,30 +228,28 @@ export default function ProfileScreen() {
           <View style={styles.leagueStats}>
             <View style={styles.leagueStat}>
               <Text style={styles.leagueStatValue}>{avgScore}</Text>
-              <Text style={styles.leagueStatLabel}>Avg score</Text>
+              <Text style={styles.leagueStatLabel}>Avg</Text>
             </View>
             <View style={styles.leagueStatDivider} />
             <View style={styles.leagueStat}>
               <Text style={styles.leagueStatValue}>{totalMonths}</Text>
-              <Text style={styles.leagueStatLabel}>Months tracked</Text>
+              <Text style={styles.leagueStatLabel}>Months</Text>
             </View>
-            {bestGrade && (
-              <>
-                <View style={styles.leagueStatDivider} />
-                <View style={styles.leagueStat}>
-                  <Text style={[styles.leagueStatValue, { color: GRADE_COLOR[bestGrade] }]}>{bestGrade}</Text>
-                  <Text style={styles.leagueStatLabel}>Best grade</Text>
-                </View>
-              </>
-            )}
+            <View style={styles.leagueStatDivider} />
+            <View style={styles.leagueStat}>
+              <Text style={[styles.leagueStatValue, bestGrade ? { color: GRADE_COLOR[bestGrade] } : undefined]}>
+                {bestGrade ?? '—'}
+              </Text>
+              <Text style={styles.leagueStatLabel}>Best</Text>
+            </View>
           </View>
 
-          {nextThreshold !== null && (
+          {nextReq !== null && (
             <View style={styles.progressSection}>
               <View style={styles.progressLabelRow}>
                 <Text style={styles.progressLabel}>Progress to next league</Text>
                 <Text style={[styles.progressLabel, { color: leagueMeta.color }]}>
-                  {avgScore} / {nextThreshold}
+                  {avgScore} / {nextReq.score} pts · {totalMonths} / {nextReq.months} mo
                 </Text>
               </View>
               <View style={styles.progressTrack}>
@@ -265,7 +263,7 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {nextThreshold === null && (
+          {nextReq === null && (
             <View style={styles.apexBanner}>
               <Text style={[styles.apexBannerText, { color: leagueMeta.color }]}>
                 You've reached the top league
@@ -381,9 +379,9 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     padding: 20,
-    marginBottom: 14,
+    marginBottom: 12,
     shadowColor: colors.text,
     shadowOpacity: 0.07,
     shadowRadius: 20,
@@ -425,7 +423,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 999,
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
   },
   editProfileText: {
     fontSize: 13,
@@ -458,11 +456,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,
-    marginBottom: 14,
+    marginBottom: 12,
     gap: 14,
   },
   streakLeft: {
@@ -508,13 +506,13 @@ const styles = StyleSheet.create({
   // Empty
   emptyCard: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 22,
-    marginBottom: 14,
+    marginBottom: 12,
     shadowColor: colors.text,
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
@@ -522,7 +520,7 @@ const styles = StyleSheet.create({
   // League
   leagueCard: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1.5,
     padding: 22,
     marginBottom: 20,
@@ -553,7 +551,7 @@ const styles = StyleSheet.create({
   leagueBadgeText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginTop: 2 },
   leagueStats: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.background, borderRadius: 18,
+    backgroundColor: colors.background, borderRadius: 16,
     paddingVertical: 14, paddingHorizontal: 8, marginBottom: 18,
   },
   leagueStat: { flex: 1, alignItems: 'center' },
@@ -585,10 +583,10 @@ const styles = StyleSheet.create({
   },
   // Grade dist
   distCard: {
-    backgroundColor: colors.surface, borderRadius: 22, padding: 18,
+    backgroundColor: colors.surface, borderRadius: 20, padding: 18,
     marginBottom: 20, gap: 12,
     shadowColor: colors.text, shadowOpacity: 0.05,
-    shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 2,
+    shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   distDot: { width: 8, height: 8, borderRadius: 999 },
@@ -633,11 +631,11 @@ const styles = StyleSheet.create({
   },
   // Scoreboard
   scoreboardCard: {
-    backgroundColor: colors.surface, borderRadius: 24,
+    backgroundColor: colors.surface, borderRadius: 20,
     paddingHorizontal: 18, paddingVertical: 6,
     shadowColor: colors.text, shadowOpacity: 0.05,
-    shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 2,
-    marginBottom: 30,
+    shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    marginBottom: 32,
   },
   scoreRow: {
     flexDirection: 'row', alignItems: 'center',

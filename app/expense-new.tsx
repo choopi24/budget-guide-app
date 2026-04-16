@@ -1,8 +1,6 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -12,7 +10,6 @@ import {
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { useExpensesDb } from '../db/expenses';
-import { formatDateDisplay } from '../lib/date';
 import { detectExpenseBucket, ExpenseBucket } from '../lib/expenseClassifier';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
@@ -24,8 +21,6 @@ export default function NewExpenseScreen() {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [spentOn, setSpentOn] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [bucket, setBucket] = useState<ExpenseBucket>('want');
   const [saving, setSaving] = useState(false);
 
@@ -49,7 +44,7 @@ export default function NewExpenseScreen() {
       await addExpense({
         title,
         amountCents,
-        spentOn: spentOn.toISOString(),
+        spentOn: new Date().toISOString(),
         note,
         finalBucket: bucket,
         createInvestmentRecord: isInvestmentTransfer,
@@ -111,41 +106,6 @@ export default function NewExpenseScreen() {
             keyboardType="decimal-pad"
             style={styles.input}
           />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Date</Text>
-          <Pressable
-            onPress={() => setShowDatePicker(true)}
-            style={styles.inputButton}
-          >
-            <Text style={styles.inputButtonText}>
-              {formatDateDisplay(spentOn.toISOString())}
-            </Text>
-          </Pressable>
-
-          {showDatePicker && (
-            <View style={Platform.OS === 'ios' ? styles.pickerContainer : undefined}>
-              <DateTimePicker
-                value={spentOn}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                textColor={colors.text}
-                maximumDate={new Date()}
-                onChange={(_, selectedDate) => {
-                  if (Platform.OS !== 'ios') setShowDatePicker(false);
-                  if (selectedDate) setSpentOn(selectedDate);
-                }}
-              />
-              {Platform.OS === 'ios' && (
-                <View style={styles.inlinePickerFooter}>
-                  <Pressable onPress={() => setShowDatePicker(false)} style={styles.smallButton}>
-                    <Text style={styles.smallButtonText}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          )}
         </View>
 
         <View style={styles.switchRow}>
@@ -278,7 +238,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 24,
@@ -327,43 +287,6 @@ const styles = StyleSheet.create({
     minHeight: 96,
     paddingTop: 14,
     textAlignVertical: 'top',
-  },
-  inputButton: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-  },
-  inputButtonText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  pickerContainer: {
-    marginTop: 8,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  inlinePickerFooter: {
-    alignItems: 'flex-end',
-    padding: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  smallButton: {
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  smallButtonText: {
-    color: colors.text,
-    fontWeight: '600',
   },
   switchRow: {
     marginTop: 18,

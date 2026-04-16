@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import {
   InvestmentForm,
@@ -9,7 +8,6 @@ import {
 } from '../components/InvestmentForm';
 import { useInvestmentsDb } from '../db/investments';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
-import { colors } from '../theme/colors';
 
 export default function InvestmentNewScreen() {
   const router = useRouter();
@@ -69,12 +67,6 @@ export default function InvestmentNewScreen() {
 
   return (
     <AppScreen scroll>
-      <View style={styles.topBar}>
-        <Pressable onPress={() => router.replace('/(tabs)/home' as any)} hitSlop={10}>
-          <Text style={styles.cancelText}>{fromExpense ? 'Skip' : 'Cancel'}</Text>
-        </Pressable>
-      </View>
-
       <InvestmentForm
         eyebrow="New investment"
         title={fromExpense ? 'Log your investment' : 'Document an investment'}
@@ -89,12 +81,8 @@ export default function InvestmentNewScreen() {
         currency={currency}
         initialData={initialData}
         onSave={handleSave}
+        onCancel={() => router.replace('/(tabs)/home' as any)}
       />
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  topBar: { marginBottom: 10, alignItems: 'flex-end' },
-  cancelText: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
-});

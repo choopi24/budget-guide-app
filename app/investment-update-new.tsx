@@ -1,8 +1,6 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,8 +8,8 @@ import {
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
-import { useInvestmentDetailDb, type InvestmentDetail } from '../db/investment-detail';
-import { formatDateDisplay } from '../lib/date';
+import { DatePickerField } from '../components/DatePickerField';
+import { useInvestmentDetailDb, type InvestmentDetail, type InvestmentUpdateType } from '../db/investment-detail';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
 
@@ -31,7 +29,6 @@ export default function InvestmentUpdateNewScreen() {
   const [cryptoMode, setCryptoMode] = useState<CryptoUpdateMode>('buy');
 
   const [effectiveDate, setEffectiveDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -93,10 +90,17 @@ export default function InvestmentUpdateNewScreen() {
         finalValueCents = (detail?.current_value_cents ?? 0) + inputCents;
       }
 
+      const updateType: InvestmentUpdateType =
+        isCrypto && cryptoMode === 'sell' ? 'sell'
+        : isCrypto && cryptoMode === 'value' ? 'value_update'
+        : 'buy';
+
       await addInvestmentUpdate({
         investmentId,
         effectiveDate: effectiveDate.toISOString(),
         valueCents: finalValueCents,
+        type: updateType,
+        amountCents: updateType !== 'value_update' ? inputCents : null,
         note,
         quantityDelta: computedDelta,
       });
@@ -203,40 +207,8 @@ export default function InvestmentUpdateNewScreen() {
         )}
 
         <View style={styles.field}>
-          <Text style={styles.label}>
-            When did this happen?
-          </Text>
-          <Pressable
-            onPress={() => setShowDatePicker(true)}
-            style={styles.inputButton}
-          >
-            <Text style={styles.inputButtonText}>
-              {formatDateDisplay(effectiveDate.toISOString())}
-            </Text>
-          </Pressable>
-
-          {showDatePicker && (
-            <View style={Platform.OS === 'ios' ? styles.pickerContainer : undefined}>
-              <DateTimePicker
-                value={effectiveDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                textColor={colors.text}
-                maximumDate={new Date()}
-                onChange={(_, selectedDate) => {
-                  if (Platform.OS !== 'ios') setShowDatePicker(false);
-                  if (selectedDate) setEffectiveDate(selectedDate);
-                }}
-              />
-              {Platform.OS === 'ios' && (
-                <View style={styles.inlinePickerFooter}>
-                  <Pressable onPress={() => setShowDatePicker(false)} style={styles.smallButton}>
-                    <Text style={styles.smallButtonText}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          )}
+          <Text style={styles.label}>When did this happen?</Text>
+          <DatePickerField value={effectiveDate} onChange={setEffectiveDate} />
         </View>
 
         <View style={styles.field}>
@@ -303,7 +275,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 20,
@@ -349,43 +321,6 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     textAlignVertical: 'top',
   },
-  inputButton: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-  },
-  inputButtonText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  pickerContainer: {
-    marginTop: 8,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  inlinePickerFooter: {
-    alignItems: 'flex-end',
-    padding: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  smallButton: {
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  smallButtonText: {
-    color: colors.text,
-    fontWeight: '600',
-  },
   segmentRow: {
     flexDirection: 'row',
     gap: 10,
@@ -427,6 +362,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   buttonPressed: {
     opacity: 0.9,

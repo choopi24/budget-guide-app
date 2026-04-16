@@ -83,15 +83,19 @@ export function useInvestmentsDb() {
           saving_item_id,
           effective_date,
           value_cents,
+          type,
+          amount_cents,
           note,
           created_at
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           itemId,
           input.openingDate,
           input.currentValueCents,
+          'initial',
+          input.openingAmountCents,
           input.isNew ? 'Initial entry' : 'Imported existing investment',
           now,
         ]

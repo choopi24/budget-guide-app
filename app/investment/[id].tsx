@@ -1,13 +1,28 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
 import { InvestmentLineChart } from '../../components/InvestmentLineChart';
-import { useInvestmentDetailDb, type InvestmentDetail, type InvestmentUpdateRow } from '../../db/investment-detail';
+import { useInvestmentDetailDb, type InvestmentDetail, type InvestmentUpdateRow, type InvestmentUpdateType } from '../../db/investment-detail';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatDateDisplay, formatShortDate } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
+
+const TYPE_LABEL: Record<InvestmentUpdateType, string> = {
+  initial:      'Opened',
+  buy:          'Added',
+  sell:         'Withdrawn',
+  value_update: 'Updated',
+};
+
+const TYPE_COLOR: Record<InvestmentUpdateType, string> = {
+  initial:      colors.keep,
+  buy:          colors.must,
+  sell:         colors.danger,
+  value_update: colors.textMuted,
+};
 
 export default function InvestmentDetailScreen() {
   const router = useRouter();
@@ -127,10 +142,17 @@ export default function InvestmentDetailScreen() {
   return (
     <AppScreen scroll>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.backText}>Back</Text>
+        {/* Back */}
+        <Pressable
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
+          hitSlop={8}
+        >
+          <Ionicons name="chevron-back" size={18} color={colors.text} />
+          <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
 
+        {/* Edit + Delete */}
         <View style={styles.topActions}>
           <Pressable
             onPress={() =>
@@ -139,13 +161,19 @@ export default function InvestmentDetailScreen() {
                 params: { id: String(detail.id) },
               })
             }
-            hitSlop={10}
+            style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.7 }]}
+            hitSlop={8}
           >
-            <Text style={styles.editText}>Edit</Text>
+            <Ionicons name="create-outline" size={15} color={colors.primary} />
+            <Text style={styles.editBtnText}>Edit</Text>
           </Pressable>
 
-          <Pressable onPress={handleDeleteInvestment} hitSlop={10}>
-            <Text style={styles.deleteText}>Delete</Text>
+          <Pressable
+            onPress={handleDeleteInvestment}
+            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
+            hitSlop={8}
+          >
+            <Ionicons name="trash-outline" size={15} color={colors.danger} />
           </Pressable>
         </View>
       </View>
@@ -265,15 +293,28 @@ export default function InvestmentDetailScreen() {
               index !== 0 && styles.historyRowBorder,
             ]}
           >
-            <View>
-              <Text style={styles.historyDate}>
-                {formatDateDisplay(item.effective_date)}
-              </Text>
+            <View style={{ flex: 1 }}>
+              <View style={styles.historyTopLine}>
+                <Text style={styles.historyDate}>
+                  {formatDateDisplay(item.effective_date)}
+                </Text>
+                <Text style={[styles.historyTypeLabel, { color: TYPE_COLOR[item.type ?? 'value_update'] }]}>
+                  {TYPE_LABEL[item.type ?? 'value_update']}
+                </Text>
+              </View>
               {!!item.note && <Text style={styles.historyNote}>{item.note}</Text>}
             </View>
-            <Text style={styles.historyValue}>
-              {formatCentsToMoney(item.value_cents, currency)}
-            </Text>
+            <View style={styles.historyValueBlock}>
+              <Text style={styles.historyValue}>
+                {formatCentsToMoney(item.value_cents, currency)}
+              </Text>
+              {item.amount_cents != null && item.type !== 'initial' && (
+                <Text style={[styles.historyAmount, { color: item.type === 'sell' ? colors.danger : colors.primary }]}>
+                  {item.type === 'sell' ? '−' : '+'}
+                  {formatCentsToMoney(item.amount_cents, currency)}
+                </Text>
+              )}
+            </View>
           </View>
         ))}
       </View>
@@ -284,33 +325,66 @@ export default function InvestmentDetailScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: {
-    marginBottom: 10,
+    marginBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   topActions: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 8,
+    alignItems: 'center',
   },
-  backText: {
-    fontSize: 15,
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingLeft: 10,
+    paddingRight: 14,
+    shadowColor: colors.text,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  backBtnText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: colors.text,
   },
-  editText: {
-    fontSize: 15,
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  editBtnText: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
   },
-  deleteText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.danger,
+  deleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    backgroundColor: '#FFF0EE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.danger + '25',
   },
   heroCard: {
     backgroundColor: colors.surface,
-    borderRadius: 28,
-    padding: 24,
+    borderRadius: 24,
+    padding: 22,
     marginBottom: 20,
     shadowColor: colors.text,
     shadowOpacity: 0.07,
@@ -361,7 +435,7 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     backgroundColor: colors.background,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 14,
   },
   statLabel: {
@@ -377,8 +451,8 @@ const styles = StyleSheet.create({
   positive: { color: colors.primary },
   negative: { color: colors.danger },
   secondaryButton: {
-    marginTop: 18,
-    height: 46,
+    marginTop: 16,
+    height: 48,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
@@ -397,7 +471,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   button: {
-    marginTop: 20,
+    marginTop: 16,
     height: 48,
     borderRadius: 14,
     backgroundColor: colors.primary,
@@ -418,24 +492,24 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 16,
-    marginBottom: 18,
+    marginBottom: 16,
     shadowColor: colors.text,
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   historyCard: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 6,
     shadowColor: colors.text,
     shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   historyRow: {
@@ -443,25 +517,46 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     gap: 12,
+    alignItems: 'flex-start',
   },
   historyRowBorder: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  historyTopLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
   },
   historyDate: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
   },
+  historyTypeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   historyNote: {
-    marginTop: 4,
+    marginTop: 2,
     fontSize: 13,
     color: colors.textMuted,
+  },
+  historyValueBlock: {
+    alignItems: 'flex-end',
   },
   historyValue: {
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
+  },
+  historyAmount: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: '600',
   },
   body: {
     fontSize: 15,

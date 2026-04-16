@@ -47,12 +47,15 @@ export function useMonthsDb() {
 
   const getPreviousMonthRollover = useCallback(async function getPreviousMonthRollover() {
     const prevMonth = await db.getFirstAsync<{
-      must_budget_cents: number;
-      must_spent_cents: number;
-      want_budget_cents: number;
-      want_spent_cents: number;
+      must_budget_cents:  number;
+      must_spent_cents:   number;
+      want_budget_cents:  number;
+      want_spent_cents:   number;
+      keep_budget_cents:  number;
+      invest_spent_cents: number;
     }>(`
-      SELECT must_budget_cents, must_spent_cents, want_budget_cents, want_spent_cents
+      SELECT must_budget_cents, must_spent_cents, want_budget_cents, want_spent_cents,
+             keep_budget_cents, invest_spent_cents
       FROM months
       WHERE status = 'active'
       ORDER BY id DESC
@@ -60,17 +63,24 @@ export function useMonthsDb() {
     `);
 
     const rolloverSettings = await db.getFirstAsync<{
-      must_rollover_target: string;
-      want_rollover_target: string;
-    }>(`SELECT must_rollover_target, want_rollover_target FROM app_settings WHERE id = 1`);
+      must_rollover_target:   string;
+      want_rollover_target:   string;
+      invest_rollover_target: string;
+    }>(`SELECT must_rollover_target, want_rollover_target, invest_rollover_target FROM app_settings WHERE id = 1`);
 
-    const mustRemainder = Math.max(0, (prevMonth?.must_budget_cents ?? 0) - (prevMonth?.must_spent_cents ?? 0));
-    const wantRemainder = Math.max(0, (prevMonth?.want_budget_cents ?? 0) - (prevMonth?.want_spent_cents ?? 0));
+    const mustTarget   = rolloverSettings?.must_rollover_target   ?? 'invest';
+    const wantTarget   = rolloverSettings?.want_rollover_target   ?? 'want';
+    const investTarget = rolloverSettings?.invest_rollover_target ?? 'invest';
 
-    const keepBonus = (rolloverSettings?.must_rollover_target ?? 'invest') === 'invest' ? mustRemainder : 0;
-    const wantBonus = (rolloverSettings?.want_rollover_target ?? 'want') === 'want' ? wantRemainder : 0;
+    const mustRemainder   = Math.max(0, (prevMonth?.must_budget_cents  ?? 0) - (prevMonth?.must_spent_cents   ?? 0));
+    const wantRemainder   = Math.max(0, (prevMonth?.want_budget_cents  ?? 0) - (prevMonth?.want_spent_cents   ?? 0));
+    const investRemainder = Math.max(0, (prevMonth?.keep_budget_cents  ?? 0) - (prevMonth?.invest_spent_cents ?? 0));
 
-    return { mustRemainder, wantRemainder, keepBonus, wantBonus };
+    const mustBonus  = (mustTarget === 'must'   ? mustRemainder : 0) + (wantTarget === 'must'   ? wantRemainder : 0) + (investTarget === 'must'   ? investRemainder : 0);
+    const wantBonus  = (mustTarget === 'want'   ? mustRemainder : 0) + (wantTarget === 'want'   ? wantRemainder : 0) + (investTarget === 'want'   ? investRemainder : 0);
+    const keepBonus  = (mustTarget === 'invest' ? mustRemainder : 0) + (wantTarget === 'invest' ? wantRemainder : 0) + (investTarget === 'invest' ? investRemainder : 0);
+
+    return { mustRemainder, wantRemainder, investRemainder, mustBonus, wantBonus, keepBonus };
   }, [db]);
 
   const createCurrentMonth = useCallback(async function createCurrentMonth(input: { incomeCents: number }) {
@@ -100,12 +110,15 @@ export function useMonthsDb() {
 
     // Read previous active month data and rollover settings before the transaction
     const prevMonth = await db.getFirstAsync<{
-      must_budget_cents: number;
-      must_spent_cents: number;
-      want_budget_cents: number;
-      want_spent_cents: number;
+      must_budget_cents:  number;
+      must_spent_cents:   number;
+      want_budget_cents:  number;
+      want_spent_cents:   number;
+      keep_budget_cents:  number;
+      invest_spent_cents: number;
     }>(`
-      SELECT must_budget_cents, must_spent_cents, want_budget_cents, want_spent_cents
+      SELECT must_budget_cents, must_spent_cents, want_budget_cents, want_spent_cents,
+             keep_budget_cents, invest_spent_cents
       FROM months
       WHERE status = 'active'
       ORDER BY id DESC
@@ -113,15 +126,22 @@ export function useMonthsDb() {
     `);
 
     const rolloverSettings = await db.getFirstAsync<{
-      must_rollover_target: string;
-      want_rollover_target: string;
-    }>(`SELECT must_rollover_target, want_rollover_target FROM app_settings WHERE id = 1`);
+      must_rollover_target:   string;
+      want_rollover_target:   string;
+      invest_rollover_target: string;
+    }>(`SELECT must_rollover_target, want_rollover_target, invest_rollover_target FROM app_settings WHERE id = 1`);
 
-    const mustRemainder = Math.max(0, (prevMonth?.must_budget_cents ?? 0) - (prevMonth?.must_spent_cents ?? 0));
-    const wantRemainder = Math.max(0, (prevMonth?.want_budget_cents ?? 0) - (prevMonth?.want_spent_cents ?? 0));
+    const mustTarget   = rolloverSettings?.must_rollover_target   ?? 'invest';
+    const wantTarget   = rolloverSettings?.want_rollover_target   ?? 'want';
+    const investTarget = rolloverSettings?.invest_rollover_target ?? 'invest';
 
-    const keepBonus = (rolloverSettings?.must_rollover_target ?? 'invest') === 'invest' ? mustRemainder : 0;
-    const wantBonus = (rolloverSettings?.want_rollover_target ?? 'want') === 'want' ? wantRemainder : 0;
+    const mustRemainder   = Math.max(0, (prevMonth?.must_budget_cents  ?? 0) - (prevMonth?.must_spent_cents   ?? 0));
+    const wantRemainder   = Math.max(0, (prevMonth?.want_budget_cents  ?? 0) - (prevMonth?.want_spent_cents   ?? 0));
+    const investRemainder = Math.max(0, (prevMonth?.keep_budget_cents  ?? 0) - (prevMonth?.invest_spent_cents ?? 0));
+
+    const mustBonus  = (mustTarget === 'must'   ? mustRemainder : 0) + (wantTarget === 'must'   ? wantRemainder : 0) + (investTarget === 'must'   ? investRemainder : 0);
+    const wantBonus  = (mustTarget === 'want'   ? mustRemainder : 0) + (wantTarget === 'want'   ? wantRemainder : 0) + (investTarget === 'want'   ? investRemainder : 0);
+    const keepBonus  = (mustTarget === 'invest' ? mustRemainder : 0) + (wantTarget === 'invest' ? wantRemainder : 0) + (investTarget === 'invest' ? investRemainder : 0);
 
     await db.withTransactionAsync(async () => {
       await db.runAsync(
@@ -148,6 +168,7 @@ export function useMonthsDb() {
           must_budget_cents,
           want_budget_cents,
           keep_budget_cents,
+          must_rollover_cents,
           want_rollover_cents,
           keep_rollover_cents,
           must_spent_cents,
@@ -159,7 +180,7 @@ export function useMonthsDb() {
           created_at,
           updated_at
         )
-        VALUES (?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NULL, NULL, ?, NULL, ?, ?)
+        VALUES (?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NULL, NULL, ?, NULL, ?, ?)
         `,
         [
           monthKey,
@@ -167,9 +188,10 @@ export function useMonthsDb() {
           split.mustPct,
           split.wantPct,
           split.keepPct,
-          mustBudgetCents,
+          mustBudgetCents + mustBonus,
           wantBudgetCents + wantBonus,
           keepBudgetCents + keepBonus,
+          mustBonus,
           wantBonus,
           keepBonus,
           now,

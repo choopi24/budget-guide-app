@@ -1,3 +1,52 @@
+function isSameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/**
+ * Returns a human-friendly date label.
+ * Accepts a Date object or an ISO string (full or YYYY-MM-DD).
+ *
+ * Examples:
+ *   today          → "Today"
+ *   yesterday      → "Yesterday"
+ *   same year      → "Mon, Apr 5"
+ *   different year → "Mon, Apr 5, 2023"
+ */
+export function formatFriendlyDate(value: Date | string): string {
+  let date: Date;
+  if (typeof value === 'string') {
+    // Parse YYYY-MM-DD as local midnight to avoid UTC offset issues
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      date = new Date(y, m - 1, d);
+    } else {
+      date = new Date(value);
+    }
+  } else {
+    date = value;
+  }
+
+  const now = new Date();
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+
+  if (isSameLocalDay(date, now)) return 'Today';
+  if (isSameLocalDay(date, yesterday)) return 'Yesterday';
+
+  const opts: Intl.DateTimeFormatOptions = {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  };
+  if (date.getFullYear() !== now.getFullYear()) {
+    opts.year = 'numeric';
+  }
+  return date.toLocaleDateString('en-US', opts);
+}
+
 export function formatShortDate(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);

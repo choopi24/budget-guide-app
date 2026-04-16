@@ -1,9 +1,7 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -11,9 +9,10 @@ import {
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
+import { DatePickerField } from '../components/DatePickerField';
 import { useExpenseHistoryDb, type ExpenseHistoryItem } from '../db/expense-history';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
-import { formatDateDisplay } from '../lib/date';
+import { formatFriendlyDate } from '../lib/date';
 import { formatCentsToMoney, parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
 
@@ -36,7 +35,6 @@ export default function ExpensesScreen() {
   const [note, setNote] = useState('');
   const [bucket, setBucket] = useState<'must' | 'want'>('want');
   const [spentOn, setSpentOn] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const load = useCallback(async () => {
     const [expenses, savedCurrency] = await Promise.all([
@@ -67,7 +65,7 @@ export default function ExpensesScreen() {
     }
 
     return Array.from(map.entries()).map(([key, value]) => ({
-      label: formatDateDisplay(key),
+      label: formatFriendlyDate(key),
       items: value,
     }));
   }, [items]);
@@ -169,37 +167,7 @@ export default function ExpensesScreen() {
 
           <View style={styles.field}>
             <Text style={styles.label}>Date</Text>
-            <Pressable
-              onPress={() => setShowDatePicker(true)}
-              style={styles.inputButton}
-            >
-              <Text style={styles.inputButtonText}>
-                {formatDateDisplay(spentOn.toISOString())}
-              </Text>
-            </Pressable>
-
-            {showDatePicker && (
-              <View style={Platform.OS === 'ios' ? styles.pickerContainer : undefined}>
-                <DateTimePicker
-                  value={spentOn}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  textColor={colors.text}
-                  maximumDate={new Date()}
-                  onChange={(_, selectedDate) => {
-                    if (Platform.OS !== 'ios') setShowDatePicker(false);
-                    if (selectedDate) setSpentOn(selectedDate);
-                  }}
-                />
-                {Platform.OS === 'ios' && (
-                  <View style={styles.inlinePickerFooter}>
-                    <Pressable onPress={() => setShowDatePicker(false)} style={styles.smallButton}>
-                      <Text style={styles.smallButtonText}>Done</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            )}
+            <DatePickerField value={spentOn} onChange={setSpentOn} />
           </View>
 
           <View style={styles.field}>
@@ -347,7 +315,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 28,
+    borderRadius: 24,
     padding: 22,
     marginBottom: 18,
   },
@@ -415,43 +383,6 @@ const styles = StyleSheet.create({
     minHeight: 90,
     paddingTop: 14,
     textAlignVertical: 'top',
-  },
-  inputButton: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-  },
-  inputButtonText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  pickerContainer: {
-    marginTop: 8,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  inlinePickerFooter: {
-    alignItems: 'flex-end',
-    padding: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  smallButton: {
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  smallButtonText: {
-    color: colors.text,
-    fontWeight: '600',
   },
   segmentRow: {
     flexDirection: 'row',

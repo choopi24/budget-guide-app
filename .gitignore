@@ -31,7 +31,13 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# SQLite database files (may contain personal financial data)
+*.db
+*.db-shm
+*.db-wal
 
 # typescript
 *.tsbuildinfo
