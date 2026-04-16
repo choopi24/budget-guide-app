@@ -60,6 +60,9 @@ export function DatePickerField({ value, onChange, maximumDate }: Props) {
         {/* ── Chip 1: Today ─────────────────────── */}
         <Pressable
           onPress={handleToday}
+          accessibilityRole="button"
+          accessibilityLabel="Today"
+          accessibilityState={{ selected: isToday }}
           style={({ pressed }) => [
             styles.chip,
             isToday && styles.chipActive,
@@ -74,6 +77,9 @@ export function DatePickerField({ value, onChange, maximumDate }: Props) {
         {/* ── Chip 2: Yesterday ─────────────────── */}
         <Pressable
           onPress={handleYesterday}
+          accessibilityRole="button"
+          accessibilityLabel="Yesterday"
+          accessibilityState={{ selected: isYesterday }}
           style={({ pressed }) => [
             styles.chip,
             isYesterday && styles.chipActive,
@@ -88,6 +94,10 @@ export function DatePickerField({ value, onChange, maximumDate }: Props) {
         {/* ── Chip 3: Custom / Pick date ────────── */}
         <Pressable
           onPress={handleTogglePicker}
+          accessibilityRole="button"
+          accessibilityLabel={isCustom ? `Selected date: ${customChipLabel}` : 'Pick a date'}
+          accessibilityHint="Opens date picker"
+          accessibilityState={{ selected: isCustom }}
           style={({ pressed }) => [
             styles.chip,
             styles.chipCustom,
@@ -128,6 +138,8 @@ export function DatePickerField({ value, onChange, maximumDate }: Props) {
             <View style={styles.pickerFooter}>
               <Pressable
                 onPress={() => setPickerOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Done"
                 style={({ pressed }) => [styles.doneBtn, pressed && { opacity: 0.7 }]}
               >
                 <Text style={styles.doneBtnText}>Done</Text>

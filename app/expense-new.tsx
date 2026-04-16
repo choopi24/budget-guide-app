@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -23,6 +23,8 @@ export default function NewExpenseScreen() {
   const [note, setNote] = useState('');
   const [bucket, setBucket] = useState<ExpenseBucket>('want');
   const [saving, setSaving] = useState(false);
+
+  const amountRef = useRef<TextInput>(null);
 
   const [isInvestmentTransfer, setIsInvestmentTransfer] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -93,18 +95,27 @@ export default function NewExpenseScreen() {
             placeholder="Groceries, ETF transfer, dinner..."
             placeholderTextColor={colors.textMuted}
             style={styles.input}
+            autoFocus
+            returnKeyType="next"
+            onSubmitEditing={() => amountRef.current?.focus()}
+            blurOnSubmit={false}
+            accessibilityLabel="Expense description"
           />
         </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>Amount</Text>
           <TextInput
+            ref={amountRef}
             value={amount}
             onChangeText={setAmount}
             placeholder="120"
             placeholderTextColor={colors.textMuted}
             keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={handleSave}
             style={styles.input}
+            accessibilityLabel="Amount"
           />
         </View>
 
@@ -120,6 +131,7 @@ export default function NewExpenseScreen() {
             onValueChange={setIsRecurring}
             trackColor={{ false: colors.border, true: colors.switchTrackOn }}
             thumbColor={isRecurring ? colors.primary : colors.white}
+            accessibilityLabel="Mark as recurring expense"
           />
         </View>
 
@@ -135,6 +147,7 @@ export default function NewExpenseScreen() {
             onValueChange={setIsInvestmentTransfer}
             trackColor={{ false: colors.border, true: colors.switchTrackOn }}
             thumbColor={isInvestmentTransfer ? colors.primary : colors.white}
+            accessibilityLabel="Mark as investment transfer"
           />
         </View>
 
@@ -160,6 +173,9 @@ export default function NewExpenseScreen() {
               <View style={styles.segmentRow}>
                 <Pressable
                   onPress={() => setBucket('must')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Must — essential spending"
+                  accessibilityState={{ selected: bucket === 'must' }}
                   style={[
                     styles.segmentButton,
                     bucket === 'must' && styles.segmentButtonActive,
@@ -177,6 +193,9 @@ export default function NewExpenseScreen() {
 
                 <Pressable
                   onPress={() => setBucket('want')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Want — discretionary spending"
+                  accessibilityState={{ selected: bucket === 'want' }}
                   style={[
                     styles.segmentButton,
                     bucket === 'want' && styles.segmentButtonActive,
@@ -211,6 +230,9 @@ export default function NewExpenseScreen() {
         <Pressable
           onPress={handleSave}
           disabled={!canSave}
+          accessibilityRole="button"
+          accessibilityLabel="Save expense"
+          accessibilityState={{ disabled: !canSave }}
           style={({ pressed }) => [
             styles.button,
             (!canSave || pressed) && styles.buttonPressed,

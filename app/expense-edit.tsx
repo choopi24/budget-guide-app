@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -30,6 +30,8 @@ export default function ExpenseEditScreen() {
   const [isInvestment, setIsInvestment] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
+
+  const amountRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (!expenseId) return;
@@ -96,7 +98,12 @@ export default function ExpenseEditScreen() {
           <Text style={styles.backBtnText}>Back</Text>
         </Pressable>
 
-        <Pressable onPress={handleDelete} hitSlop={10}>
+        <Pressable
+          onPress={handleDelete}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Delete expense"
+        >
           <Ionicons name="trash-outline" size={18} color={colors.danger} />
         </Pressable>
       </View>
@@ -114,6 +121,10 @@ export default function ExpenseEditScreen() {
             placeholder="Groceries, taxi, dinner..."
             placeholderTextColor={colors.textMuted}
             style={styles.input}
+            returnKeyType="next"
+            onSubmitEditing={() => amountRef.current?.focus()}
+            blurOnSubmit={false}
+            accessibilityLabel="Expense description"
           />
         </View>
 
@@ -121,12 +132,16 @@ export default function ExpenseEditScreen() {
         <View style={styles.field}>
           <Text style={styles.label}>Amount</Text>
           <TextInput
+            ref={amountRef}
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={handleSave}
             placeholder="120"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
+            accessibilityLabel="Amount"
           />
         </View>
 
@@ -143,6 +158,9 @@ export default function ExpenseEditScreen() {
             <View style={styles.segmentRow}>
               <Pressable
                 onPress={() => setBucket('must')}
+                accessibilityRole="button"
+                accessibilityLabel="Must — essential spending"
+                accessibilityState={{ selected: bucket === 'must' }}
                 style={[styles.segmentButton, bucket === 'must' && styles.segmentButtonActive]}
               >
                 <Text style={[styles.segmentText, bucket === 'must' && styles.segmentTextActive]}>
@@ -151,6 +169,9 @@ export default function ExpenseEditScreen() {
               </Pressable>
               <Pressable
                 onPress={() => setBucket('want')}
+                accessibilityRole="button"
+                accessibilityLabel="Want — discretionary spending"
+                accessibilityState={{ selected: bucket === 'want' }}
                 style={[styles.segmentButton, bucket === 'want' && styles.segmentButtonActive]}
               >
                 <Text style={[styles.segmentText, bucket === 'want' && styles.segmentTextActive]}>
@@ -178,6 +199,9 @@ export default function ExpenseEditScreen() {
         <Pressable
           onPress={handleSave}
           disabled={!canSave}
+          accessibilityRole="button"
+          accessibilityLabel="Save changes"
+          accessibilityState={{ disabled: !canSave }}
           style={({ pressed }) => [
             styles.saveButton,
             (!canSave || pressed) && styles.saveButtonPressed,

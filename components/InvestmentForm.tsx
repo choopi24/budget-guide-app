@@ -575,7 +575,9 @@ export function InvestmentForm({
       {!!onCancel && (
         <Pressable
           onPress={onCancel}
-          hitSlop={12}
+          hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel="Cancel"
           style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
         >
           <Text style={styles.closeBtnText}>✕</Text>
@@ -668,6 +670,9 @@ export function InvestmentForm({
       <Pressable
         onPress={handleSave}
         disabled={!canSave}
+        accessibilityRole="button"
+        accessibilityLabel={saveLabel}
+        accessibilityState={{ disabled: !canSave }}
         style={({ pressed }) => [
           styles.button,
           (!canSave || pressed) && styles.buttonPressed,
@@ -721,7 +726,9 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 52,
     borderRadius: 14,
-    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
     paddingHorizontal: 14,
     fontSize: 16,
     color: colors.text,
@@ -804,10 +811,10 @@ const styles = StyleSheet.create({
   buttonText: { color: colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
   closeBtn: {
     position: 'absolute',
-    top: 18,
-    right: 18,
-    width: 32,
-    height: 32,
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
     borderRadius: 999,
     backgroundColor: colors.background,
     alignItems: 'center',

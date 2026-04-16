@@ -119,7 +119,11 @@ export default function MonthSetupScreen() {
             placeholder="5000"
             placeholderTextColor={colors.textMuted}
             keyboardType="decimal-pad"
+            returnKeyType="done"
+            onSubmitEditing={handleContinue}
             style={styles.input}
+            autoFocus
+            accessibilityLabel="Net income"
           />
         </View>
 
@@ -172,6 +176,9 @@ export default function MonthSetupScreen() {
         <Pressable
           onPress={handleContinue}
           disabled={!canContinue}
+          accessibilityRole="button"
+          accessibilityLabel="Start this month"
+          accessibilityState={{ disabled: !canContinue }}
           style={({ pressed }) => [
             styles.button,
             (!canContinue || pressed) && styles.buttonPressed,
