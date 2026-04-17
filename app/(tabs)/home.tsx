@@ -121,9 +121,8 @@ export default function HomeScreen() {
     },
   ];
 
-  const totalSpent = month.must_spent_cents + month.want_spent_cents;
-  const spendBudget = month.must_budget_cents + month.want_budget_cents;
-  const spendLeft = spendBudget - totalSpent;
+  const totalSpent = month.must_spent_cents + month.want_spent_cents + month.invest_spent_cents;
+  const spendLeft = month.income_cents - totalSpent;
 
   return (
     <View style={{ flex: 1 }}>
