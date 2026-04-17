@@ -4,6 +4,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
+import { Button } from '../../components/ui/Button';
 import {
   useSettingsDb,
   type SupportedCurrency,
@@ -12,6 +13,7 @@ import {
   type InvestRolloverTarget,
 } from '../../db/settings';
 import { colors } from '../../theme/colors';
+import { radius, spacing } from '../../theme/tokens';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -346,12 +348,13 @@ export default function SettingsScreen() {
         <Text style={styles.sectionSubtitle}>
           Clears all months, expenses and investments. Restarts from onboarding.
         </Text>
-        <Pressable
+        <Button
+          label="Reset app data"
+          variant="danger"
+          size="md"
           onPress={resetApp}
-          style={({ pressed }) => [styles.dangerButton, pressed && styles.dangerButtonPressed]}
-        >
-          <Text style={styles.dangerButtonText}>Reset app data</Text>
-        </Pressable>
+          style={{ marginTop: spacing[1] }}
+        />
       </View>
 
     </AppScreen>
@@ -514,22 +517,9 @@ const styles = StyleSheet.create({
   // Danger zone
   dangerSection: {
     borderWidth: 1.5,
-    borderColor: '#B6523A30',
+    borderColor: colors.danger + '30',
     marginBottom: 32,
     marginTop: 8,
   },
   dangerTitle: { color: colors.danger },
-  dangerButton: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dangerButtonPressed: { opacity: 0.85 },
-  dangerButtonText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '700',
-  },
 });

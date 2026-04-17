@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatFriendlyDate } from '../lib/date';
 import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/tokens';
 
 type Props = {
   value: Date;
@@ -155,22 +156,22 @@ export function DatePickerField({ value, onChange, maximumDate }: Props) {
 const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing[2],      // 8
   },
   chip: {
     flex: 1,
-    height: 46,
-    borderRadius: 14,
+    height: 48,
+    borderRadius: radius.lg,  // 16
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing[1],  // 4
   },
   chipCustom: {
     flexDirection: 'row',
-    gap: 4,
+    gap: spacing[1],  // 4
   },
   chipActive: {
     backgroundColor: colors.surfaceSoft,
@@ -200,24 +201,24 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   pickerWrap: {
-    marginTop: 8,
+    marginTop: spacing[2],  // 8
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: radius.lg,  // 16
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
   },
   pickerFooter: {
     alignItems: 'flex-end',
-    padding: 8,
+    padding: spacing[2],  // 8
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
   doneBtn: {
     backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: spacing[4],  // 16
+    paddingVertical: spacing[2] + 2,  // 10
+    borderRadius: radius.md,  // 12
   },
   doneBtnText: {
     fontSize: 14,

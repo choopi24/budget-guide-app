@@ -1,35 +1,32 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { DatePickerField } from '../components/DatePickerField';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
 import { useExpenseHistoryDb } from '../db/expense-history';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/tokens';
 
 export default function ExpenseEditScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const expenseId = Number(id);
+  const router     = useRouter();
+  const { id }     = useLocalSearchParams<{ id: string }>();
+  const expenseId  = Number(id);
 
   const { getExpenseById, updateExpense, deleteExpense } = useExpenseHistoryDb();
 
-  const [title, setTitle]     = useState('');
-  const [amount, setAmount]   = useState('');
-  const [note, setNote]       = useState('');
-  const [bucket, setBucket]   = useState<'must' | 'want'>('want');
-  const [spentOn, setSpentOn] = useState(new Date());
+  const [title, setTitle]       = useState('');
+  const [amount, setAmount]     = useState('');
+  const [note, setNote]         = useState('');
+  const [bucket, setBucket]     = useState<'must' | 'want'>('want');
+  const [spentOn, setSpentOn]   = useState(new Date());
   const [isInvestment, setIsInvestment] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
 
   const amountRef = useRef<TextInput>(null);
 
@@ -48,7 +45,7 @@ export default function ExpenseEditScreen() {
   }, [expenseId, getExpenseById]);
 
   const amountCents = useMemo(() => parseMoneyToCents(amount), [amount]);
-  const canSave = !loading && title.trim().length > 0 && amountCents > 0 && !saving;
+  const canSave     = !loading && title.trim().length > 0 && amountCents > 0 && !saving;
 
   async function handleSave() {
     if (!canSave) return;
@@ -71,7 +68,7 @@ export default function ExpenseEditScreen() {
   function handleDelete() {
     Alert.alert(
       'Delete expense',
-      'This will remove the expense and update that month\'s totals.',
+      "This will remove the expense and update that month's totals.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -88,6 +85,7 @@ export default function ExpenseEditScreen() {
 
   return (
     <AppScreen scroll>
+      {/* ── Top bar ── */}
       <View style={styles.topBar}>
         <Pressable
           onPress={() => router.back()}
@@ -103,67 +101,61 @@ export default function ExpenseEditScreen() {
           hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel="Delete expense"
+          style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
         >
-          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          <Ionicons name="trash-outline" size={16} color={colors.danger} />
         </Pressable>
       </View>
 
-      <View style={styles.card}>
+      <Card variant="outlined">
         <Text style={styles.eyebrow}>Edit expense</Text>
         <Text style={styles.title}>{loading ? '…' : title}</Text>
 
-        {/* ── Title ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>What was it for?</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Groceries, taxi, dinner..."
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            returnKeyType="next"
-            onSubmitEditing={() => amountRef.current?.focus()}
-            blurOnSubmit={false}
-            accessibilityLabel="Expense description"
-          />
-        </View>
+        {/* ── Description ── */}
+        <Input
+          label="What was it for?"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Groceries, taxi, dinner…"
+          returnKeyType="next"
+          onSubmitEditing={() => amountRef.current?.focus()}
+          blurOnSubmit={false}
+          accessibilityLabel="Expense description"
+          containerStyle={styles.field}
+        />
 
         {/* ── Amount ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Amount</Text>
-          <TextInput
-            ref={amountRef}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-            returnKeyType="done"
-            onSubmitEditing={handleSave}
-            placeholder="120"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            accessibilityLabel="Amount"
-          />
-        </View>
+        <Input
+          ref={amountRef}
+          label="Amount"
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+          placeholder="120"
+          accessibilityLabel="Amount"
+          containerStyle={styles.field}
+        />
 
         {/* ── Date ── */}
         <View style={styles.field}>
-          <Text style={styles.label}>Date</Text>
+          <Text style={styles.fieldLabel}>Date</Text>
           <DatePickerField value={spentOn} onChange={setSpentOn} />
         </View>
 
         {/* ── Category — hidden for investment expenses ── */}
         {!isInvestment && (
           <View style={styles.field}>
-            <Text style={styles.label}>Category</Text>
+            <Text style={styles.fieldLabel}>Category</Text>
             <View style={styles.segmentRow}>
               <Pressable
                 onPress={() => setBucket('must')}
                 accessibilityRole="button"
                 accessibilityLabel="Must — essential spending"
                 accessibilityState={{ selected: bucket === 'must' }}
-                style={[styles.segmentButton, bucket === 'must' && styles.segmentButtonActive]}
+                style={[styles.segmentBtn, bucket === 'must' && styles.segmentMustActive]}
               >
-                <Text style={[styles.segmentText, bucket === 'must' && styles.segmentTextActive]}>
+                <Text style={[styles.segmentText, bucket === 'must' && styles.segmentMustText]}>
                   Must
                 </Text>
               </Pressable>
@@ -172,9 +164,9 @@ export default function ExpenseEditScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Want — discretionary spending"
                 accessibilityState={{ selected: bucket === 'want' }}
-                style={[styles.segmentButton, bucket === 'want' && styles.segmentButtonActive]}
+                style={[styles.segmentBtn, bucket === 'want' && styles.segmentWantActive]}
               >
-                <Text style={[styles.segmentText, bucket === 'want' && styles.segmentTextActive]}>
+                <Text style={[styles.segmentText, bucket === 'want' && styles.segmentWantText]}>
                   Want
                 </Text>
               </Pressable>
@@ -183,56 +175,44 @@ export default function ExpenseEditScreen() {
         )}
 
         {/* ── Note ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Optional note"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, styles.noteInput]}
-            multiline
-          />
-        </View>
+        <Input
+          label="Note (optional)"
+          value={note}
+          onChangeText={setNote}
+          placeholder="Optional note"
+          multiline
+          style={styles.noteInput}
+          containerStyle={styles.field}
+        />
 
-        {/* ── Save ── */}
-        <Pressable
+        <Button
+          label={saving ? 'Saving…' : 'Save changes'}
           onPress={handleSave}
           disabled={!canSave}
-          accessibilityRole="button"
-          accessibilityLabel="Save changes"
-          accessibilityState={{ disabled: !canSave }}
-          style={({ pressed }) => [
-            styles.saveButton,
-            (!canSave || pressed) && styles.saveButtonPressed,
-            !canSave && styles.saveButtonDisabled,
-          ]}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Saving…' : 'Save changes'}
-          </Text>
-        </Pressable>
-      </View>
+          loading={saving}
+          style={{ marginTop: spacing[6] }}
+        />
+      </Card>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   topBar: {
-    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing[3],   // 12
   },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing[1],
     backgroundColor: colors.surface,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingLeft: 10,
-    paddingRight: 14,
+    borderRadius: radius.full,
+    paddingVertical: spacing[2],
+    paddingLeft: spacing[2] + 2,
+    paddingRight: spacing[3] + 2,
     shadowColor: colors.text,
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -244,90 +224,71 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
+  deleteBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
+    borderColor: colors.danger + '25',
   },
   eyebrow: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: colors.primary,
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.3,
   },
   field: {
-    marginTop: 18,
+    marginTop: spacing[5],  // 20
   },
-  label: {
+  fieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.text,
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
-  },
-  noteInput: {
-    minHeight: 80,
-    paddingTop: 14,
-    textAlignVertical: 'top',
+    marginBottom: spacing[2],
   },
   segmentRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing[2] + 2,    // 10
   },
-  segmentButton: {
+  segmentBtn: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 48,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmentButtonActive: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.primary,
+  segmentMustActive: {
+    backgroundColor: colors.mustSoft,
+    borderColor: colors.must,
+  },
+  segmentWantActive: {
+    backgroundColor: colors.wantSoft,
+    borderColor: colors.want,
   },
   segmentText: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.textMuted,
   },
-  segmentTextActive: {
-    color: colors.text,
-  },
-  saveButton: {
-    marginTop: 24,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonPressed: { opacity: 0.9 },
-  saveButtonDisabled: { backgroundColor: colors.buttonDisabled },
-  saveButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
+  segmentMustText: { color: colors.must },
+  segmentWantText: { color: colors.want },
+  noteInput: {
+    minHeight: 80,
+    paddingTop: spacing[3] + 2,  // 14
+    textAlignVertical: 'top',
   },
 });

@@ -8,13 +8,33 @@ import {
   View,
 } from 'react-native';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/tokens';
 
 type AppScreenProps = {
   children: ReactNode;
+  /** Wraps content in a ScrollView with keyboard handling */
   scroll?: boolean;
+  /**
+   * Remove horizontal/vertical padding from the content wrapper.
+   * Useful for tab screens that manage their own insets.
+   */
+  noPad?: boolean;
 };
 
-export function AppScreen({ children, scroll = false }: AppScreenProps) {
+/**
+ * Root screen wrapper.
+ *
+ * Handles:
+ *  - SafeAreaView (correct insets on iPhone notch / home-indicator)
+ *  - KeyboardAvoidingView (pushes content up when keyboard opens on iOS)
+ *  - Optional ScrollView with sensible keyboard behaviour
+ *
+ * Usage:
+ *   <AppScreen>…</AppScreen>           — fixed layout, padded
+ *   <AppScreen scroll>…</AppScreen>    — scrollable, padded
+ *   <AppScreen noPad>…</AppScreen>     — fixed layout, no padding
+ */
+export function AppScreen({ children, scroll = false, noPad = false }: AppScreenProps) {
   if (scroll) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -23,7 +43,7 @@ export function AppScreen({ children, scroll = false }: AppScreenProps) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, noPad && styles.zeroPad]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
@@ -41,7 +61,9 @@ export function AppScreen({ children, scroll = false }: AppScreenProps) {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.content}>{children}</View>
+        <View style={[styles.content, noPad && styles.zeroPad]}>
+          {children}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -57,14 +79,19 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 24,
+    paddingHorizontal: spacing[5],  // 20
+    paddingTop:        spacing[3],  // 12
+    paddingBottom:     spacing[6],  // 24
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 40,
+    paddingHorizontal: spacing[5],  // 20
+    paddingTop:        spacing[3],  // 12
+    paddingBottom:     spacing[10], // 40
     flexGrow: 1,
+  },
+  zeroPad: {
+    paddingHorizontal: 0,
+    paddingTop:        0,
+    paddingBottom:     0,
   },
 });

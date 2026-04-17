@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
 import { useHomeDb, type HomeData } from '../../db/home';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { getMonthLabelFromKey } from '../../lib/date';
@@ -15,6 +17,9 @@ import {
 } from '../../lib/grade';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
+import { radius, shadows, spacing } from '../../theme/tokens';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type RowItem = {
   label: string;
@@ -22,17 +27,20 @@ type RowItem = {
   used: number;
   planned: number;
   color: string;
+  softColor: string;
 };
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
   const { getActiveMonthHomeData } = useHomeDb();
   const { getCurrency } = useSettingsDb();
 
-  const [month, setMonth]           = useState<HomeData | null>(null);
-  const [currency, setCurrency]     = useState<SupportedCurrency>('ILS');
-  const [grade, setGrade]           = useState<BudgetGrade | null>(null);
-  const [gradeExp, setGradeExp]     = useState<GradeExplanation | null>(null);
+  const [month, setMonth]               = useState<HomeData | null>(null);
+  const [currency, setCurrency]         = useState<SupportedCurrency>('ILS');
+  const [grade, setGrade]               = useState<BudgetGrade | null>(null);
+  const [gradeExp, setGradeExp]         = useState<GradeExplanation | null>(null);
   const [showGradeExp, setShowGradeExp] = useState(false);
 
   const load = useCallback(async () => {
@@ -64,153 +72,137 @@ export default function HomeScreen() {
     }
   }, [getActiveMonthHomeData, getCurrency]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   // ── Empty state ──────────────────────────────────────────────────────────────
   if (!month) {
     return (
       <AppScreen scroll>
-        <View style={styles.pageHeader}>
-          <Text style={styles.eyebrow}>Dashboard</Text>
-          <Text style={styles.pageTitle}>Budget</Text>
-        </View>
-        <View style={styles.emptyCard}>
-          <View style={styles.emptyIconWrap}>
-            <Ionicons name="calendar-outline" size={28} color={colors.primary} />
-          </View>
-          <Text style={styles.emptyTitle}>No active month</Text>
-          <Text style={styles.emptyText}>
-            Set up this month to unlock your budget dashboard and start tracking.
-          </Text>
-          <Pressable
-            onPress={() => router.push('/month-setup' as any)}
-            style={({ pressed }) => [styles.emptyBtn, pressed && styles.emptyBtnPressed]}
-          >
-            <Text style={styles.emptyBtnText}>Set up this month</Text>
-          </Pressable>
+        <View style={styles.emptyWrap}>
+          <Card variant="elevated">
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="calendar-outline" size={28} color={colors.primary} />
+            </View>
+            <Text style={styles.emptyTitle}>No active month</Text>
+            <Text style={styles.emptyBody}>
+              Set up this month to unlock your budget dashboard and start tracking.
+            </Text>
+            <Button
+              label="Set up this month"
+              onPress={() => router.push('/month-setup' as any)}
+              style={{ marginTop: spacing[6] }}
+            />
+          </Card>
         </View>
       </AppScreen>
     );
   }
 
+  // ── Derived values ────────────────────────────────────────────────────────────
+
   const rows: RowItem[] = [
     {
       label: 'Must',
-      hint: 'Rent, groceries, bills',
-      used: month.must_spent_cents,
-      planned: month.must_budget_cents,
-      color: colors.must,
+      hint:  'Rent, groceries, bills',
+      used:       month.must_spent_cents,
+      planned:    month.must_budget_cents,
+      color:      colors.must,
+      softColor:  colors.mustSoft,
     },
     {
       label: 'Want',
-      hint: 'Food out, shopping, fun',
-      used: month.want_spent_cents,
-      planned: month.want_budget_cents,
-      color: colors.want,
+      hint:  'Food out, shopping, fun',
+      used:       month.want_spent_cents,
+      planned:    month.want_budget_cents,
+      color:      colors.want,
+      softColor:  colors.wantSoft,
     },
     {
       label: 'Invest',
-      hint: 'Savings and future goals',
-      used: month.invest_spent_cents,
-      planned: month.keep_budget_cents,
-      color: colors.keep,
+      hint:  'Savings and future goals',
+      used:       month.invest_spent_cents,
+      planned:    month.keep_budget_cents,
+      color:      colors.keep,
+      softColor:  colors.keepSoft,
     },
   ];
 
   const totalSpent = month.must_spent_cents + month.want_spent_cents + month.invest_spent_cents;
-  const spendLeft = month.income_cents - totalSpent;
+  const spendLeft  = month.income_cents - totalSpent;
+  const isOverBudget = spendLeft < 0;
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.root}>
       <AppScreen scroll>
 
-        {/* ── Hero card ── */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroTopRow}>
-            <View>
-              <Text style={styles.eyebrow}>{getMonthLabelFromKey(month.month_key)}</Text>
-              <Text style={styles.pageTitle}>Budget</Text>
-            </View>
-            <View style={styles.heroTopRight}>
-              {grade && (
-                <Pressable
-                  onPress={() => setShowGradeExp(v => !v)}
-                  style={({ pressed }) => [
-                    styles.gradeBadge,
-                    { backgroundColor: GRADE_COLOR[grade] + '18' },
-                    pressed && { opacity: 0.7 },
-                  ]}
-                  hitSlop={8}
-                >
-                  <Text style={[styles.gradeText, { color: GRADE_COLOR[grade] }]}>{grade}</Text>
-                  <Ionicons
-                    name={showGradeExp ? 'chevron-up' : 'chevron-down'}
-                    size={12}
-                    color={GRADE_COLOR[grade]}
-                    style={{ marginLeft: 4 }}
-                  />
-                </Pressable>
-              )}
-              <Pressable
-                onPress={() => router.push('/expenses' as any)}
-                style={({ pressed }) => [styles.viewAllButton, pressed && { opacity: 0.75 }]}
-              >
-                <Text style={styles.viewAllText}>All expenses</Text>
-              </Pressable>
-            </View>
+        {/* ── Top bar: month label + grade badge ── */}
+        <View style={styles.topBar}>
+          <View>
+            <Text style={styles.topEyebrow}>Budget</Text>
+            <Text style={styles.topMonth}>{getMonthLabelFromKey(month.month_key)}</Text>
           </View>
 
-          <Text style={styles.heroAmount}>
-            {formatCentsToMoney(month.income_cents, currency)}
+          {grade && (
+            <Pressable
+              onPress={() => setShowGradeExp(v => !v)}
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.gradeBadge,
+                { backgroundColor: GRADE_COLOR[grade] + '18' },
+                pressed && { opacity: 0.72 },
+              ]}
+            >
+              <Text style={[styles.gradeBadgeText, { color: GRADE_COLOR[grade] }]}>
+                {grade}
+              </Text>
+              <Ionicons
+                name={showGradeExp ? 'chevron-up' : 'chevron-down'}
+                size={11}
+                color={GRADE_COLOR[grade]}
+              />
+            </Pressable>
+          )}
+        </View>
+
+        {/* ── Hero: remaining budget ── */}
+        <View style={styles.hero}>
+          <Text style={[styles.heroEyebrow, isOverBudget && { color: colors.danger }]}>
+            {isOverBudget ? 'Over budget' : 'Left this month'}
           </Text>
-          <Text style={styles.heroSubtext}>Net income this month</Text>
-
-          <View style={styles.divider} />
-
-          <View style={styles.heroStatsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Spent</Text>
-              <Text style={styles.statValue}>
-                {formatCentsToMoney(totalSpent, currency)}
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Left</Text>
-              <Text style={[styles.statValue, spendLeft < 0 && { color: colors.danger }]}>
-                {formatCentsToMoney(Math.abs(spendLeft), currency)}
-              </Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Invested</Text>
-              <Text style={styles.statValue}>
-                {formatCentsToMoney(month.invest_spent_cents, currency)}
-              </Text>
-            </View>
+          <Text style={[styles.heroAmount, isOverBudget && { color: colors.danger }]}>
+            {formatCentsToMoney(Math.abs(spendLeft), currency)}
+          </Text>
+          <View style={styles.heroMeta}>
+            <Text style={styles.heroMetaText}>
+              {formatCentsToMoney(totalSpent, currency)} spent
+            </Text>
+            <View style={styles.heroMetaDot} />
+            <Text style={styles.heroMetaText}>
+              {formatCentsToMoney(month.income_cents, currency)} income
+            </Text>
           </View>
         </View>
 
-        {/* ── Grade explanation (shown when badge is tapped) ── */}
+        {/* ── Grade explanation panel ── */}
         {showGradeExp && grade && gradeExp && (
-          <View style={[styles.gradeExpCard, { borderLeftColor: GRADE_COLOR[grade] }]}>
-            <Text style={[styles.gradeExpHeader, { color: GRADE_COLOR[grade] }]}>
-              Grade {grade}
-            </Text>
+          <View style={[styles.gradePanel, { borderColor: GRADE_COLOR[grade] + '50' }]}>
+            <View style={styles.gradePanelHeader}>
+              <View style={[styles.gradePanelDot, { backgroundColor: GRADE_COLOR[grade] }]} />
+              <Text style={[styles.gradePanelTitle, { color: GRADE_COLOR[grade] }]}>
+                Grade {grade}
+              </Text>
+            </View>
             {gradeExp.reasons.map((r, i) => (
-              <View key={i} style={styles.gradeExpRow}>
-                <Ionicons name="ellipse" size={5} color={GRADE_COLOR[grade]} style={styles.gradeExpDot} />
-                <Text style={styles.gradeExpReason}>{r}</Text>
+              <View key={i} style={styles.gradePanelRow}>
+                <Ionicons name="remove" size={12} color={colors.textMuted} style={styles.gradePanelBullet} />
+                <Text style={styles.gradePanelReason}>{r}</Text>
               </View>
             ))}
             {gradeExp.improve && (
-              <View style={styles.gradeExpImproveRow}>
-                <Ionicons name="arrow-up-circle-outline" size={13} color={GRADE_COLOR[grade]} />
-                <Text style={[styles.gradeExpImprove, { color: GRADE_COLOR[grade] }]}>
+              <View style={[styles.gradePanelImprove, { borderTopColor: GRADE_COLOR[grade] + '30' }]}>
+                <Ionicons name="arrow-up-circle-outline" size={14} color={GRADE_COLOR[grade]} />
+                <Text style={[styles.gradePanelImproveText, { color: GRADE_COLOR[grade] }]}>
                   {gradeExp.improve}
                 </Text>
               </View>
@@ -218,52 +210,76 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── Breakdown ── */}
-        <Text style={styles.sectionTitle}>Breakdown</Text>
+        {/* ── Section label ── */}
+        <Text style={styles.sectionLabel}>Breakdown</Text>
 
-        {rows.map((row) => {
-          const progress =
-            row.planned > 0 ? Math.min((row.used / row.planned) * 100, 100) : 0;
-          const overBudget = row.used > row.planned && row.planned > 0;
+        {/* ── Breakdown: single grouped card ── */}
+        <Card variant="outlined" padding={false} style={styles.breakdownCard}>
+          {rows.map((row, index) => {
+            const progress    = row.planned > 0 ? Math.min((row.used / row.planned) * 100, 100) : 0;
+            const overBudget  = row.used > row.planned && row.planned > 0;
 
-          return (
-            <View key={row.label} style={styles.rowCard}>
-              <View style={styles.rowTop}>
-                <View style={[styles.rowDot, { backgroundColor: row.color }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{row.label}</Text>
-                  <Text style={styles.rowHint}>{row.hint}</Text>
-                </View>
-                <View style={styles.amountBlock}>
-                  <Text style={[styles.amountMain, overBudget && { color: colors.danger }]}>
-                    {formatCentsToMoney(row.used, currency)}
-                  </Text>
-                  <Text style={styles.amountSecondary}>
-                    / {formatCentsToMoney(row.planned, currency)}
-                  </Text>
+            return (
+              <View key={row.label}>
+                {index > 0 && <View style={styles.rowDivider} />}
+
+                <View style={styles.breakdownRow}>
+                  {/* Label + hint */}
+                  <View style={styles.rowLabelGroup}>
+                    <View style={[styles.rowDot, { backgroundColor: row.color }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rowLabel}>{row.label}</Text>
+                      <Text style={styles.rowHint}>{row.hint}</Text>
+                    </View>
+                  </View>
+
+                  {/* Amount */}
+                  <View style={styles.rowAmounts}>
+                    <Text style={[styles.rowAmountMain, overBudget && { color: colors.danger }]}>
+                      {formatCentsToMoney(row.used, currency)}
+                    </Text>
+                    <Text style={styles.rowAmountOf}>
+                      of {formatCentsToMoney(row.planned, currency)}
+                    </Text>
+                  </View>
+
+                  {/* Progress bar — full width below the two columns */}
+                  <View style={styles.rowTrackWrap}>
+                    <View style={[styles.rowTrack, { backgroundColor: row.softColor }]}>
+                      <View
+                        style={[
+                          styles.rowFill,
+                          {
+                            width: `${progress}%` as any,
+                            backgroundColor: overBudget ? colors.danger : row.color,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
                 </View>
               </View>
+            );
+          })}
+        </Card>
 
-              <View style={styles.track}>
-                <View
-                  style={[
-                    styles.fill,
-                    {
-                      width: `${progress}%` as any,
-                      backgroundColor: overBudget ? colors.danger : row.color,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          );
-        })}
+        {/* ── All expenses link ── */}
+        <Pressable
+          onPress={() => router.push('/expenses' as any)}
+          style={({ pressed }) => [styles.allExpenses, pressed && { opacity: 0.55 }]}
+        >
+          <Text style={styles.allExpensesText}>View all expenses</Text>
+          <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
+        </Pressable>
+
       </AppScreen>
 
       {/* ── FAB ── */}
       <Pressable
         onPress={() => router.push('/expense-new' as any)}
         style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Add new expense"
       >
         <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
@@ -271,302 +287,282 @@ export default function HomeScreen() {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  pageHeader: {
-    marginBottom: 4,
-    paddingHorizontal: 4,
+  root: {
+    flex: 1,
   },
 
-  // ── Hero ──────────────────────────────────────────────────────────────
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 20,
-    shadowColor: colors.text,
-    shadowOpacity: 0.07,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  heroTopRow: {
+  // ── Top bar ───────────────────────────────────────────────────────────────
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 18,
+    alignItems: 'flex-end',
+    paddingBottom: spacing[2],    // 8 — breathes before the hero
   },
-  eyebrow: {
+  topEyebrow: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: colors.primary,
-    marginBottom: 6,
+    marginBottom: 3,
   },
-  pageTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  heroTopRight: {
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  viewAllButton: {
-    backgroundColor: colors.background,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  viewAllText: {
-    fontSize: 13,
+  topMonth: {
+    fontSize: 17,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.text,
+    letterSpacing: -0.2,
   },
   gradeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: radius.full,
   },
-  gradeText: {
-    fontSize: 15,
+  gradeBadgeText: {
+    fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
 
-  // ── Grade explanation card ────────────────────────────────────────────
-  gradeExpCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderLeftWidth: 3,
-    paddingVertical: 14,
-    paddingLeft: 16,
-    paddingRight: 18,
-    marginBottom: 14,
-    gap: 6,
-    shadowColor: colors.text,
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  // ── Hero ──────────────────────────────────────────────────────────────────
+  hero: {
+    paddingTop: spacing[8],      // 32
+    paddingBottom: spacing[8],   // 32
+    paddingHorizontal: spacing[1], // 4 — slight inset for breathing
   },
-  gradeExpHeader: {
+  heroEyebrow: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    color: colors.textMuted,
+    marginBottom: spacing[2],    // 8
   },
-  gradeExpRow: {
+  heroAmount: {
+    fontSize: 52,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -2,
+    lineHeight: 58,
+    marginBottom: spacing[3],    // 12
+  },
+  heroMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing[2],             // 8
   },
-  gradeExpDot: {
-    marginTop: 1,
+  heroMetaText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textMuted,
+  },
+  heroMetaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+  },
+
+  // ── Grade panel ───────────────────────────────────────────────────────────
+  gradePanel: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    paddingVertical: spacing[4],   // 16
+    paddingHorizontal: spacing[4], // 16
+    marginBottom: spacing[5],      // 20
+    gap: spacing[2],               // 8
+    ...shadows.sm,
+  },
+  gradePanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginBottom: spacing[1],
+  },
+  gradePanelDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+  },
+  gradePanelTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+  },
+  gradePanelRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+  },
+  gradePanelBullet: {
+    marginTop: 3,
     flexShrink: 0,
   },
-  gradeExpReason: {
+  gradePanelReason: {
     flex: 1,
     fontSize: 14,
-    color: colors.text,
     lineHeight: 20,
+    color: colors.text,
   },
-  gradeExpImproveRow: {
+  gradePanelImprove: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-    paddingTop: 10,
+    gap: spacing[2],
+    marginTop: spacing[2],
+    paddingTop: spacing[3],
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
   },
-  gradeExpImprove: {
+  gradePanelImproveText: {
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
   },
-  heroAmount: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -1,
-    marginBottom: 4,
-  },
-  heroSubtext: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginVertical: 18,
-  },
-  heroStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 32,
-    backgroundColor: colors.border,
-  },
-  statLabel: {
+
+  // ── Section label ─────────────────────────────────────────────────────────
+  sectionLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+    marginBottom: spacing[3],    // 12
+    paddingHorizontal: spacing[1],
   },
 
-  // ── Breakdown ─────────────────────────────────────────────────────────
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-    marginLeft: 4,
+  // ── Breakdown card + rows ─────────────────────────────────────────────────
+  breakdownCard: {
+    overflow: 'hidden',
   },
-  rowCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 10,
-    shadowColor: colors.text,
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing[5],  // 20 — inset divider
   },
-  rowTop: {
+  breakdownRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    paddingHorizontal: spacing[5],  // 20
+    paddingVertical: spacing[4],    // 16
+    gap: 0,
+  },
+  rowLabelGroup: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 14,
+    gap: spacing[3],               // 12
   },
   rowDot: {
-    width: 10,
-    height: 10,
+    width: 9,
+    height: 9,
     borderRadius: 999,
     flexShrink: 0,
   },
-  rowTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  rowLabel: {
+    fontSize: 15,
+    fontWeight: '600',
     color: colors.text,
+    letterSpacing: -0.1,
   },
   rowHint: {
-    marginTop: 2,
     fontSize: 12,
     color: colors.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
   },
-  amountBlock: {
+  rowAmounts: {
     alignItems: 'flex-end',
   },
-  amountMain: {
-    fontSize: 16,
+  rowAmountMain: {
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
+    letterSpacing: -0.2,
   },
-  amountSecondary: {
-    marginTop: 2,
-    fontSize: 12,
+  rowAmountOf: {
+    fontSize: 11,
     color: colors.textMuted,
+    marginTop: 2,
   },
-  track: {
-    height: 6,
-    backgroundColor: colors.background,
-    borderRadius: 999,
+  rowTrackWrap: {
+    width: '100%',
+    marginTop: spacing[3],         // 12
+  },
+  rowTrack: {
+    height: 4,
+    borderRadius: radius.full,
     overflow: 'hidden',
   },
-  fill: {
+  rowFill: {
     height: '100%',
-    borderRadius: 999,
+    borderRadius: radius.full,
   },
 
-  // ── Empty state ───────────────────────────────────────────────────────
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 28,
+  // ── All expenses link ─────────────────────────────────────────────────────
+  allExpenses: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: colors.text,
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    justifyContent: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[5],  // 20
+  },
+  allExpensesText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: spacing[10],      // 40
   },
   emptyIconWrap: {
     width: 56,
     height: 56,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     backgroundColor: colors.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing[4],
+    alignSelf: 'center',
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
+    textAlign: 'center',
+    marginBottom: spacing[2],
   },
-  emptyText: {
+  emptyBody: {
     fontSize: 15,
     lineHeight: 22,
     color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: 24,
-  },
-  emptyBtn: {
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  emptyBtnPressed: { opacity: 0.88 },
-  emptyBtnText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '700',
   },
 
-  // ── FAB ──────────────────────────────────────────────────────────────
+  // ── FAB ──────────────────────────────────────────────────────────────────
   fab: {
     position: 'absolute',
-    right: 22,
-    bottom: 24,
+    right: spacing[5],             // 20
+    bottom: spacing[6],            // 24
     width: 56,
     height: 56,
-    borderRadius: 999,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.32,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,

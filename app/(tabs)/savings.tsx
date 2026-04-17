@@ -1,12 +1,15 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
+import { Card } from '../../components/ui/Card';
 import { useInvestmentsDb } from '../../db/investments';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatDateDisplay } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
+import { radius, shadows, spacing } from '../../theme/tokens';
 
 type InvestmentItem = {
   id: number;
@@ -23,7 +26,7 @@ export default function SavingsScreen() {
   const { getInvestmentsList } = useInvestmentsDb();
   const { getCurrency } = useSettingsDb();
 
-  const [items, setItems] = useState<InvestmentItem[]>([]);
+  const [items, setItems]       = useState<InvestmentItem[]>([]);
   const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
 
   const load = useCallback(async () => {
@@ -31,299 +34,277 @@ export default function SavingsScreen() {
       getInvestmentsList(),
       getCurrency(),
     ]);
-
     setItems(result as InvestmentItem[]);
     setCurrency(savedCurrency);
   }, [getInvestmentsList, getCurrency]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const totalCurrent = items.reduce((sum, item) => sum + item.current_value_cents, 0);
   const totalOpening = items.reduce((sum, item) => sum + item.opening_amount_cents, 0);
-  const totalGain = totalCurrent - totalOpening;
+  const totalGain    = totalCurrent - totalOpening;
+  const isPositive   = totalGain >= 0;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.root}>
       <AppScreen scroll>
-        <View style={styles.heroCard}>
-          <View style={styles.heroTopRow}>
-            <View>
-              <Text style={styles.eyebrow}>Portfolio</Text>
-              <Text style={styles.pageTitle}>Invest</Text>
-            </View>
 
-            <View style={styles.livePill}>
-              <Text style={styles.livePillText}>{items.length} items</Text>
-            </View>
+        {/* ── Top bar ── */}
+        <View style={styles.topBar}>
+          <View>
+            <Text style={styles.topEyebrow}>Portfolio</Text>
+            <Text style={styles.topTitle}>Invest</Text>
           </View>
+          <View style={styles.countPill}>
+            <Text style={styles.countPillText}>
+              {items.length} {items.length === 1 ? 'item' : 'items'}
+            </Text>
+          </View>
+        </View>
 
+        {/* ── Hero: current portfolio value ── */}
+        <View style={styles.hero}>
+          <Text style={styles.heroEyebrow}>Current value</Text>
           <Text style={styles.heroAmount}>
             {formatCentsToMoney(totalCurrent, currency)}
           </Text>
-          <Text style={styles.heroSubtext}>Current tracked value</Text>
-
-          <View style={styles.heroStatsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Starting</Text>
-              <Text style={styles.statValue}>
-                {formatCentsToMoney(totalOpening, currency)}
-              </Text>
-            </View>
-
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Gain / loss</Text>
-              <Text
-                style={[
-                  styles.statValue,
-                  totalGain >= 0 ? styles.positive : styles.negative,
-                ]}
-              >
-                {totalGain >= 0 ? '+' : '-'}
-                {formatCentsToMoney(Math.abs(totalGain), currency)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Tracked investments</Text>
-          <Text style={styles.sectionCaption}>Manual and clear</Text>
-        </View>
-
-        {items.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No investments yet</Text>
-            <Text style={styles.emptyBody}>
-              Add an old investment manually, or document one directly from an expense.
+          <View style={styles.heroMeta}>
+            <Text style={styles.heroMetaText}>
+              {formatCentsToMoney(totalOpening, currency)} invested
+            </Text>
+            <View style={styles.heroMetaDot} />
+            <Text style={[styles.heroMetaGain, isPositive ? styles.positive : styles.negative]}>
+              {isPositive ? '+' : '−'}
+              {formatCentsToMoney(Math.abs(totalGain), currency)}
             </Text>
           </View>
+        </View>
+
+        {/* ── Section label ── */}
+        <Text style={styles.sectionLabel}>Holdings</Text>
+
+        {/* ── Investment list ── */}
+        {items.length === 0 ? (
+          <Card variant="elevated">
+            <Text style={styles.emptyTitle}>No investments yet</Text>
+            <Text style={styles.emptyBody}>
+              Add a new investment manually, or document one directly from an expense.
+            </Text>
+          </Card>
         ) : (
-          items.map((item) => {
-            const gain = item.current_value_cents - item.opening_amount_cents;
+          <Card variant="outlined" padding={false} style={styles.listCard}>
+            {items.map((item, index) => {
+              const gain       = item.current_value_cents - item.opening_amount_cents;
+              const gainPos    = gain >= 0;
 
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => router.push(`/investment/${item.id}` as any)}
-                style={({ pressed }) => [
-                  styles.itemCard,
-                  pressed && styles.itemCardPressed,
-                ]}
-              >
-                <View style={styles.itemTopRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.itemName}>{item.name}</Text>
-                    <Text style={styles.itemMeta}>
-                      {item.category} · {formatDateDisplay(item.opening_date)}
-                    </Text>
-                  </View>
+              return (
+                <View key={item.id}>
+                  {index > 0 && <View style={styles.rowDivider} />}
+                  <Pressable
+                    onPress={() => router.push(`/investment/${item.id}` as any)}
+                    style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                  >
+                    <View style={styles.rowLeft}>
+                      <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.rowMeta}>
+                        {item.category} · {formatDateDisplay(item.opening_date)}
+                      </Text>
+                    </View>
 
-                  <View style={styles.itemValueBlock}>
-                    <Text style={styles.itemValue}>
-                      {formatCentsToMoney(item.current_value_cents, currency)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.itemGain,
-                        gain >= 0 ? styles.positive : styles.negative,
-                      ]}
-                    >
-                      {gain >= 0 ? '+' : '-'}
-                      {formatCentsToMoney(Math.abs(gain), currency)}
-                    </Text>
-                  </View>
+                    <View style={styles.rowRight}>
+                      <Text style={styles.rowValue}>
+                        {formatCentsToMoney(item.current_value_cents, currency)}
+                      </Text>
+                      <Text style={[styles.rowGain, gainPos ? styles.positive : styles.negative]}>
+                        {gainPos ? '+' : '−'}
+                        {formatCentsToMoney(Math.abs(gain), currency)}
+                      </Text>
+                    </View>
+
+                    <Ionicons name="chevron-forward" size={14} color={colors.border} style={styles.rowChevron} />
+                  </Pressable>
                 </View>
-              </Pressable>
-            );
-          })
+              );
+            })}
+          </Card>
         )}
+
       </AppScreen>
 
+      {/* ── FAB ── */}
       <Pressable
         onPress={() => router.push('/investment-new' as any)}
-        style={({ pressed }) => [
-          styles.fab,
-          pressed && styles.fabPressed,
-        ]}
+        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Add investment"
       >
-        <Text style={styles.fabText}>+</Text>
+        <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 20,
-    shadowColor: colors.text,
-    shadowOpacity: 0.07,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  heroTopRow: {
+  root: { flex: 1 },
+
+  // ── Top bar ─────────────────────────────────────────────────────────────────
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 18,
+    alignItems: 'flex-end',
+    paddingBottom: spacing[2],
   },
-  eyebrow: {
-    fontSize: 12,
+  topEyebrow: {
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: colors.keep,
-    marginBottom: 6,
+    marginBottom: 3,
   },
-  pageTitle: {
-    fontSize: 30,
-    fontWeight: '700',
+  topTitle: {
+    fontSize: 17,
+    fontWeight: '600',
     color: colors.text,
+    letterSpacing: -0.2,
   },
-  livePill: {
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+  countPill: {
+    backgroundColor: colors.keepSoft,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
   },
-  livePillText: {
+  countPillText: {
     fontSize: 12,
     fontWeight: '700',
     color: colors.keep,
   },
+
+  // ── Hero ────────────────────────────────────────────────────────────────────
+  hero: {
+    paddingTop: spacing[8],      // 32
+    paddingBottom: spacing[8],   // 32
+    paddingHorizontal: spacing[1],
+  },
+  heroEyebrow: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+    marginBottom: spacing[2],
+  },
   heroAmount: {
-    fontSize: 40,
+    fontSize: 48,
     fontWeight: '800',
     color: colors.text,
-    marginBottom: 6,
+    letterSpacing: -2,
+    lineHeight: 54,
+    marginBottom: spacing[3],
   },
-  heroSubtext: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: 20,
-  },
-  heroStatsRow: {
+  heroMeta: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    gap: spacing[2],
   },
-  statBox: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 14,
+  heroMetaText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textMuted,
   },
-  statLabel: {
+  heroMetaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: colors.border,
+  },
+  heroMetaGain: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  positive: { color: colors.primary },
+  negative: { color: colors.danger },
+
+  // ── Section label ────────────────────────────────────────────────────────────
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+    marginBottom: spacing[3],
+    paddingHorizontal: spacing[1],
+  },
+
+  // ── Holdings list ────────────────────────────────────────────────────────────
+  listCard: {
+    overflow: 'hidden',
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing[5],
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+    gap: spacing[3],
+  },
+  rowPressed: { opacity: 0.6 },
+  rowLeft: { flex: 1, minWidth: 0 },
+  rowName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    letterSpacing: -0.1,
+  },
+  rowMeta: {
     fontSize: 12,
     color: colors.textMuted,
-    marginBottom: 6,
+    marginTop: 3,
   },
-  statValue: {
+  rowRight:  { alignItems: 'flex-end' },
+  rowValue: {
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
+    letterSpacing: -0.2,
   },
-  sectionHeader: {
-    marginBottom: 10,
+  rowGain: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  sectionCaption: {
-    marginTop: 4,
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 22,
-    shadowColor: colors.text,
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
+  rowChevron: { flexShrink: 0 },
+
+  // ── Empty state ──────────────────────────────────────────────────────────────
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   emptyBody: {
     fontSize: 15,
     lineHeight: 22,
     color: colors.textMuted,
   },
-  itemCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 10,
-    shadowColor: colors.text,
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  itemCardPressed: {
-    opacity: 0.93,
-  },
-  itemTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'center',
-  },
-  itemName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  itemMeta: {
-    marginTop: 5,
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  itemValueBlock: {
-    alignItems: 'flex-end',
-  },
-  itemValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  itemGain: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  positive: {
-    color: colors.primary,
-  },
-  negative: {
-    color: colors.danger,
-  },
+
+  // ── FAB ─────────────────────────────────────────────────────────────────────
   fab: {
     position: 'absolute',
-    right: 22,
-    bottom: 24,
+    right: spacing[5],
+    bottom: spacing[6],
     width: 56,
     height: 56,
-    borderRadius: 999,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: colors.primary,
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.32,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
@@ -331,11 +312,5 @@ const styles = StyleSheet.create({
   fabPressed: {
     opacity: 0.88,
     transform: [{ scale: 0.96 }],
-  },
-  fabText: {
-    color: colors.white,
-    fontSize: 28,
-    fontWeight: '400',
-    lineHeight: 32,
   },
 });
