@@ -17,6 +17,7 @@ type InvestmentItem = {
   category: string;
   opening_amount_cents: number;
   current_value_cents: number;
+  total_cost_basis_cents: number;
   opening_date: string;
   note: string | null;
 };
@@ -40,9 +41,9 @@ export default function SavingsScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const totalCurrent = items.reduce((sum, item) => sum + item.current_value_cents, 0);
-  const totalOpening = items.reduce((sum, item) => sum + item.opening_amount_cents, 0);
-  const totalGain    = totalCurrent - totalOpening;
+  const totalCurrent   = items.reduce((sum, item) => sum + item.current_value_cents, 0);
+  const totalCostBasis = items.reduce((sum, item) => sum + item.total_cost_basis_cents, 0);
+  const totalGain      = totalCurrent - totalCostBasis;
   const isPositive   = totalGain >= 0;
 
   return (
@@ -70,7 +71,7 @@ export default function SavingsScreen() {
           </Text>
           <View style={styles.heroMeta}>
             <Text style={styles.heroMetaText}>
-              {formatCentsToMoney(totalOpening, currency)} invested
+              {formatCentsToMoney(totalCostBasis, currency)} invested
             </Text>
             <View style={styles.heroMetaDot} />
             <Text style={[styles.heroMetaGain, isPositive ? styles.positive : styles.negative]}>
@@ -94,7 +95,7 @@ export default function SavingsScreen() {
         ) : (
           <Card variant="outlined" padding={false} style={styles.listCard}>
             {items.map((item, index) => {
-              const gain       = item.current_value_cents - item.opening_amount_cents;
+              const gain       = item.current_value_cents - item.total_cost_basis_cents;
               const gainPos    = gain >= 0;
 
               return (

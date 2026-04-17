@@ -203,22 +203,30 @@ export function useInvestmentsDb() {
       asset_quantity: number | null;
       opening_amount_cents: number;
       current_value_cents: number;
+      total_cost_basis_cents: number;
       opening_date: string;
       note: string | null;
     }>(`
       SELECT
-        id,
-        name,
-        category,
-        asset_symbol,
-        asset_coin_id,
-        asset_quantity,
-        opening_amount_cents,
-        current_value_cents,
-        opening_date,
-        note
-      FROM savings_items
-      ORDER BY updated_at DESC, id DESC
+        si.id,
+        si.name,
+        si.category,
+        si.asset_symbol,
+        si.asset_coin_id,
+        si.asset_quantity,
+        si.opening_amount_cents,
+        si.current_value_cents,
+        si.opening_date,
+        si.note,
+        si.opening_amount_cents
+          + COALESCE(SUM(CASE WHEN su.type = 'buy'  THEN su.amount_cents ELSE 0 END), 0)
+          - COALESCE(SUM(CASE WHEN su.type = 'sell' THEN su.amount_cents ELSE 0 END), 0)
+        AS total_cost_basis_cents
+      FROM savings_items si
+      LEFT JOIN savings_updates su
+        ON su.saving_item_id = si.id AND su.type IN ('buy', 'sell')
+      GROUP BY si.id
+      ORDER BY si.updated_at DESC, si.id DESC
     `);
   }, [db]);
 
