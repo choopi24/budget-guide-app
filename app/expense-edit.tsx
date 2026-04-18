@@ -1,12 +1,14 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { DatePickerField } from '../components/DatePickerField';
+import { BackButton } from '../components/ui/BackButton';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { DeleteButton } from '../components/ui/DeleteButton';
 import { Input } from '../components/ui/Input';
+import { SectionLabel } from '../components/ui/SectionLabel';
 import { useExpenseHistoryDb } from '../db/expense-history';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
@@ -87,28 +89,12 @@ export default function ExpenseEditScreen() {
     <AppScreen scroll>
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          hitSlop={10}
-        >
-          <Ionicons name="chevron-back" size={16} color={colors.text} />
-          <Text style={styles.backBtnText}>Back</Text>
-        </Pressable>
-
-        <Pressable
-          onPress={handleDelete}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Delete expense"
-          style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
-        >
-          <Ionicons name="trash-outline" size={16} color={colors.danger} />
-        </Pressable>
+        <BackButton onPress={() => router.back()} />
+        <DeleteButton onPress={handleDelete} accessibilityLabel="Delete expense" />
       </View>
 
       <Card variant="outlined">
-        <Text style={styles.eyebrow}>Edit expense</Text>
+        <SectionLabel style={styles.eyebrow}>Edit expense</SectionLabel>
         <Text style={styles.title}>{loading ? '…' : title}</Text>
 
         {/* ── Description ── */}
@@ -202,44 +188,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing[3],   // 12
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    backgroundColor: colors.surface,
-    borderRadius: radius.full,
-    paddingVertical: spacing[2],
-    paddingLeft: spacing[2] + 2,
-    paddingRight: spacing[3] + 2,
-    shadowColor: colors.text,
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  backBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  deleteBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.full,
-    backgroundColor: colors.dangerSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.danger + '25',
+    marginBottom: spacing[3],
   },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    color: colors.primary,
     marginBottom: spacing[2],
   },
   title: {

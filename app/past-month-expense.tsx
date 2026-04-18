@@ -12,10 +12,15 @@ import {
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { SectionLabel } from '../components/ui/SectionLabel';
 import { useExpensesDb } from '../db/expenses';
 import { formatFriendlyDate, getMonthLabelFromKey } from '../lib/date';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/tokens';
 
 export default function PastMonthExpenseScreen() {
   const router = useRouter();
@@ -90,7 +95,7 @@ export default function PastMonthExpenseScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
+      <Card variant="outlined">
         {/* ── Context banner ── */}
         <View style={styles.contextBanner}>
           <Ionicons name="time-outline" size={15} color={colors.keep} />
@@ -99,37 +104,31 @@ export default function PastMonthExpenseScreen() {
           </Text>
         </View>
 
-        <Text style={styles.eyebrow}>Missed expense</Text>
+        <SectionLabel style={styles.eyebrow}>Missed expense</SectionLabel>
         <Text style={styles.title}>{monthLabel}</Text>
         <Text style={styles.body}>
           Log an expense you forgot to record. This updates that month's record and adjusts carryover into the next month if needed.
         </Text>
 
         {/* ── Title ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>What was it for?</Text>
-          <TextInput
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Groceries, taxi, pharmacy..."
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            autoFocus
-          />
-        </View>
+        <Input
+          label="What was it for?"
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Groceries, taxi, pharmacy..."
+          autoFocus
+          containerStyle={styles.field}
+        />
 
         {/* ── Amount ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Amount</Text>
-          <TextInput
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="120"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="decimal-pad"
-            style={styles.input}
-          />
-        </View>
+        <Input
+          label="Amount"
+          value={amount}
+          onChangeText={setAmount}
+          placeholder="120"
+          keyboardType="decimal-pad"
+          containerStyle={styles.field}
+        />
 
         {/* ── Bucket ── */}
         <View style={styles.field}>
@@ -194,40 +193,32 @@ export default function PastMonthExpenseScreen() {
         </View>
 
         {/* ── Note ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Optional note"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, styles.noteInput]}
-            multiline
-          />
-        </View>
+        <Input
+          label="Note (optional)"
+          value={note}
+          onChangeText={setNote}
+          placeholder="Optional note"
+          multiline
+          style={styles.noteInput}
+          containerStyle={styles.field}
+        />
 
         {/* ── Save ── */}
-        <Pressable
+        <Button
+          label={saving ? 'Saving…' : `Add to ${monthLabel}`}
           onPress={handleSave}
           disabled={!canSave}
-          style={({ pressed }) => [
-            styles.button,
-            (!canSave || pressed) && styles.buttonPressed,
-            !canSave && styles.buttonDisabled,
-          ]}
-        >
-          <Text style={styles.buttonText}>
-            {saving ? 'Saving...' : 'Add to ' + monthLabel}
-          </Text>
-        </Pressable>
-      </View>
+          loading={saving}
+          style={{ marginTop: spacing[6] }}
+        />
+      </Card>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   topBar: {
-    marginBottom: 10,
+    marginBottom: spacing[3],
     alignItems: 'flex-end',
   },
   cancelText: {
@@ -235,22 +226,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
+  eyebrow: {
+    marginBottom: spacing[2],
   },
   contextBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EBF1FA',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 20,
+    gap: spacing[1] + 2,
+    backgroundColor: colors.keepSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    marginBottom: spacing[5],
     alignSelf: 'flex-start',
   },
   contextText: {
@@ -258,59 +245,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.keep,
   },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.keep,
-    marginBottom: 8,
-  },
   title: {
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 10,
+    letterSpacing: -0.3,
+    marginBottom: spacing[1],
   },
   body: {
     fontSize: 15,
     lineHeight: 22,
     color: colors.textMuted,
+    marginBottom: spacing[1],
   },
   field: {
-    marginTop: 18,
+    marginTop: spacing[5],
+  },
+  noteInput: {
+    minHeight: 80,
+    paddingTop: spacing[4],
+    textAlignVertical: 'top',
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
-    justifyContent: 'center',
-  },
-  noteInput: {
-    minHeight: 80,
-    paddingTop: 14,
-    textAlignVertical: 'top',
+    marginBottom: spacing[2],
   },
   segmentRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing[2] + 2,
   },
   segmentButton: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: 16,
+    minHeight: 48,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
@@ -334,45 +304,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     minHeight: 52,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing[4],
   },
   dateButtonText: {
     fontSize: 16,
     color: colors.text,
   },
   pickerWrap: {
-    marginTop: 8,
+    marginTop: spacing[2],
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
   },
   pickerFooter: {
     alignItems: 'flex-end',
-    padding: 8,
+    padding: spacing[2],
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
   doneBtn: {
     backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2] + 2,
+    borderRadius: radius.md,
   },
   doneBtnText: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
   },
+  // placeholder — styles.button no longer used (replaced with Button primitive)
   button: {
-    marginTop: 24,
+    marginTop: spacing[6],
     height: 52,
-    borderRadius: 16,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

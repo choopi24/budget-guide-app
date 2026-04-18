@@ -11,6 +11,7 @@ import {
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatFriendlyDate, getMonthLabelFromKey } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
+import { SectionLabel } from '../../components/ui/SectionLabel';
 import { colors } from '../../theme/colors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ export default function HistoryScreen() {
     >
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Text style={styles.eyebrow}>All time</Text>
+        <SectionLabel style={styles.eyebrow}>All time</SectionLabel>
         <Text style={styles.pageTitle}>History</Text>
       </View>
 
@@ -223,11 +224,6 @@ const styles = StyleSheet.create({
 
   header:    { marginBottom: 24 },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    color: colors.primary,
     marginBottom: 6,
   },
   pageTitle: {

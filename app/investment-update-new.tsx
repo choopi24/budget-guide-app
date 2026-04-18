@@ -4,14 +4,18 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { DatePickerField } from '../components/DatePickerField';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { SectionLabel } from '../components/ui/SectionLabel';
 import { useInvestmentDetailDb, type InvestmentDetail, type InvestmentUpdateType } from '../db/investment-detail';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/tokens';
 
 type CryptoUpdateMode = 'buy' | 'sell' | 'value';
 
@@ -121,8 +125,8 @@ export default function InvestmentUpdateNewScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Investment update</Text>
+      <Card variant="outlined">
+        <SectionLabel style={styles.eyebrow}>Investment update</SectionLabel>
         <Text style={styles.title}>Add an update</Text>
         <Text style={styles.body}>
           {isCrypto
@@ -189,21 +193,18 @@ export default function InvestmentUpdateNewScreen() {
         )}
 
         {needsQuantity && (
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              {cryptoMode === 'buy'
+          <Input
+            label={
+              cryptoMode === 'buy'
                 ? `How much more ${detail?.asset_symbol || 'coin'} did you buy?`
-                : `How much ${detail?.asset_symbol || 'coin'} did you sell?`}
-            </Text>
-            <TextInput
-              value={quantityDelta}
-              onChangeText={setQuantityDelta}
-              placeholder="0.1"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-          </View>
+                : `How much ${detail?.asset_symbol || 'coin'} did you sell?`
+            }
+            value={quantityDelta}
+            onChangeText={setQuantityDelta}
+            placeholder="0.1"
+            keyboardType="decimal-pad"
+            containerStyle={styles.field}
+          />
         )}
 
         <View style={styles.field}>
@@ -211,54 +212,43 @@ export default function InvestmentUpdateNewScreen() {
           <DatePickerField value={effectiveDate} onChange={setEffectiveDate} />
         </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>
-            {isCrypto && cryptoMode === 'buy'
+        <Input
+          label={
+            isCrypto && cryptoMode === 'buy'
               ? 'How much did you purchase?'
               : isCrypto && cryptoMode === 'sell'
               ? 'How much did you sell?'
               : isCrypto
               ? 'New total value'
-              : 'How much did you add?'}
-          </Text>
-          <TextInput
-            value={value}
-            onChangeText={setValue}
-            placeholder="12500"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="decimal-pad"
-            style={styles.input}
-          />
-        </View>
+              : 'How much did you add?'
+          }
+          value={value}
+          onChangeText={setValue}
+          placeholder="12500"
+          keyboardType="decimal-pad"
+          containerStyle={styles.field}
+        />
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Optional note"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, styles.noteInput]}
-            multiline
-          />
-        </View>
+        <Input
+          label="Note (optional)"
+          value={note}
+          onChangeText={setNote}
+          placeholder="Optional note"
+          style={styles.noteInput}
+          containerStyle={styles.field}
+          multiline
+        />
 
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        <Pressable
+        <Button
+          label={saving ? 'Saving…' : 'Confirm Entry'}
           onPress={handleSave}
           disabled={!canSave}
-          style={({ pressed }) => [
-            styles.button,
-            (!canSave || pressed) && styles.buttonPressed,
-            !canSave && styles.buttonDisabled,
-          ]}
-        >
-          <Text style={styles.buttonText}>
-            {saving ? 'Saving...' : 'Confirm Entry'}
-          </Text>
-        </Pressable>
-      </View>
+          loading={saving}
+          style={{ marginTop: spacing[6] }}
+        />
+      </Card>
     </AppScreen>
   );
 }
@@ -273,17 +263,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 20,
-  },
   eyebrow: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.keep,
     marginBottom: 8,
   },
   title: {
@@ -298,28 +278,18 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   field: {
-    marginTop: 16,
+    marginTop: spacing[4],
+  },
+  noteInput: {
+    minHeight: 96,
+    paddingTop: 14,
+    textAlignVertical: 'top',
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
-  },
-  noteInput: {
-    minHeight: 96,
-    paddingTop: 14,
-    textAlignVertical: 'top',
   },
   segmentRow: {
     flexDirection: 'row',
@@ -354,29 +324,5 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     fontWeight: '600',
-  },
-  button: {
-    marginTop: 20,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  buttonPressed: {
-    opacity: 0.9,
-  },
-  buttonDisabled: {
-    backgroundColor: colors.buttonDisabled,
-  },
-  buttonText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

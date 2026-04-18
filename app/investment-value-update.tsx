@@ -10,10 +10,15 @@ import {
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { DatePickerField } from '../components/DatePickerField';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { SectionLabel } from '../components/ui/SectionLabel';
+import { Input } from '../components/ui/Input';
 import { useInvestmentDetailDb, type InvestmentDetail } from '../db/investment-detail';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
 import { formatCentsToMoney, parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/tokens';
 
 export default function InvestmentValueUpdateScreen() {
   const router = useRouter();
@@ -76,8 +81,8 @@ export default function InvestmentValueUpdateScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Update value</Text>
+      <Card variant="outlined">
+        <SectionLabel style={styles.eyebrow}>Update value</SectionLabel>
         <Text style={styles.title}>{detail?.name ?? '...'}</Text>
 
         {/* Current value context */}
@@ -91,22 +96,19 @@ export default function InvestmentValueUpdateScreen() {
         )}
 
         {/* New value input */}
-        <View style={styles.field}>
-          <Text style={styles.label}>New total value</Text>
-          <TextInput
-            value={newValue}
-            onChangeText={setNewValue}
-            placeholder="5200"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="decimal-pad"
-            returnKeyType="next"
-            onSubmitEditing={() => noteRef.current?.focus()}
-            blurOnSubmit={false}
-            autoFocus
-            style={styles.input}
-            accessibilityLabel="New total value"
-          />
-        </View>
+        <Input
+          label="New total value"
+          value={newValue}
+          onChangeText={setNewValue}
+          placeholder="5200"
+          keyboardType="decimal-pad"
+          returnKeyType="next"
+          onSubmitEditing={() => noteRef.current?.focus()}
+          blurOnSubmit={false}
+          autoFocus
+          containerStyle={styles.field}
+          accessibilityLabel="New total value"
+        />
 
         {/* Date — hidden by default */}
         <Pressable
@@ -133,45 +135,34 @@ export default function InvestmentValueUpdateScreen() {
         )}
 
         {/* Note */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            ref={noteRef}
-            value={note}
-            onChangeText={setNote}
-            placeholder="Optional note"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, styles.noteInput]}
-            multiline
-          />
-        </View>
+        <Input
+          ref={noteRef}
+          label="Note (optional)"
+          value={note}
+          onChangeText={setNote}
+          placeholder="Optional note"
+          multiline
+          style={styles.noteInput}
+          containerStyle={styles.field}
+        />
 
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        <Pressable
+        <Button
+          label={saving ? 'Saving…' : 'Save update'}
           onPress={handleSave}
           disabled={!canSave}
-          accessibilityRole="button"
-          accessibilityLabel="Save value update"
-          accessibilityState={{ disabled: !canSave }}
-          style={({ pressed }) => [
-            styles.button,
-            (!canSave || pressed) && styles.buttonPressed,
-            !canSave && styles.buttonDisabled,
-          ]}
-        >
-          <Text style={styles.buttonText}>
-            {saving ? 'Saving...' : 'Save update'}
-          </Text>
-        </Pressable>
-      </View>
+          loading={saving}
+          style={{ marginTop: spacing[6] }}
+        />
+      </Card>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   topBar: {
-    marginBottom: 10,
+    marginBottom: spacing[3],
     alignItems: 'flex-end',
   },
   cancelText: {
@@ -179,37 +170,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
-  },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.keep,
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.3,
-    marginBottom: 16,
+    marginBottom: spacing[4],
   },
   contextRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 4,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
   },
   contextLabel: {
     fontSize: 14,
@@ -222,63 +202,32 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   field: {
-    marginTop: 18,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
+    marginTop: spacing[5],
   },
   noteInput: {
     minHeight: 80,
-    paddingTop: 14,
+    paddingTop: spacing[4],
     textAlignVertical: 'top',
   },
   changeDateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 14,
+    gap: spacing[1],
+    marginTop: spacing[4],
     alignSelf: 'flex-start',
   },
   changeDateText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
+    fontWeight: '500',
+    color: colors.textTertiary,
   },
   datePickerWrap: {
-    marginTop: 10,
+    marginTop: spacing[3],
   },
   errorText: {
-    marginTop: 14,
+    marginTop: spacing[4],
     fontSize: 14,
     fontWeight: '600',
     color: colors.danger,
-  },
-  button: {
-    marginTop: 24,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPressed: { opacity: 0.9 },
-  buttonDisabled: { backgroundColor: colors.buttonDisabled },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

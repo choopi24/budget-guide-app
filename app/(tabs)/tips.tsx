@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
+import { SectionLabel } from '../../components/ui/SectionLabel';
 import { colors } from '../../theme/colors';
 
 type Category = 'All' | 'Budgeting' | 'Investing' | 'Saving' | 'Mindset';
@@ -21,7 +22,7 @@ export default function TipsScreen() {
 
       {/* ── Hero ──────────────────────────────────────── */}
       <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Knowledge</Text>
+        <SectionLabel style={styles.eyebrow}>Knowledge</SectionLabel>
         <Text style={styles.pageTitle}>Tips & Tricks</Text>
         <Text style={styles.heroSubtext}>
           Smart habits to grow your financial confidence.
@@ -123,11 +124,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.primary,
     marginBottom: 6,
   },
   pageTitle: {

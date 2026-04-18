@@ -4,8 +4,10 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
 import { InvestmentLineChart } from '../../components/InvestmentLineChart';
+import { BackButton } from '../../components/ui/BackButton';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { SectionLabel } from '../../components/ui/SectionLabel';
 import {
   useInvestmentDetailDb,
   type InvestmentDetail,
@@ -16,7 +18,7 @@ import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatDateDisplay, formatShortDate } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
-import { radius, shadows, spacing } from '../../theme/tokens';
+import { radius, spacing } from '../../theme/tokens';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -135,14 +137,7 @@ export default function InvestmentDetailScreen() {
 
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          hitSlop={8}
-        >
-          <Ionicons name="chevron-back" size={16} color={colors.text} />
-          <Text style={styles.backBtnText}>Back</Text>
-        </Pressable>
+        <BackButton onPress={() => router.back()} />
 
         <View style={styles.topActions}>
           <Pressable
@@ -166,7 +161,7 @@ export default function InvestmentDetailScreen() {
 
       {/* ── Hero section (open, no card) ── */}
       <View style={styles.hero}>
-        <Text style={styles.heroEyebrow}>{detail.category}</Text>
+        <SectionLabel style={styles.heroEyebrow}>{detail.category}</SectionLabel>
         <Text style={styles.heroName}>{detail.name}</Text>
         {!!detail.asset_symbol && (
           <Text style={styles.heroSymbol}>
@@ -298,18 +293,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing[4],
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    backgroundColor: colors.surface,
-    borderRadius: radius.full,
-    paddingVertical: spacing[2],
-    paddingLeft: spacing[2] + 2,
-    paddingRight: spacing[3] + 2,
-    ...shadows.sm,
-  },
-  backBtnText: { fontSize: 14, fontWeight: '600', color: colors.text },
   topActions: { flexDirection: 'row', gap: spacing[2], alignItems: 'center' },
   editBtn: {
     flexDirection: 'row',
@@ -341,11 +324,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[1],
   },
   heroEyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.0,
-    textTransform: 'uppercase',
-    color: colors.keep,
     marginBottom: spacing[2],
   },
   heroName: {

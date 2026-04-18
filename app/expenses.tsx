@@ -5,16 +5,20 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { DatePickerField } from '../components/DatePickerField';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { SectionLabel } from '../components/ui/SectionLabel';
 import { useExpenseHistoryDb, type ExpenseHistoryItem } from '../db/expense-history';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
 import { formatFriendlyDate } from '../lib/date';
 import { formatCentsToMoney, parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/tokens';
 
 type Group = {
   label: string;
@@ -133,16 +137,16 @@ export default function ExpensesScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.heroCard}>
-        <Text style={styles.eyebrow}>Expenses</Text>
+      <Card variant="outlined" style={styles.heroCard}>
+        <SectionLabel style={styles.eyebrow}>Expenses</SectionLabel>
         <Text style={styles.pageTitle}>This month’s activity</Text>
         <Text style={styles.heroSubtext}>
           Review, edit, or remove what you logged.
         </Text>
-      </View>
+      </Card>
 
       {editingId && (
-        <View style={styles.editCard}>
+        <Card variant="outlined" style={styles.editCard}>
           <View style={styles.editTopRow}>
             <Text style={styles.editTitle}>Edit expense</Text>
             <Pressable onPress={cancelEdit}>
@@ -150,20 +154,20 @@ export default function ExpensesScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Title</Text>
-            <TextInput value={title} onChangeText={setTitle} style={styles.input} />
-          </View>
+          <Input
+            label="Title"
+            value={title}
+            onChangeText={setTitle}
+            containerStyle={styles.field}
+          />
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Amount</Text>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-          </View>
+          <Input
+            label="Amount"
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            containerStyle={styles.field}
+          />
 
           <View style={styles.field}>
             <Text style={styles.label}>Date</Text>
@@ -209,35 +213,37 @@ export default function ExpensesScreen() {
             </View>
           </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Note</Text>
-            <TextInput
-              value={note}
-              onChangeText={setNote}
-              style={[styles.input, styles.noteInput]}
-              multiline
-            />
-          </View>
+          <Input
+            label="Note"
+            value={note}
+            onChangeText={setNote}
+            style={styles.noteInput}
+            containerStyle={styles.field}
+            multiline
+          />
 
-          <Pressable onPress={handleSaveEdit} style={styles.saveButton}>
-            <Text style={styles.saveButtonText}>Save changes</Text>
-          </Pressable>
-        </View>
+          <Button
+            label="Save changes"
+            onPress={handleSaveEdit}
+            disabled={!editingId || !title.trim() || amountCents <= 0}
+            style={{ marginTop: spacing[5] }}
+          />
+        </Card>
       )}
 
       {groups.length === 0 ? (
-        <View style={styles.emptyCard}>
+        <Card variant="outlined">
           <Text style={styles.emptyTitle}>No expenses yet</Text>
           <Text style={styles.emptyBody}>
             Add your first expense and it will appear here.
           </Text>
-        </View>
+        </Card>
       ) : (
         groups.map((group) => (
           <View key={group.label} style={styles.groupWrap}>
             <Text style={styles.groupTitle}>{group.label}</Text>
 
-            <View style={styles.groupCard}>
+            <Card variant="outlined" padding={false} style={styles.groupCard}>
               {group.items.map((item, index) => (
                 <View
                   key={item.id}
@@ -293,7 +299,7 @@ export default function ExpensesScreen() {
                   </View>
                 </View>
               ))}
-            </View>
+            </Card>
           </View>
         ))
       )}
@@ -312,19 +318,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   heroCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 24,
-    padding: 22,
     marginBottom: 18,
   },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.primary,
     marginBottom: 6,
   },
   pageTitle: {
@@ -338,11 +334,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   editCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 24,
-    padding: 20,
     marginBottom: 18,
   },
   editTopRow: {
@@ -368,16 +359,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
   },
   noteInput: {
     minHeight: 90,
@@ -410,26 +391,6 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     color: colors.text,
   },
-  saveButton: {
-    marginTop: 18,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 24,
-    padding: 22,
-  },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -452,10 +413,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   groupCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 24,
     paddingHorizontal: 18,
     paddingVertical: 6,
   },
@@ -498,7 +455,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.wantSoft,
   },
   badgeInvest: {
-    backgroundColor: '#D6E4F7',
+    backgroundColor: colors.keepSoft,
   },
   badgeText: {
     fontSize: 12,

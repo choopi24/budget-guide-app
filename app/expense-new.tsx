@@ -9,10 +9,14 @@ import {
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { SectionLabel } from '../components/ui/SectionLabel';
 import { useExpensesDb } from '../db/expenses';
 import { detectExpenseBucket, ExpenseBucket } from '../lib/expenseClassifier';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/tokens';
 
 // ── Category presets ─────────────────────────────────────────────────────────
 
@@ -144,8 +148,8 @@ export default function NewExpenseScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Expense</Text>
+      <Card variant="outlined">
+        <SectionLabel style={styles.eyebrow}>Expense</SectionLabel>
         <Text style={styles.title}>What did you spend on?</Text>
 
         {/* ── Essentials section ── */}
@@ -158,7 +162,10 @@ export default function NewExpenseScreen() {
               accessibilityRole="button"
               accessibilityLabel={cat.label}
               accessibilityState={{ selected: selected === cat.label }}
-              style={({ pressed }) => [chipStyle(cat), pressed && { opacity: 0.75 }]}
+              style={({ pressed }) => [
+                chipStyle(cat),
+                pressed && selected !== cat.label && styles.chipPressed,
+              ]}
             >
               <Text style={styles.chipEmoji}>{cat.emoji}</Text>
               <Text style={chipTextStyle(cat)}>{cat.label}</Text>
@@ -176,7 +183,10 @@ export default function NewExpenseScreen() {
               accessibilityRole="button"
               accessibilityLabel={cat.label}
               accessibilityState={{ selected: selected === cat.label }}
-              style={({ pressed }) => [chipStyle(cat), pressed && { opacity: 0.75 }]}
+              style={({ pressed }) => [
+                chipStyle(cat),
+                pressed && selected !== cat.label && styles.chipPressed,
+              ]}
             >
               <Text style={styles.chipEmoji}>{cat.emoji}</Text>
               <Text style={chipTextStyle(cat)}>{cat.label}</Text>
@@ -324,30 +334,21 @@ export default function NewExpenseScreen() {
           />
         </View>
 
-        <Pressable
+        <Button
+          label={saving ? 'Saving…' : 'Save'}
           onPress={handleSave}
           disabled={!canSave}
-          accessibilityRole="button"
-          accessibilityLabel="Save expense"
-          accessibilityState={{ disabled: !canSave }}
-          style={({ pressed }) => [
-            styles.button,
-            (!canSave || pressed) && styles.buttonPressed,
-            !canSave && styles.buttonDisabled,
-          ]}
-        >
-          <Text style={styles.buttonText}>
-            {saving ? 'Saving…' : 'Save'}
-          </Text>
-        </Pressable>
-      </View>
+          loading={saving}
+          style={{ marginTop: spacing[6] }}
+        />
+      </Card>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   topBar: {
-    marginBottom: 10,
+    marginBottom: spacing[3],
     alignItems: 'flex-end',
   },
   cancelText: {
@@ -355,40 +356,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
-  },
   eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: colors.primary,
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.3,
-    marginBottom: 20,
+    marginBottom: spacing[5],
   },
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 0.9,
     textTransform: 'uppercase',
-    color: colors.textMuted,
-    marginBottom: 10,
+    color: colors.textTertiary,        // structural chrome — recedes from content
+    marginBottom: spacing[2] + 2,
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing[2],
   },
   chip: {
     flexDirection: 'row',
@@ -396,7 +385,7 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingVertical: 9,
     paddingHorizontal: 13,
-    borderRadius: 999,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
@@ -413,6 +402,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceSoft,
     borderColor: colors.primary,
   },
+  chipPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.95 }],
+  },
   chipEmoji: {
     fontSize: 15,
   },
@@ -421,48 +414,42 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
-  chipTextMust: {
-    color: colors.must,
-  },
-  chipTextWant: {
-    color: colors.want,
-  },
-  chipTextCustom: {
-    color: colors.primary,
-  },
+  chipTextMust:   { color: colors.must },
+  chipTextWant:   { color: colors.want },
+  chipTextCustom: { color: colors.primary },
   field: {
-    marginTop: 18,
+    marginTop: spacing[5],
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   input: {
     minHeight: 52,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing[4],
     fontSize: 16,
     color: colors.text,
     justifyContent: 'center',
   },
   noteInput: {
     minHeight: 80,
-    paddingTop: 14,
+    paddingTop: spacing[4],
     textAlignVertical: 'top',
   },
   segmentRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing[2] + 2,
   },
   segmentButton: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
@@ -482,52 +469,35 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
-  segmentMustText: {
-    color: colors.must,
-  },
-  segmentWantText: {
-    color: colors.want,
-  },
+  segmentMustText: { color: colors.must },
+  segmentWantText: { color: colors.want },
   switchRow: {
-    marginTop: 16,
+    marginTop: spacing[5],
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: 18,
+    gap: spacing[4],
+    padding: spacing[4],
+    backgroundColor: colors.background,  // calmer than surfaceSoft
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   switchHint: {
     fontSize: 13,
     lineHeight: 18,
-    color: colors.textMuted,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   investNotice: {
-    marginTop: 12,
+    marginTop: spacing[3],
     backgroundColor: colors.surfaceSoft,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: radius.md,
+    padding: spacing[4],
   },
   investNoticeText: {
     fontSize: 14,
     lineHeight: 20,
     color: colors.primary,
     fontWeight: '500',
-  },
-  button: {
-    marginTop: 24,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPressed: { opacity: 0.9 },
-  buttonDisabled: { backgroundColor: colors.buttonDisabled },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

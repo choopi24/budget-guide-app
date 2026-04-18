@@ -25,6 +25,7 @@ import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { GRADE_COLOR, type BudgetGrade } from '../../lib/grade';
 import { getMonthLabelFromKey } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
+import { SectionLabel } from '../../components/ui/SectionLabel';
 import { colors } from '../../theme/colors';
 
 function GradeBadge({ grade }: { grade: BudgetGrade }) {
@@ -135,7 +136,7 @@ export default function ProfileScreen() {
       <View style={styles.heroCard}>
         <View style={styles.heroTopRow}>
           <View style={styles.heroLeft}>
-            <Text style={styles.eyebrow}>Your profile</Text>
+            <SectionLabel style={styles.eyebrow}>Your profile</SectionLabel>
             <Text style={styles.pageTitle}>{profile.name ?? 'Your name'}</Text>
             {!!profile.occupation && (
               <Text style={styles.occupation}>{profile.occupation}</Text>
@@ -398,11 +399,6 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.primary,
     marginBottom: 6,
   },
   pageTitle: {

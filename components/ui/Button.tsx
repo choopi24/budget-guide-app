@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
 
   // ── Primary ───────────────────────────────────────────────────────────────
   primary:         { backgroundColor: colors.primary },
-  primaryPressed:  { opacity: 0.88 },
+  primaryPressed:  { opacity: 0.88, transform: [{ scale: 0.97 }] },
   primaryDisabled: { backgroundColor: colors.buttonDisabled },
 
   // ── Secondary ─────────────────────────────────────────────────────────────
@@ -149,15 +149,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.primary,
   },
-  secondaryPressed:  { opacity: 0.72 },
+  secondaryPressed:  { opacity: 0.72, transform: [{ scale: 0.97 }] },
   secondaryDisabled: { borderColor: colors.buttonDisabled },
 
   // ── Ghost ─────────────────────────────────────────────────────────────────
   ghost:        { backgroundColor: 'transparent' },
-  ghostPressed: { opacity: 0.55 },
+  ghostPressed: { opacity: 0.55, transform: [{ scale: 0.97 }] },
 
   // ── Danger ────────────────────────────────────────────────────────────────
   danger:         { backgroundColor: colors.danger },
-  dangerPressed:  { opacity: 0.88 },
+  dangerPressed:  { opacity: 0.88, transform: [{ scale: 0.97 }] },
   dangerDisabled: { opacity: 0.45 },
 });

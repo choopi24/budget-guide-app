@@ -1,11 +1,16 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
+import { SectionLabel } from '../components/ui/SectionLabel';
 import { useMonthsDb } from '../db/months';
 import { getCurrentMonthKey, getMonthLabelFromKey } from '../lib/date';
 import { formatCentsToMoney, parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/tokens';
 
 export default function MonthSetupScreen() {
   const router = useRouter();
@@ -102,8 +107,8 @@ export default function MonthSetupScreen() {
 
   return (
     <AppScreen scroll>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Month setup</Text>
+      <Card variant="outlined">
+        <SectionLabel style={styles.eyebrow}>Month setup</SectionLabel>
         <Text style={styles.title}>
           Build your plan for {getMonthLabelFromKey(currentMonthKey)}.
         </Text>
@@ -111,23 +116,21 @@ export default function MonthSetupScreen() {
           Enter your net income and we'll map it into your default Must, Want, and Keep plan.
         </Text>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Net income</Text>
-          <TextInput
-            value={income}
-            onChangeText={setIncome}
-            placeholder="5000"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="decimal-pad"
-            returnKeyType="done"
-            onSubmitEditing={handleContinue}
-            style={styles.input}
-            autoFocus
-            accessibilityLabel="Net income"
-          />
-        </View>
+        <Input
+          label="Net income"
+          value={income}
+          onChangeText={setIncome}
+          placeholder="5000"
+          keyboardType="decimal-pad"
+          returnKeyType="done"
+          onSubmitEditing={handleContinue}
+          autoFocus
+          accessibilityLabel="Net income"
+          containerStyle={styles.field}
+          style={styles.incomeInput}
+        />
 
-        <View style={styles.previewCard}>
+        <Card variant="outlined" padding={16} style={styles.previewCard}>
           <Text style={styles.previewTitle}>This month's plan</Text>
 
           <PreviewRow
@@ -162,7 +165,7 @@ export default function MonthSetupScreen() {
               isBonus
             />
           )}
-        </View>
+        </Card>
 
         <Text style={styles.note}>
           {keepBonus > 0 || wantBonus > 0
@@ -173,23 +176,14 @@ export default function MonthSetupScreen() {
             : 'No rollover from last month.'}
         </Text>
 
-        <Pressable
+        <Button
+          label={saving ? 'Saving…' : 'Start this month'}
           onPress={handleContinue}
           disabled={!canContinue}
-          accessibilityRole="button"
-          accessibilityLabel="Start this month"
-          accessibilityState={{ disabled: !canContinue }}
-          style={({ pressed }) => [
-            styles.button,
-            (!canContinue || pressed) && styles.buttonPressed,
-            !canContinue && styles.buttonDisabled,
-          ]}
-        >
-          <Text style={styles.buttonText}>
-            {saving ? 'Saving...' : 'Start this month'}
-          </Text>
-        </Pressable>
-      </View>
+          loading={saving}
+          style={{ marginTop: spacing[6] }}
+        />
+      </Card>
     </AppScreen>
   );
 }
@@ -209,9 +203,9 @@ function PreviewRow({
     <View style={styles.previewRow}>
       <View style={styles.previewLeft}>
         <View style={[styles.dot, { backgroundColor: color }]} />
-        <Text style={[styles.previewLabel, isBonus && { color: '#2F7D57' }]}>{label}</Text>
+        <Text style={[styles.previewLabel, isBonus && { color: colors.primary }]}>{label}</Text>
       </View>
-      <Text style={[styles.previewValue, isBonus && { color: '#2F7D57' }]}>{value}</Text>
+      <Text style={[styles.previewValue, isBonus && { color: colors.primary }]}>{value}</Text>
     </View>
   );
 }
@@ -222,17 +216,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
-  },
   eyebrow: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
     marginBottom: 10,
   },
   title: {
@@ -248,31 +232,13 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   field: {
-    marginTop: 18,
+    marginTop: spacing[5],
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  input: {
-    height: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
+  incomeInput: {
     fontSize: 18,
-    color: colors.text,
   },
   previewCard: {
-    marginTop: 20,
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
+    marginTop: spacing[5],
   },
   previewTitle: {
     fontSize: 16,
@@ -309,24 +275,5 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 14,
     color: colors.textMuted,
-  },
-  button: {
-    marginTop: 20,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPressed: {
-    opacity: 0.9,
-  },
-  buttonDisabled: {
-    backgroundColor: colors.buttonDisabled,
-  },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

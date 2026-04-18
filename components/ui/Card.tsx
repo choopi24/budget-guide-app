@@ -46,7 +46,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   elevated: {
-    ...shadows.md,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   outlined: {
     borderWidth: 1,

@@ -7,11 +7,13 @@ import {
   View,
 } from 'react-native';
 import { DatePickerField } from './DatePickerField';
+import { Button } from './ui/Button';
 import { type InvestmentCategory } from '../db/investments';
 import type { SupportedCurrency } from '../db/settings';
 import { parseMoneyToCents } from '../lib/money';
 import { searchCoins, type CoinOption } from '../lib/coins';
 import { colors } from '../theme/colors';
+import { radius, spacing } from '../theme/tokens';
 
 const CATEGORY_OPTIONS: InvestmentCategory[] = [
   'ETF',
@@ -606,7 +608,11 @@ export function InvestmentForm({
             <Pressable
               key={option}
               onPress={() => handleCategoryChange(option)}
-              style={[styles.chip, category === option && styles.chipActive]}
+              style={({ pressed }) => [
+                styles.chip,
+                category === option && styles.chipActive,
+                pressed && !( category === option) && styles.chipPressed,
+              ]}
             >
               <Text
                 style={[
@@ -627,7 +633,11 @@ export function InvestmentForm({
           <View style={styles.segmentRow}>
             <Pressable
               onPress={() => setIsNew(true)}
-              style={[styles.segmentButton, isNew && styles.segmentButtonActive]}
+              style={({ pressed }) => [
+                styles.segmentButton,
+                isNew && styles.segmentButtonActive,
+                pressed && !isNew && { opacity: 0.7, transform: [{ scale: 0.97 }] },
+              ]}
             >
               <Text style={[styles.segmentText, isNew && styles.segmentTextActive]}>
                 New
@@ -635,7 +645,11 @@ export function InvestmentForm({
             </Pressable>
             <Pressable
               onPress={() => setIsNew(false)}
-              style={[styles.segmentButton, !isNew && styles.segmentButtonActive]}
+              style={({ pressed }) => [
+                styles.segmentButton,
+                !isNew && styles.segmentButtonActive,
+                pressed && isNew && { opacity: 0.7, transform: [{ scale: 0.97 }] },
+              ]}
             >
               <Text style={[styles.segmentText, !isNew && styles.segmentTextActive]}>
                 Already had it
@@ -667,22 +681,13 @@ export function InvestmentForm({
         />
       </View>
 
-      <Pressable
+      <Button
+        label={saving ? 'Saving…' : saveLabel}
         onPress={handleSave}
         disabled={!canSave}
-        accessibilityRole="button"
-        accessibilityLabel={saveLabel}
-        accessibilityState={{ disabled: !canSave }}
-        style={({ pressed }) => [
-          styles.button,
-          (!canSave || pressed) && styles.buttonPressed,
-          !canSave && styles.buttonDisabled,
-        ]}
-      >
-        <Text style={styles.buttonText}>
-          {saving ? 'Saving...' : saveLabel}
-        </Text>
-      </Pressable>
+        loading={saving}
+        style={{ marginTop: spacing[6] }}
+      />
     </View>
   );
 }
@@ -690,80 +695,98 @@ export function InvestmentForm({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: colors.text,
-    shadowOpacity: 0.07,
+    borderRadius: radius['2xl'],
+    padding: spacing[6],
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
     shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
   eyebrow: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: colors.keep,
-    marginBottom: 8,
+    color: colors.textTertiary,        // neutral — no category color bleed
+    marginBottom: spacing[2],
   },
   title: {
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 10,
+    letterSpacing: -0.3,
+    marginBottom: spacing[1],
   },
-  body: { fontSize: 15, lineHeight: 22, color: colors.textMuted },
-  field: { marginTop: 18 },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
+  body: {
+    fontSize: 15,
+    lineHeight: 22,
     color: colors.textMuted,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    marginBottom: spacing[2],
+  },
+  field: { marginTop: spacing[5] },    // 20 — consistent with token grid
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,                // strong label, not muted uppercase
+    marginBottom: spacing[2],
+  },
+  inputButton: {
+    minHeight: 52,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing[4],
+    justifyContent: 'center',
+  },
+  inputButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
   },
   input: {
     minHeight: 52,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing[4],
     fontSize: 16,
     color: colors.text,
     justifyContent: 'center',
   },
   searchRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing[3],
   },
   searchInput: { flex: 1 },
   resultsCard: {
-    marginTop: 8,
-    borderRadius: 16,
+    marginTop: spacing[2],
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     overflow: 'hidden',
-    shadowColor: colors.text,
+    shadowColor: '#000000',
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
   resultRow: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
   resultName: { fontSize: 15, fontWeight: '600', color: colors.text },
   resultMeta: { marginTop: 2, fontSize: 12, color: colors.textMuted },
   selectedPill: {
-    marginTop: 10,
+    marginTop: spacing[3],
     alignSelf: 'flex-start',
     backgroundColor: colors.surfaceSoft,
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
     paddingVertical: 6,
   },
   selectedPillText: {
@@ -773,56 +796,59 @@ const styles = StyleSheet.create({
   },
   noteInput: {
     minHeight: 96,
-    paddingTop: 14,
+    paddingTop: spacing[4],
     textAlignVertical: 'top',
   },
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   chip: {
-    borderRadius: 999,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.background,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2] + 2,
   },
-  chipActive: { backgroundColor: colors.surfaceSoft },
+  chipActive: {
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.primary,
+  },
+  chipPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.96 }],
+  },
   chipText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
   chipTextActive: { color: colors.primary },
-  segmentRow: { flexDirection: 'row', gap: 8 },
+  segmentRow: { flexDirection: 'row', gap: spacing[2] },
   segmentButton: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  segmentButtonActive: { backgroundColor: colors.surfaceSoft },
+  segmentButtonActive: {
+    backgroundColor: colors.surfaceSoft,
+    borderColor: colors.primary,
+  },
   segmentText: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
   segmentTextActive: { color: colors.primary },
-  button: {
-    marginTop: 26,
-    height: 54,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPressed: { opacity: 0.88 },
-  buttonDisabled: { backgroundColor: colors.buttonDisabled },
-  buttonText: { color: colors.white, fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
   closeBtn: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 999,
+    top: spacing[4],
+    right: spacing[4],
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
   closeBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textMuted,
     fontWeight: '500',
     lineHeight: 18,

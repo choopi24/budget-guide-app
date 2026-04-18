@@ -6,6 +6,10 @@ export type { ButtonVariant, ButtonSize } from './Button';
 
 export { Input }      from './Input';
 
+export { SectionLabel } from './SectionLabel';
+export { BackButton }   from './BackButton';
+export { DeleteButton } from './DeleteButton';
+
 export {
   LargeTitle,
   Title,

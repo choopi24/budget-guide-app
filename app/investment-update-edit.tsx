@@ -11,14 +11,21 @@ import {
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { DatePickerField } from '../components/DatePickerField';
+import { BackButton } from '../components/ui/BackButton';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { DeleteButton } from '../components/ui/DeleteButton';
+import { Input } from '../components/ui/Input';
+import { SectionLabel } from '../components/ui/SectionLabel';
 import {
   useInvestmentDetailDb,
   type InvestmentUpdateRow,
   type InvestmentUpdateType,
 } from '../db/investment-detail';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
-import { formatCentsToMoney, parseMoneyToCents } from '../lib/money';
+import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { spacing } from '../theme/tokens';
 
 // ─── Label helpers ────────────────────────────────────────────────────────────
 
@@ -168,81 +175,51 @@ export default function InvestmentUpdateEditScreen() {
     <AppScreen scroll>
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.7 }]}
-          hitSlop={10}
-        >
-          <Ionicons name="chevron-back" size={16} color={colors.text} />
-          <Text style={styles.backBtnText}>Back</Text>
-        </Pressable>
-
+        <BackButton onPress={() => router.back()} />
         {!isInitial && (
-          <Pressable
-            onPress={handleDelete}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Delete this entry"
-            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="trash-outline" size={17} color={colors.danger} />
-          </Pressable>
+          <DeleteButton onPress={handleDelete} accessibilityLabel="Delete this entry" />
         )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>
+      <Card variant="outlined">
+        <SectionLabel style={styles.eyebrow}>
           {row ? EYEBROW[row.type] : '…'}
-        </Text>
+        </SectionLabel>
         <Text style={styles.title}>Edit entry</Text>
 
         {/* ── Amount field (buy / sell only) ── */}
         {showAmountField && (
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              {row ? AMOUNT_LABEL[row.type] : ''}
-            </Text>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="1000"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="decimal-pad"
-              returnKeyType="next"
-              onSubmitEditing={() => amountRef.current?.focus()}
-              blurOnSubmit={false}
-              autoFocus={showAmountField}
-              style={styles.input}
-              accessibilityLabel={row ? AMOUNT_LABEL[row.type] : 'Amount'}
-            />
-          </View>
+          <Input
+            label={row ? AMOUNT_LABEL[row.type] : ''}
+            value={amount}
+            onChangeText={setAmount}
+            placeholder="1000"
+            keyboardType="decimal-pad"
+            returnKeyType="next"
+            onSubmitEditing={() => amountRef.current?.focus()}
+            blurOnSubmit={false}
+            autoFocus={showAmountField}
+            containerStyle={styles.field}
+            accessibilityLabel={row ? AMOUNT_LABEL[row.type] : 'Amount'}
+          />
         )}
 
         {/* ── Total / value field ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>
-            {row ? VALUE_LABEL[row.type] : 'Value'}
-          </Text>
-          <TextInput
-            ref={showAmountField ? amountRef : undefined}
-            value={value}
-            onChangeText={setValue}
-            placeholder="5200"
-            placeholderTextColor={colors.textMuted}
-            keyboardType="decimal-pad"
-            returnKeyType="next"
-            onSubmitEditing={() => noteRef.current?.focus()}
-            blurOnSubmit={false}
-            autoFocus={!showAmountField}
-            style={styles.input}
-            accessibilityLabel={row ? VALUE_LABEL[row.type] : 'Value'}
-          />
-          {showAmountField && (
-            <Text style={styles.fieldHint}>
-              The total investment value after this {row?.type === 'sell' ? 'sale' : 'purchase'}.
-            </Text>
-          )}
-        </View>
+        <Input
+          ref={showAmountField ? amountRef : undefined}
+          label={row ? VALUE_LABEL[row.type] : 'Value'}
+          value={value}
+          onChangeText={setValue}
+          placeholder="5200"
+          keyboardType="decimal-pad"
+          returnKeyType="next"
+          onSubmitEditing={() => noteRef.current?.focus()}
+          blurOnSubmit={false}
+          autoFocus={!showAmountField}
+          hint={showAmountField ? `The total investment value after this ${row?.type === 'sell' ? 'sale' : 'purchase'}.` : undefined}
+          containerStyle={styles.field}
+          accessibilityLabel={row ? VALUE_LABEL[row.type] : 'Value'}
+        />
 
         {/* ── Date (collapsible) ── */}
         <Pressable
@@ -269,165 +246,75 @@ export default function InvestmentUpdateEditScreen() {
         )}
 
         {/* ── Note ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            ref={noteRef}
-            value={note}
-            onChangeText={setNote}
-            placeholder="Optional note"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, styles.noteInput]}
-            multiline
-          />
-        </View>
+        <Input
+          ref={noteRef}
+          label="Note (optional)"
+          value={note}
+          onChangeText={setNote}
+          placeholder="Optional note"
+          multiline
+          style={styles.noteInput}
+          containerStyle={styles.field}
+        />
 
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        <Pressable
+        <Button
+          label={saving ? 'Saving…' : 'Save changes'}
           onPress={handleSave}
           disabled={!canSave}
-          accessibilityRole="button"
-          accessibilityLabel="Save changes"
-          accessibilityState={{ disabled: !canSave }}
-          style={({ pressed }) => [
-            styles.saveButton,
-            (!canSave || pressed) && styles.saveButtonPressed,
-            !canSave && styles.saveButtonDisabled,
-          ]}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Saving…' : 'Save changes'}
-          </Text>
-        </Pressable>
-      </View>
+          loading={saving}
+          style={{ marginTop: spacing[6] }}
+        />
+      </Card>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   topBar: {
-    marginBottom: 12,
+    marginBottom: spacing[3],
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingLeft: 10,
-    paddingRight: 14,
-    shadowColor: colors.text,
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
-  },
-  backBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  deleteBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
-    backgroundColor: '#FFF0EE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.danger + '25',
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 24,
-  },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.keep,
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.3,
-    marginBottom: 4,
+    marginBottom: spacing[1],
   },
   field: {
-    marginTop: 18,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    color: colors.text,
+    marginTop: spacing[5],
   },
   noteInput: {
     minHeight: 80,
-    paddingTop: 14,
+    paddingTop: spacing[4],
     textAlignVertical: 'top',
-  },
-  fieldHint: {
-    marginTop: 6,
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 16,
   },
   changeDateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 14,
+    gap: spacing[1],
+    marginTop: spacing[4],
     alignSelf: 'flex-start',
   },
   changeDateText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
+    fontWeight: '500',
+    color: colors.textTertiary,
   },
   datePickerWrap: {
-    marginTop: 10,
+    marginTop: spacing[3],
   },
   errorText: {
-    marginTop: 14,
+    marginTop: spacing[4],
     fontSize: 14,
     fontWeight: '600',
     color: colors.danger,
-  },
-  saveButton: {
-    marginTop: 24,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonPressed: { opacity: 0.9 },
-  saveButtonDisabled: { backgroundColor: colors.buttonDisabled },
-  saveButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
