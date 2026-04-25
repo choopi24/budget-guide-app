@@ -343,6 +343,53 @@ export default function SettingsScreen() {
         <RolloverPicker value={investRollover} onChange={handleInvestRolloverChange} />
       </View>
 
+      {/* ── Apple Pay Shortcut Setup ── */}
+      <View style={styles.sectionGroupHeader}>
+        <Text style={styles.sectionGroupTitle}>Apple Pay Shortcut Setup</Text>
+        <Text style={styles.sectionGroupSubtitle}>
+          Log expenses automatically when you pay with Apple Pay.
+        </Text>
+      </View>
+      <View style={[styles.section, styles.shortcutSection]}>
+        <View style={styles.shortcutStep}>
+          <View style={styles.shortcutStepNum}><Text style={styles.shortcutStepNumText}>1</Text></View>
+          <Text style={styles.shortcutStepText}>Open the Shortcuts app and go to <Text style={styles.shortcutBold}>Automation</Text>.</Text>
+        </View>
+        <View style={styles.shortcutStep}>
+          <View style={styles.shortcutStepNum}><Text style={styles.shortcutStepNumText}>2</Text></View>
+          <Text style={styles.shortcutStepText}>Tap <Text style={styles.shortcutBold}>New Automation</Text> → <Text style={styles.shortcutBold}>Transaction</Text>.</Text>
+        </View>
+        <View style={styles.shortcutStep}>
+          <View style={styles.shortcutStepNum}><Text style={styles.shortcutStepNumText}>3</Text></View>
+          <Text style={styles.shortcutStepText}>Choose your card and set it to trigger when you tap to pay.</Text>
+        </View>
+        <View style={styles.shortcutStep}>
+          <View style={styles.shortcutStepNum}><Text style={styles.shortcutStepNumText}>4</Text></View>
+          <Text style={styles.shortcutStepText}>Add an <Text style={styles.shortcutBold}>Open URLs</Text> action. Use this base URL:</Text>
+        </View>
+        <View style={styles.shortcutUrl}>
+          <Text style={styles.shortcutUrlText} selectable>
+            {'budgetapp://add-expense-from-shortcut'}
+          </Text>
+        </View>
+        <View style={styles.shortcutStep}>
+          <View style={styles.shortcutStepNum}><Text style={styles.shortcutStepNumText}>5</Text></View>
+          <Text style={styles.shortcutStepText}>
+            Append the transaction fields your Shortcut editor shows — for example{' '}
+            <Text style={styles.shortcutCode}>?amount=</Text>,{' '}
+            <Text style={styles.shortcutCode}>?merchant=</Text>,{' '}
+            <Text style={styles.shortcutCode}>?date=</Text>, and{' '}
+            <Text style={styles.shortcutCode}>source=applepay</Text>.
+          </Text>
+        </View>
+        <View style={styles.shortcutNote}>
+          <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
+          <Text style={styles.shortcutNoteText}>
+            Not every iPhone exposes the same transaction fields. In the Shortcuts editor, insert whichever variables appear for your card — the app handles partial data gracefully.
+          </Text>
+        </View>
+      </View>
+
       {/* ── Danger zone ── */}
       <View style={[styles.section, styles.dangerSection]}>
         <Text style={[styles.sectionTitle, styles.dangerTitle]}>Danger zone</Text>
@@ -508,6 +555,78 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 999,
     backgroundColor: colors.primary,
+  },
+
+  // Apple Pay shortcut setup
+  shortcutSection: {
+    marginBottom: 12,
+  },
+  shortcutStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  shortcutStepNum: {
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  shortcutStepNumText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+  },
+  shortcutStepText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textMuted,
+    lineHeight: 20,
+  },
+  shortcutBold: {
+    fontWeight: '700',
+    color: colors.text,
+  },
+  shortcutUrl: {
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  shortcutUrlText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  shortcutCode: {
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  shortcutNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 4,
+  },
+  shortcutNoteText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 18,
   },
 
   // Danger zone

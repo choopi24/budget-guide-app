@@ -28,6 +28,7 @@ export default function RootLayout() {
         <Stack.Screen name="investment-update-new" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="investment-purchase" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="investment-value-update" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="add-expense-from-shortcut" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="avatar-edit" options={{ headerShown: false }} />
       </Stack>
     </SQLiteProvider>
