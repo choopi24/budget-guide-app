@@ -224,7 +224,7 @@ export default function InvestmentUpdateEditScreen() {
         {/* ── Date (collapsible) ── */}
         <Pressable
           onPress={() => setDateOpen((v) => !v)}
-          style={styles.changeDateRow}
+          style={({ pressed }) => [styles.changeDateRow, pressed && styles.changeDateRowPressed]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={dateOpen ? 'Hide date picker' : 'Change date'}
@@ -307,6 +307,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.textTertiary,
+  },
+  changeDateRowPressed: {
+    opacity: 0.55,
   },
   datePickerWrap: {
     marginTop: spacing[3],

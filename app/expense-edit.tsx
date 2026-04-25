@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
 import { DatePickerField } from '../components/DatePickerField';
 import { BackButton } from '../components/ui/BackButton';
@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DeleteButton } from '../components/ui/DeleteButton';
 import { Input } from '../components/ui/Input';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { SectionLabel } from '../components/ui/SectionLabel';
 import { useExpenseHistoryDb } from '../db/expense-history';
 import { parseMoneyToCents } from '../lib/money';
@@ -97,68 +98,55 @@ export default function ExpenseEditScreen() {
         <SectionLabel style={styles.eyebrow}>Edit expense</SectionLabel>
         <Text style={styles.title}>{loading ? '…' : title}</Text>
 
+        {/* ── Amount — primary focus ── */}
+        <View style={styles.amountSection}>
+          <Text style={styles.amountLabel}>Amount</Text>
+          <TextInput
+            ref={amountRef}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            placeholder="0"
+            placeholderTextColor={colors.border}
+            style={styles.amountInput}
+            autoFocus
+            accessibilityLabel="Amount"
+          />
+        </View>
+
         {/* ── Description ── */}
         <Input
           label="What was it for?"
           value={title}
           onChangeText={setTitle}
           placeholder="Groceries, taxi, dinner…"
-          returnKeyType="next"
-          onSubmitEditing={() => amountRef.current?.focus()}
-          blurOnSubmit={false}
+          returnKeyType="done"
           accessibilityLabel="Expense description"
           containerStyle={styles.field}
         />
 
-        {/* ── Amount ── */}
-        <Input
-          ref={amountRef}
-          label="Amount"
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          returnKeyType="done"
-          placeholder="120"
-          accessibilityLabel="Amount"
-          containerStyle={styles.field}
-        />
-
-        {/* ── Date ── */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Date</Text>
-          <DatePickerField value={spentOn} onChange={setSpentOn} />
-        </View>
-
-        {/* ── Category — hidden for investment expenses ── */}
-        {!isInvestment && (
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Category</Text>
-            <View style={styles.segmentRow}>
-              <Pressable
-                onPress={() => setBucket('must')}
-                accessibilityRole="button"
-                accessibilityLabel="Must — essential spending"
-                accessibilityState={{ selected: bucket === 'must' }}
-                style={[styles.segmentBtn, bucket === 'must' && styles.segmentMustActive]}
-              >
-                <Text style={[styles.segmentText, bucket === 'must' && styles.segmentMustText]}>
-                  Must
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setBucket('want')}
-                accessibilityRole="button"
-                accessibilityLabel="Want — discretionary spending"
-                accessibilityState={{ selected: bucket === 'want' }}
-                style={[styles.segmentBtn, bucket === 'want' && styles.segmentWantActive]}
-              >
-                <Text style={[styles.segmentText, bucket === 'want' && styles.segmentWantText]}>
-                  Want
-                </Text>
-              </Pressable>
-            </View>
+        {/* ── Metadata group: Date + Category ── */}
+        <View style={styles.metaSection}>
+          <View style={styles.metaField}>
+            <Text style={styles.fieldLabel}>Date</Text>
+            <DatePickerField value={spentOn} onChange={setSpentOn} />
           </View>
-        )}
+
+          {!isInvestment && (
+            <View style={styles.metaField}>
+              <Text style={styles.fieldLabel}>Category</Text>
+              <SegmentedControl
+                value={bucket}
+                onChange={(v) => setBucket(v as 'must' | 'want')}
+                options={[
+                  { value: 'must', label: 'Must', activeColor: colors.must, activeBgColor: colors.mustSoft },
+                  { value: 'want', label: 'Want', activeColor: colors.want, activeBgColor: colors.wantSoft },
+                ]}
+              />
+            </View>
+          )}
+        </View>
 
         {/* ── Note ── */}
         <Input
@@ -199,8 +187,34 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.3,
   },
+
+  // ── Amount — primary ──────────────────────────────────────────────────────
+  amountSection: {
+    marginTop: spacing[4],
+  },
+  amountLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    color: colors.textTertiary,
+    marginBottom: spacing[2],
+  },
+  amountInput: {
+    minHeight: 68,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -1,
+    color: colors.text,
+  },
+
+  // ── Secondary fields ──────────────────────────────────────────────────────
   field: {
-    marginTop: spacing[5],  // 20
+    marginTop: spacing[5],
   },
   fieldLabel: {
     fontSize: 14,
@@ -208,38 +222,14 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing[2],
   },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: spacing[2] + 2,    // 10
+  metaSection: {
+    marginTop: spacing[6],
+    gap: spacing[5],
   },
-  segmentBtn: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentMustActive: {
-    backgroundColor: colors.mustSoft,
-    borderColor: colors.must,
-  },
-  segmentWantActive: {
-    backgroundColor: colors.wantSoft,
-    borderColor: colors.want,
-  },
-  segmentText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  segmentMustText: { color: colors.must },
-  segmentWantText: { color: colors.want },
+  metaField: {},
   noteInput: {
     minHeight: 80,
-    paddingTop: spacing[3] + 2,  // 14
+    paddingTop: spacing[3] + 2,
     textAlignVertical: 'top',
   },
 });

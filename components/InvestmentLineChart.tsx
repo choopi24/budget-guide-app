@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop, Line } from 'react-native-svg';
 import type { SupportedCurrency } from '../db/settings';
 import { formatCompactMoney } from '../lib/money';
@@ -54,6 +54,14 @@ function buildSmoothPath(pts: Array<{ x: number; y: number }>): string {
 
 export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Props) {
   const [width, setWidth] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (data.length > 0 && width > 0) {
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    }
+  }, [data.length, width]);
 
   function handleLayout(event: LayoutChangeEvent) {
     setWidth(event.nativeEvent.layout.width);
@@ -133,6 +141,7 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
   return (
     <View onLayout={handleLayout} style={styles.wrap}>
       {width > 0 && data.length > 0 ? (
+        <Animated.View style={{ opacity: fadeAnim }}>
         <Svg width={width} height={height}>
           <Defs>
             <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -199,6 +208,7 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
             </>
           )}
         </Svg>
+        </Animated.View>
       ) : (
         <View style={[styles.empty, { height }]} />
       )}

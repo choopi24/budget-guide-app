@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import { DatePickerField } from './DatePickerField';
 import { Button } from './ui/Button';
+import { Chip } from './ui/Chip';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { type InvestmentCategory } from '../db/investments';
 import type { SupportedCurrency } from '../db/settings';
 import { parseMoneyToCents } from '../lib/money';
@@ -580,7 +582,7 @@ export function InvestmentForm({
           hitSlop={4}
           accessibilityRole="button"
           accessibilityLabel="Cancel"
-          style={({ pressed }) => [styles.closeBtn, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
         >
           <Text style={styles.closeBtnText}>✕</Text>
         </Pressable>
@@ -605,24 +607,14 @@ export function InvestmentForm({
         <Text style={styles.label}>Type</Text>
         <View style={styles.chipsWrap}>
           {CATEGORY_OPTIONS.map((option) => (
-            <Pressable
+            <Chip
               key={option}
+              label={option}
+              active={category === option}
+              activeColor={colors.primary}
+              activeBgColor={colors.surfaceSoft}
               onPress={() => handleCategoryChange(option)}
-              style={({ pressed }) => [
-                styles.chip,
-                category === option && styles.chipActive,
-                pressed && !( category === option) && styles.chipPressed,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  category === option && styles.chipTextActive,
-                ]}
-              >
-                {option}
-              </Text>
-            </Pressable>
+            />
           ))}
         </View>
       </View>
@@ -630,32 +622,14 @@ export function InvestmentForm({
       {showIsNew && (
         <View style={styles.field}>
           <Text style={styles.label}>Is this new or already existed?</Text>
-          <View style={styles.segmentRow}>
-            <Pressable
-              onPress={() => setIsNew(true)}
-              style={({ pressed }) => [
-                styles.segmentButton,
-                isNew && styles.segmentButtonActive,
-                pressed && !isNew && { opacity: 0.7, transform: [{ scale: 0.97 }] },
-              ]}
-            >
-              <Text style={[styles.segmentText, isNew && styles.segmentTextActive]}>
-                New
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setIsNew(false)}
-              style={({ pressed }) => [
-                styles.segmentButton,
-                !isNew && styles.segmentButtonActive,
-                pressed && isNew && { opacity: 0.7, transform: [{ scale: 0.97 }] },
-              ]}
-            >
-              <Text style={[styles.segmentText, !isNew && styles.segmentTextActive]}>
-                Already had it
-              </Text>
-            </Pressable>
-          </View>
+          <SegmentedControl
+            value={isNew ? 'new' : 'existing'}
+            onChange={(v) => setIsNew(v === 'new')}
+            options={[
+              { value: 'new', label: 'New', activeColor: colors.primary, activeBgColor: colors.surfaceSoft },
+              { value: 'existing', label: 'Already had it', activeColor: colors.primary, activeBgColor: colors.surfaceSoft },
+            ]}
+          />
         </View>
       )}
 
@@ -725,7 +699,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing[2],
   },
-  field: { marginTop: spacing[5] },    // 20 — consistent with token grid
+  field: { marginTop: spacing[5] },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -800,41 +774,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  chip: {
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2] + 2,
-  },
-  chipActive: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.primary,
-  },
-  chipPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.96 }],
-  },
-  chipText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
-  chipTextActive: { color: colors.primary },
-  segmentRow: { flexDirection: 'row', gap: spacing[2] },
-  segmentButton: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentButtonActive: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.primary,
-  },
-  segmentText: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
-  segmentTextActive: { color: colors.primary },
   closeBtn: {
     position: 'absolute',
     top: spacing[4],
@@ -846,6 +785,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
+  },
+  closeBtnPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.94 }],
   },
   closeBtnText: {
     fontSize: 14,

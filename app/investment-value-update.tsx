@@ -16,6 +16,7 @@ import { SectionLabel } from '../components/ui/SectionLabel';
 import { Input } from '../components/ui/Input';
 import { useInvestmentDetailDb, type InvestmentDetail } from '../db/investment-detail';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
+import { hapticSuccess } from '../lib/haptics';
 import { formatCentsToMoney, parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/tokens';
@@ -65,6 +66,7 @@ export default function InvestmentValueUpdateScreen() {
         amountCents: null,
         note,
       });
+      hapticSuccess();
       router.back();
     } catch (e: any) {
       setError(e?.message || 'Could not save update.');
@@ -76,7 +78,11 @@ export default function InvestmentValueUpdateScreen() {
   return (
     <AppScreen scroll>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={({ pressed }) => pressed && styles.cancelPressed}
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </View>
@@ -113,7 +119,7 @@ export default function InvestmentValueUpdateScreen() {
         {/* Date — hidden by default */}
         <Pressable
           onPress={() => setDateOpen((v) => !v)}
-          style={styles.changeDateRow}
+          style={({ pressed }) => [styles.changeDateRow, pressed && styles.changeDateRowPressed]}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={dateOpen ? 'Hide date picker' : 'Change date'}
@@ -170,6 +176,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
+  cancelPressed: {
+    opacity: 0.55,
+    transform: [{ scale: 0.97 }],
+  },
   eyebrow: {
     marginBottom: spacing[2],
   },
@@ -220,6 +230,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.textTertiary,
+  },
+  changeDateRowPressed: {
+    opacity: 0.55,
   },
   datePickerWrap: {
     marginTop: spacing[3],

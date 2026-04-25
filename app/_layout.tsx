@@ -20,12 +20,14 @@ export default function RootLayout() {
           },
         }}
       >
-        <Stack.Screen name="expense-new" options={{ headerShown: false }} />
+        <Stack.Screen name="expense-new" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="expenses" options={{ headerShown: false }} />
-        <Stack.Screen name="investment-new" options={{ headerShown: false }} />
+        <Stack.Screen name="investment-new" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="investment-edit" options={{ headerShown: false }} />
         <Stack.Screen name="investment/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="investment-update-new" options={{ headerShown: false }} />
+        <Stack.Screen name="investment-update-new" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="investment-purchase" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="investment-value-update" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="avatar-edit" options={{ headerShown: false }} />
       </Stack>
     </SQLiteProvider>

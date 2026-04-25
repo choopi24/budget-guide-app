@@ -9,6 +9,10 @@ export { Input }      from './Input';
 export { SectionLabel } from './SectionLabel';
 export { BackButton }   from './BackButton';
 export { DeleteButton } from './DeleteButton';
+export { FabButton }    from './FabButton';
+export { Chip }         from './Chip';
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentOption } from './SegmentedControl';
 
 export {
   LargeTitle,

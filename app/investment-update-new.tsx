@@ -11,8 +11,10 @@ import { DatePickerField } from '../components/DatePickerField';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { SectionLabel } from '../components/ui/SectionLabel';
 import { useInvestmentDetailDb, type InvestmentDetail, type InvestmentUpdateType } from '../db/investment-detail';
+import { hapticSuccess } from '../lib/haptics';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/tokens';
@@ -26,38 +28,28 @@ export default function InvestmentUpdateNewScreen() {
 
   const { addInvestmentUpdate, getInvestmentDetail } = useInvestmentDetailDb();
 
-  const [detail, setDetail] = useState<InvestmentDetail | null>(null);
-  const [value, setValue] = useState('');
-  const [note, setNote] = useState('');
+  const [detail, setDetail]           = useState<InvestmentDetail | null>(null);
+  const [value, setValue]             = useState('');
+  const [note, setNote]               = useState('');
   const [quantityDelta, setQuantityDelta] = useState('');
-  const [cryptoMode, setCryptoMode] = useState<CryptoUpdateMode>('buy');
-
+  const [cryptoMode, setCryptoMode]   = useState<CryptoUpdateMode>('buy');
   const [effectiveDate, setEffectiveDate] = useState(new Date());
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [error, setError]             = useState('');
+  const [saving, setSaving]           = useState(false);
 
   useEffect(() => {
     let mounted = true;
-
     async function load() {
       const item = await getInvestmentDetail(investmentId);
-      if (mounted) {
-        setDetail(item);
-      }
+      if (mounted) setDetail(item);
     }
-
-    if (investmentId) {
-      load();
-    }
-
-    return () => {
-      mounted = false;
-    };
+    if (investmentId) load();
+    return () => { mounted = false; };
   }, [investmentId, getInvestmentDetail]);
 
   const quantityNumber = useMemo(() => Number(quantityDelta || 0), [quantityDelta]);
 
-  const isCrypto = detail?.category === 'Crypto';
+  const isCrypto    = detail?.category === 'Crypto';
   const needsQuantity = isCrypto && cryptoMode !== 'value';
 
   const inputCents = parseMoneyToCents(value);
@@ -76,7 +68,6 @@ export default function InvestmentUpdateNewScreen() {
 
     try {
       let computedDelta: number | null = null;
-
       if (needsQuantity) {
         computedDelta = cryptoMode === 'sell' ? -quantityNumber : quantityNumber;
       }
@@ -87,10 +78,8 @@ export default function InvestmentUpdateNewScreen() {
       } else if (isCrypto && cryptoMode === 'sell') {
         finalValueCents = Math.max(0, (detail?.current_value_cents ?? 0) - inputCents);
       } else if (isCrypto) {
-        // Value-only crypto mode: set the new total directly
         finalValueCents = inputCents;
       } else {
-        // Non-crypto: add the amount to the current total
         finalValueCents = (detail?.current_value_cents ?? 0) + inputCents;
       }
 
@@ -109,6 +98,7 @@ export default function InvestmentUpdateNewScreen() {
         quantityDelta: computedDelta,
       });
 
+      hapticSuccess();
       router.replace(`/investment/${investmentId}` as any);
     } catch (err: any) {
       setError(err?.message || 'Could not save update.');
@@ -120,7 +110,11 @@ export default function InvestmentUpdateNewScreen() {
   return (
     <AppScreen scroll>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={({ pressed }) => pressed && styles.cancelPressed}
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </View>
@@ -136,59 +130,16 @@ export default function InvestmentUpdateNewScreen() {
 
         {isCrypto && (
           <View style={styles.field}>
-            <Text style={styles.label}>What changed?</Text>
-            <View style={styles.segmentRow}>
-              <Pressable
-                onPress={() => setCryptoMode('buy')}
-                style={[
-                  styles.segmentButton,
-                  cryptoMode === 'buy' && styles.segmentButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    cryptoMode === 'buy' && styles.segmentTextActive,
-                  ]}
-                >
-                  Bought more
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => setCryptoMode('sell')}
-                style={[
-                  styles.segmentButton,
-                  cryptoMode === 'sell' && styles.segmentButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    cryptoMode === 'sell' && styles.segmentTextActive,
-                  ]}
-                >
-                  Sold some
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => setCryptoMode('value')}
-                style={[
-                  styles.segmentButton,
-                  cryptoMode === 'value' && styles.segmentButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    cryptoMode === 'value' && styles.segmentTextActive,
-                  ]}
-                >
-                  Value only
-                </Text>
-              </Pressable>
-            </View>
+            <Text style={styles.fieldLabel}>What changed?</Text>
+            <SegmentedControl
+              value={cryptoMode}
+              onChange={(v) => setCryptoMode(v as CryptoUpdateMode)}
+              options={[
+                { value: 'buy',   label: 'Bought more', activeColor: colors.primary, activeBgColor: colors.surfaceSoft },
+                { value: 'sell',  label: 'Sold some',   activeColor: colors.danger,  activeBgColor: colors.dangerSoft  },
+                { value: 'value', label: 'Value only',  activeColor: colors.textMuted, activeBgColor: colors.background },
+              ]}
+            />
           </View>
         )}
 
@@ -208,7 +159,7 @@ export default function InvestmentUpdateNewScreen() {
         )}
 
         <View style={styles.field}>
-          <Text style={styles.label}>When did this happen?</Text>
+          <Text style={styles.fieldLabel}>When did this happen?</Text>
           <DatePickerField value={effectiveDate} onChange={setEffectiveDate} />
         </View>
 
@@ -242,7 +193,7 @@ export default function InvestmentUpdateNewScreen() {
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
         <Button
-          label={saving ? 'Saving…' : 'Confirm Entry'}
+          label={saving ? 'Saving…' : 'Confirm entry'}
           onPress={handleSave}
           disabled={!canSave}
           loading={saving}
@@ -255,7 +206,7 @@ export default function InvestmentUpdateNewScreen() {
 
 const styles = StyleSheet.create({
   topBar: {
-    marginBottom: 10,
+    marginBottom: spacing[3],
     alignItems: 'flex-end',
   },
   cancelText: {
@@ -263,14 +214,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
+  cancelPressed: {
+    opacity: 0.55,
+    transform: [{ scale: 0.97 }],
+  },
   eyebrow: {
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 10,
+    letterSpacing: -0.3,
+    marginBottom: spacing[2],
   },
   body: {
     fontSize: 15,
@@ -278,49 +234,21 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   field: {
-    marginTop: spacing[4],
+    marginTop: spacing[5],
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing[2],
   },
   noteInput: {
     minHeight: 96,
-    paddingTop: 14,
+    paddingTop: spacing[3] + 2,
     textAlignVertical: 'top',
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  segmentButton: {
-    flex: 1,
-    minHeight: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  segmentButtonActive: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.primary,
-  },
-  segmentText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  segmentTextActive: {
-    color: colors.text,
-  },
   errorText: {
-    marginTop: 14,
+    marginTop: spacing[4],
     color: colors.danger,
     fontSize: 14,
     fontWeight: '600',

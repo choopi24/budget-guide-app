@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
 import { Card } from '../../components/ui/Card';
+import { FabButton } from '../../components/ui/FabButton';
 import { useInvestmentsDb } from '../../db/investments';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatDateDisplay } from '../../lib/date';
@@ -132,15 +133,10 @@ export default function SavingsScreen() {
 
       </AppScreen>
 
-      {/* ── FAB ── */}
-      <Pressable
+      <FabButton
         onPress={() => router.push('/investment-new' as any)}
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-        accessibilityRole="button"
         accessibilityLabel="Add investment"
-      >
-        <Ionicons name="add" size={28} color={colors.white} />
-      </Pressable>
+      />
     </View>
   );
 }
@@ -253,7 +249,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[4],
     gap: spacing[3],
   },
-  rowPressed: { opacity: 0.6 },
+  rowPressed: { opacity: 0.6, transform: [{ scale: 0.99 }] },
   rowLeft: { flex: 1, minWidth: 0 },
   rowName: {
     fontSize: 15,
@@ -293,25 +289,4 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
 
-  // ── FAB ─────────────────────────────────────────────────────────────────────
-  fab: {
-    position: 'absolute',
-    right: spacing[5],
-    bottom: spacing[6],
-    width: 56,
-    height: 56,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.30,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  fabPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.94 }],
-  },
 });

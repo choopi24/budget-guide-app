@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary + '30',
   },
-  addBtnPressed: { opacity: 0.7 },
+  addBtnPressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   addBtnText: {
     fontSize: 13,
     fontWeight: '600',
@@ -343,6 +343,7 @@ const styles = StyleSheet.create({
 
   rowPressed: {
     opacity: 0.6,
+    transform: [{ scale: 0.99 }],
   },
 
   rowRight: {

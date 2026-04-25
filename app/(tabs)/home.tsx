@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { FabButton } from '../../components/ui/FabButton';
 import { useHomeDb, type HomeData } from '../../db/home';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { getMonthLabelFromKey } from '../../lib/date';
@@ -277,15 +278,10 @@ export default function HomeScreen() {
 
       </AppScreen>
 
-      {/* ── FAB ── */}
-      <Pressable
+      <FabButton
         onPress={() => router.push('/expense-new' as any)}
-        style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-        accessibilityRole="button"
         accessibilityLabel="Add new expense"
-      >
-        <Ionicons name="add" size={28} color={colors.white} />
-      </Pressable>
+      />
     </View>
   );
 }
@@ -327,7 +323,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   gradeBadgePressed: {
-    opacity: 0.7,
+    opacity: 0.72,
     transform: [{ scale: 0.96 }],
   },
   gradeBadgeText: {
@@ -527,7 +523,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[6],      // 24
   },
   allExpensesPressed: {
-    opacity: 0.5,
+    opacity: 0.55,
     transform: [{ scale: 0.98 }],
   },
   allExpensesText: {
@@ -566,25 +562,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // ── FAB ──────────────────────────────────────────────────────────────────
-  fab: {
-    position: 'absolute',
-    right:  spacing[5],
-    bottom: spacing[6],
-    width:  56,
-    height: 56,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.30,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
-  },
-  fabPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.94 }],
-  },
 });

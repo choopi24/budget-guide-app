@@ -142,7 +142,7 @@ export default function InvestmentDetailScreen() {
         <View style={styles.topActions}>
           <Pressable
             onPress={() => router.push({ pathname: '/investment-edit' as any, params: { id: String(detail.id) } })}
-            style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] }]}
             hitSlop={8}
           >
             <Ionicons name="create-outline" size={15} color={colors.primary} />
@@ -151,7 +151,7 @@ export default function InvestmentDetailScreen() {
 
           <Pressable
             onPress={handleDeleteInvestment}
-            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7, transform: [{ scale: 0.94 }] }]}
             hitSlop={8}
           >
             <Ionicons name="trash-outline" size={15} color={colors.danger} />
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  historyRowPressed: { opacity: 0.6 },
+  historyRowPressed: { opacity: 0.6, transform: [{ scale: 0.99 }] },
   historyTopLine: {
     flexDirection: 'row',
     alignItems: 'center',

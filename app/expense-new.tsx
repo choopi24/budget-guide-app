@@ -11,12 +11,20 @@ import {
 import { AppScreen } from '../components/AppScreen';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Chip } from '../components/ui/Chip';
+import { Input } from '../components/ui/Input';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { SectionLabel } from '../components/ui/SectionLabel';
 import { useExpensesDb } from '../db/expenses';
 import { detectExpenseBucket, ExpenseBucket } from '../lib/expenseClassifier';
+import { hapticSuccess } from '../lib/haptics';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/tokens';
+
+// ── Session-persistent smart defaults ────────────────────────────────────────
+let _lastCategory: string | null = null;
+let _lastBucket: ExpenseBucket = 'want';
 
 // ── Category presets ─────────────────────────────────────────────────────────
 
@@ -58,36 +66,35 @@ export default function NewExpenseScreen() {
   const router = useRouter();
   const { addExpense } = useExpensesDb();
 
-  // 'custom' | category label | null
-  const [selected, setSelected]   = useState<string | null>(null);
-  const [customTitle, setCustomTitle] = useState('');
-  const [amount, setAmount]        = useState('');
-  const [note, setNote]            = useState('');
-  const [bucket, setBucket]        = useState<ExpenseBucket>('want');
-  const [saving, setSaving]        = useState(false);
+  const [selected, setSelected]           = useState<string | null>(_lastCategory);
+  const [customTitle, setCustomTitle]     = useState('');
+  const [amount, setAmount]               = useState('');
+  const [note, setNote]                   = useState('');
+  const [bucket, setBucket]               = useState<ExpenseBucket>(_lastBucket);
+  const [saving, setSaving]               = useState(false);
   const [isInvestmentTransfer, setIsInvestmentTransfer] = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
+  const [isRecurring, setIsRecurring]     = useState(false);
 
-  const amountRef     = useRef<TextInput>(null);
+  const amountRef      = useRef<TextInput>(null);
   const customTitleRef = useRef<TextInput>(null);
 
-  const isCustom = selected === 'custom';
-  const title = isCustom ? customTitle : (selected ?? '');
+  const isCustom    = selected === 'custom';
+  const title       = isCustom ? customTitle : (selected ?? '');
   const amountCents = useMemo(() => parseMoneyToCents(amount), [amount]);
 
-  const canSave =
-    title.trim().length > 0 &&
-    amountCents > 0 &&
-    !saving;
+  const canSave = title.trim().length > 0 && amountCents > 0 && !saving;
 
   function pickCategory(cat: Category) {
     setSelected(cat.label);
     setBucket(cat.bucket);
+    _lastCategory = cat.label;
+    _lastBucket = cat.bucket;
     setTimeout(() => amountRef.current?.focus(), 50);
   }
 
   function pickCustom() {
     setSelected('custom');
+    _lastCategory = 'custom';
     setTimeout(() => customTitleRef.current?.focus(), 50);
   }
 
@@ -105,6 +112,7 @@ export default function NewExpenseScreen() {
         isRecurring,
       });
 
+      hapticSuccess();
       if (isInvestmentTransfer) {
         router.replace({
           pathname: '/investment-new' as any,
@@ -121,170 +129,120 @@ export default function NewExpenseScreen() {
     }
   }
 
-  // Chip style helpers
-  function chipStyle(cat: Category) {
-    const active = selected === cat.label;
-    if (!active) return styles.chip;
-    return [
-      styles.chip,
-      cat.bucket === 'must' ? styles.chipMustActive : styles.chipWantActive,
-    ];
-  }
-  function chipTextStyle(cat: Category) {
-    const active = selected === cat.label;
-    if (!active) return styles.chipText;
-    return [
-      styles.chipText,
-      cat.bucket === 'must' ? styles.chipTextMust : styles.chipTextWant,
-    ];
-  }
-
   return (
     <AppScreen scroll>
       {/* ── Top bar ── */}
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={({ pressed }) => pressed && styles.cancelPressed}
+        >
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </View>
 
-      <Card variant="outlined">
+      <Card variant="elevated">
         <SectionLabel style={styles.eyebrow}>Expense</SectionLabel>
         <Text style={styles.title}>What did you spend on?</Text>
 
-        {/* ── Essentials section ── */}
-        <Text style={styles.sectionLabel}>Essentials</Text>
-        <View style={styles.chipRow}>
-          {ESSENTIALS.map((cat) => (
-            <Pressable
-              key={cat.label}
-              onPress={() => pickCategory(cat)}
-              accessibilityRole="button"
-              accessibilityLabel={cat.label}
-              accessibilityState={{ selected: selected === cat.label }}
-              style={({ pressed }) => [
-                chipStyle(cat),
-                pressed && selected !== cat.label && styles.chipPressed,
-              ]}
-            >
-              <Text style={styles.chipEmoji}>{cat.emoji}</Text>
-              <Text style={chipTextStyle(cat)}>{cat.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* ── Lifestyle section ── */}
-        <Text style={[styles.sectionLabel, { marginTop: 18 }]}>Lifestyle</Text>
-        <View style={styles.chipRow}>
-          {LIFESTYLE.map((cat) => (
-            <Pressable
-              key={cat.label}
-              onPress={() => pickCategory(cat)}
-              accessibilityRole="button"
-              accessibilityLabel={cat.label}
-              accessibilityState={{ selected: selected === cat.label }}
-              style={({ pressed }) => [
-                chipStyle(cat),
-                pressed && selected !== cat.label && styles.chipPressed,
-              ]}
-            >
-              <Text style={styles.chipEmoji}>{cat.emoji}</Text>
-              <Text style={chipTextStyle(cat)}>{cat.label}</Text>
-            </Pressable>
-          ))}
-
-          {/* Custom chip */}
-          <Pressable
-            onPress={pickCustom}
-            accessibilityRole="button"
-            accessibilityLabel="Custom category"
-            accessibilityState={{ selected: isCustom }}
-            style={({ pressed }) => [
-              styles.chip,
-              isCustom && styles.chipCustomActive,
-              pressed && { opacity: 0.75 },
-            ]}
-          >
-            <Text style={styles.chipEmoji}>✏️</Text>
-            <Text style={[styles.chipText, isCustom && styles.chipTextCustom]}>
-              Custom
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* ── Custom title input ── */}
-        {isCustom && (
-          <View style={styles.field}>
-            <Text style={styles.label}>What was it for?</Text>
-            <TextInput
-              ref={customTitleRef}
-              value={customTitle}
-              onChangeText={(text) => {
-                setCustomTitle(text);
-                setBucket(detectExpenseBucket(text));
-              }}
-              placeholder="e.g. Birthday gift, parking fine…"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-              returnKeyType="next"
-              onSubmitEditing={() => amountRef.current?.focus()}
-              blurOnSubmit={false}
-              accessibilityLabel="Custom expense description"
-            />
-          </View>
-        )}
-
-        {/* ── Amount ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Amount</Text>
+        {/* ── Amount — primary focus ── */}
+        <View style={styles.amountSection}>
+          <Text style={styles.amountLabel}>Amount</Text>
           <TextInput
             ref={amountRef}
             value={amount}
             onChangeText={setAmount}
-            placeholder="120"
-            placeholderTextColor={colors.textMuted}
+            placeholder="0"
+            placeholderTextColor={colors.border}
             keyboardType="decimal-pad"
             returnKeyType="done"
-            style={styles.input}
+            style={styles.amountInput}
+            autoFocus
             accessibilityLabel="Amount"
           />
         </View>
 
+        {/* ── Category chips ── */}
+        <View style={styles.categorySection}>
+          <Text style={styles.sectionLabel}>Essentials</Text>
+          <View style={styles.chipRow}>
+            {ESSENTIALS.map((cat) => (
+              <Chip
+                key={cat.label}
+                label={cat.label}
+                emoji={cat.emoji}
+                active={selected === cat.label}
+                activeColor={colors.must}
+                activeBgColor={colors.mustSoft}
+                onPress={() => pickCategory(cat)}
+              />
+            ))}
+          </View>
+
+          <Text style={[styles.sectionLabel, styles.sectionLabelGap]}>Lifestyle</Text>
+          <View style={styles.chipRow}>
+            {LIFESTYLE.map((cat) => (
+              <Chip
+                key={cat.label}
+                label={cat.label}
+                emoji={cat.emoji}
+                active={selected === cat.label}
+                activeColor={colors.want}
+                activeBgColor={colors.wantSoft}
+                onPress={() => pickCategory(cat)}
+              />
+            ))}
+            <Chip
+              label="Custom"
+              emoji="✏️"
+              active={isCustom}
+              activeColor={colors.primary}
+              activeBgColor={colors.surfaceSoft}
+              onPress={pickCustom}
+              accessibilityLabel="Custom category"
+            />
+          </View>
+        </View>
+
+        {/* ── Custom title ── */}
+        {isCustom && (
+          <Input
+            ref={customTitleRef}
+            label="What was it for?"
+            value={customTitle}
+            onChangeText={(text) => {
+              setCustomTitle(text);
+              setBucket(detectExpenseBucket(text));
+            }}
+            placeholder="e.g. Birthday gift, parking fine…"
+            returnKeyType="next"
+            onSubmitEditing={() => amountRef.current?.focus()}
+            blurOnSubmit={false}
+            accessibilityLabel="Custom expense description"
+            containerStyle={styles.field}
+          />
+        )}
+
         {/* ── Bucket (Must / Want) ── */}
         {!isInvestmentTransfer && (
           <View style={styles.field}>
-            <Text style={styles.label}>Counts as</Text>
-            <View style={styles.segmentRow}>
-              <Pressable
-                onPress={() => setBucket('must')}
-                accessibilityRole="button"
-                accessibilityLabel="Must — essential spending"
-                accessibilityState={{ selected: bucket === 'must' }}
-                style={[styles.segmentButton, bucket === 'must' && styles.segmentMustActive]}
-              >
-                <Text style={[styles.segmentText, bucket === 'must' && styles.segmentMustText]}>
-                  Must
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setBucket('want')}
-                accessibilityRole="button"
-                accessibilityLabel="Want — discretionary spending"
-                accessibilityState={{ selected: bucket === 'want' }}
-                style={[styles.segmentButton, bucket === 'want' && styles.segmentWantActive]}
-              >
-                <Text style={[styles.segmentText, bucket === 'want' && styles.segmentWantText]}>
-                  Want
-                </Text>
-              </Pressable>
-            </View>
+            <Text style={styles.fieldLabel}>Counts as</Text>
+            <SegmentedControl
+              value={bucket}
+              onChange={(v) => setBucket(v as ExpenseBucket)}
+              options={[
+                { value: 'must', label: 'Must', activeColor: colors.must, activeBgColor: colors.mustSoft },
+                { value: 'want', label: 'Want', activeColor: colors.want, activeBgColor: colors.wantSoft },
+              ]}
+            />
           </View>
         )}
 
-        {/* ── Recurring toggle ── */}
+        {/* ── Options ── */}
         <View style={styles.switchRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.label}>Recurring expense</Text>
+            <Text style={styles.switchLabel}>Recurring expense</Text>
             <Text style={styles.switchHint}>Repeats monthly — rent, subscriptions, insurance.</Text>
           </View>
           <Switch
@@ -296,10 +254,9 @@ export default function NewExpenseScreen() {
           />
         </View>
 
-        {/* ── Investment transfer toggle ── */}
-        <View style={styles.switchRow}>
+        <View style={[styles.switchRow, styles.switchRowGap]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.label}>This went into an investment</Text>
+            <Text style={styles.switchLabel}>This went into an investment</Text>
             <Text style={styles.switchHint}>
               Save it as spending and create an investment record too.
             </Text>
@@ -322,17 +279,15 @@ export default function NewExpenseScreen() {
         )}
 
         {/* ── Note ── */}
-        <View style={styles.field}>
-          <Text style={styles.label}>Note (optional)</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Optional note"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, styles.noteInput]}
-            multiline
-          />
-        </View>
+        <Input
+          label="Note (optional)"
+          value={note}
+          onChangeText={setNote}
+          placeholder="Optional note"
+          multiline
+          style={styles.noteInput}
+          containerStyle={styles.field}
+        />
 
         <Button
           label={saving ? 'Saving…' : 'Save'}
@@ -356,6 +311,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
   },
+  cancelPressed: {
+    opacity: 0.55,
+    transform: [{ scale: 0.97 }],
+  },
   eyebrow: {
     marginBottom: spacing[2],
   },
@@ -364,129 +323,94 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.3,
-    marginBottom: spacing[5],
+  },
+
+  // ── Amount — primary field ────────────────────────────────────────────────
+  amountSection: {
+    marginTop: spacing[4],
+  },
+  amountLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+    color: colors.textTertiary,
+    marginBottom: spacing[2],
+  },
+  amountInput: {
+    minHeight: 68,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[4],
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -1,
+    color: colors.text,
+  },
+
+  // ── Category ──────────────────────────────────────────────────────────────
+  categorySection: {
+    marginTop: spacing[6],
   },
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.9,
     textTransform: 'uppercase',
-    color: colors.textTertiary,        // structural chrome — recedes from content
+    color: colors.textTertiary,
     marginBottom: spacing[2] + 2,
+  },
+  sectionLabelGap: {
+    marginTop: spacing[4],
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
   },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  chipMustActive: {
-    backgroundColor: colors.mustSoft,
-    borderColor: colors.must,
-  },
-  chipWantActive: {
-    backgroundColor: colors.wantSoft,
-    borderColor: colors.want,
-  },
-  chipCustomActive: {
-    backgroundColor: colors.surfaceSoft,
-    borderColor: colors.primary,
-  },
-  chipPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.95 }],
-  },
-  chipEmoji: {
-    fontSize: 15,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  chipTextMust:   { color: colors.must },
-  chipTextWant:   { color: colors.want },
-  chipTextCustom: { color: colors.primary },
+
+  // ── Secondary fields ──────────────────────────────────────────────────────
   field: {
     marginTop: spacing[5],
   },
-  label: {
+  fieldLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
     marginBottom: spacing[2],
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing[4],
-    fontSize: 16,
-    color: colors.text,
-    justifyContent: 'center',
   },
   noteInput: {
     minHeight: 80,
     paddingTop: spacing[4],
     textAlignVertical: 'top',
   },
-  segmentRow: {
-    flexDirection: 'row',
-    gap: spacing[2] + 2,
-  },
-  segmentButton: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentMustActive: {
-    backgroundColor: colors.mustSoft,
-    borderColor: colors.must,
-  },
-  segmentWantActive: {
-    backgroundColor: colors.wantSoft,
-    borderColor: colors.want,
-  },
-  segmentText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  segmentMustText: { color: colors.must },
-  segmentWantText: { color: colors.want },
+
+  // ── Options ───────────────────────────────────────────────────────────────
   switchRow: {
-    marginTop: spacing[5],
+    marginTop: spacing[6],
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[4],
     padding: spacing[4],
-    backgroundColor: colors.background,  // calmer than surfaceSoft
+    backgroundColor: colors.background,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  switchRowGap: {
+    marginTop: spacing[3],
+  },
+  switchLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
   },
   switchHint: {
     fontSize: 13,
     lineHeight: 18,
     color: colors.textTertiary,
-    marginTop: 2,
   },
   investNotice: {
     marginTop: spacing[3],
