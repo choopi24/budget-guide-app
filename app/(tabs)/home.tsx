@@ -264,6 +264,26 @@ export default function HomeScreen() {
           })}
         </Card>
 
+        {/* ── AI Budget Review entry ── */}
+        <Pressable
+          onPress={() => router.push('/ai-budget-review' as any)}
+          style={({ pressed }) => [
+            styles.aiReviewRow,
+            pressed && styles.aiReviewRowPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Open AI budget review"
+        >
+          <View style={styles.aiReviewIconWrap}>
+            <Ionicons name="sparkles" size={16} color={colors.primary} />
+          </View>
+          <View style={styles.aiReviewText}>
+            <Text style={styles.aiReviewLabel}>AI Budget Review</Text>
+            <Text style={styles.aiReviewHint}>Patterns, risks, and suggestions</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={15} color={colors.border} />
+        </Pressable>
+
         {/* ── All expenses link ── */}
         <Pressable
           onPress={() => router.push('/expenses' as any)}
@@ -523,6 +543,49 @@ const styles = StyleSheet.create({
   rowFill: {
     height: '100%',
     borderRadius: radius.full,
+  },
+
+  // ── AI Budget Review entry ───────────────────────────────────────────────
+  aiReviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
+    marginBottom: spacing[3],
+    ...shadows.sm,
+  },
+  aiReviewRowPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.985 }],
+  },
+  aiReviewIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.primary + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  aiReviewText: {
+    flex: 1,
+  },
+  aiReviewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  aiReviewHint: {
+    fontSize: 12,
+    color: colors.textTertiary,
   },
 
   // ── All expenses link ─────────────────────────────────────────────────────

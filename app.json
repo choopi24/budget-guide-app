@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "budget-app",
-    "slug": "budget-app",
+    "name": "BudgetBull",
+    "slug": "budgetbull",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "budgetapp",
+    "scheme": "budgetbull",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.budgetapp"
+      "bundleIdentifier": "com.anonymous.budgetbull"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +21,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.budgetapp"
+      "package": "com.anonymous.budgetbull"
     },
     "web": {
       "output": "static",
@@ -42,7 +42,15 @@
         }
       ],
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "BudgetBull needs camera access to scan receipts.",
+          "microphonePermission": false,
+          "photosPermission": "BudgetBull needs photo library access to select receipt images."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

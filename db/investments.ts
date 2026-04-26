@@ -23,6 +23,16 @@ export type CreateInvestmentInput = {
   note?: string;
 };
 
+export type CreateInvestmentWithExpenseInput = {
+  pendingExpense: {
+    title: string;
+    amountCents: number;
+    spentOn: string;
+    note?: string;
+  };
+  investment: CreateInvestmentInput;
+};
+
 export type UpdateInvestmentInput = {
   id: number;
   name: string;
@@ -160,6 +170,87 @@ export function useInvestmentsDb() {
     });
   }, [db]);
 
+  /**
+   * Atomically saves a pending expense (from expense-new) and a new investment
+   * in one transaction. Nothing is written until this function resolves —
+   * cancelling before calling it leaves the DB untouched.
+   */
+  const createInvestmentWithExpense = useCallback(async function createInvestmentWithExpense(
+    input: CreateInvestmentWithExpenseInput
+  ) {
+    const now = new Date().toISOString();
+
+    await db.withTransactionAsync(async () => {
+      // 1. Resolve active month
+      const activeMonth = await db.getFirstAsync<{ id: number }>(
+        `SELECT id FROM months WHERE status = 'active' ORDER BY id DESC LIMIT 1`
+      );
+      if (!activeMonth?.id) throw new Error('No active month found');
+
+      // 2. Insert expense with is_investment = 1
+      await db.runAsync(
+        `INSERT INTO expenses
+           (month_id, title, amount_cents, spent_on, note,
+            suggested_bucket, final_bucket, is_investment, is_recurring,
+            created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'want', 'want', 1, 0, ?, ?)`,
+        [
+          activeMonth.id,
+          input.pendingExpense.title.trim(),
+          input.pendingExpense.amountCents,
+          input.pendingExpense.spentOn,
+          input.pendingExpense.note?.trim() || null,
+          now,
+          now,
+        ]
+      );
+
+      // 3. Credit the invest bucket on the month
+      await db.runAsync(
+        `UPDATE months SET invest_spent_cents = invest_spent_cents + ?, updated_at = ? WHERE id = ?`,
+        [input.pendingExpense.amountCents, now, activeMonth.id]
+      );
+
+      // 4. Insert savings_item
+      const inv = input.investment;
+      const itemResult = await db.runAsync(
+        `INSERT INTO savings_items
+           (name, category, asset_symbol, asset_coin_id, asset_quantity,
+            opening_date, opening_amount_cents, current_value_cents, note,
+            created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          inv.name.trim(),
+          inv.category,
+          inv.assetSymbol?.trim().toUpperCase() || null,
+          inv.assetCoinId?.trim() || null,
+          inv.assetQuantity ?? null,
+          inv.openingDate,
+          inv.openingAmountCents,
+          inv.currentValueCents,
+          inv.note?.trim() || null,
+          now,
+          now,
+        ]
+      );
+
+      // 5. Insert initial savings_update
+      await db.runAsync(
+        `INSERT INTO savings_updates
+           (saving_item_id, effective_date, value_cents, type, amount_cents, note, created_at)
+         VALUES (?, ?, ?, 'initial', ?, ?, ?)`,
+        [
+          itemResult.lastInsertRowId,
+          inv.openingDate,
+          inv.currentValueCents,
+          inv.openingAmountCents,
+          inv.isNew ? 'Initial entry' : 'Imported existing investment',
+          now,
+        ]
+      );
+    });
+  }, [db]);
+
   const getInvestmentById = useCallback((id: number) => {
     return db.getFirstAsync<{
       id: number;
@@ -232,6 +323,7 @@ export function useInvestmentsDb() {
 
   return {
     createInvestment,
+    createInvestmentWithExpense,
     updateInvestment,
     getInvestmentById,
     getInvestmentsList,

@@ -369,7 +369,7 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.shortcutUrl}>
           <Text style={styles.shortcutUrlText} selectable>
-            {'budgetapp://add-expense-from-shortcut'}
+            {'budgetbull://add-expense-from-shortcut'}
           </Text>
         </View>
         <View style={styles.shortcutStep}>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -46,6 +47,7 @@ export type InvestmentFormValues = {
   note: string;
   isMarketAsset: boolean;
   isCrypto: boolean;
+  fundedFromBudget: boolean;
 };
 
 export type InvestmentFormInitialData = {
@@ -65,6 +67,7 @@ type Props = {
   title: string;
   subtitle?: string;
   showIsNew?: boolean;
+  showFundedFromBudget?: boolean;
   saveLabel: string;
   saving: boolean;
   currency?: SupportedCurrency;
@@ -78,6 +81,7 @@ export function InvestmentForm({
   title,
   subtitle,
   showIsNew = false,
+  showFundedFromBudget = false,
   saveLabel,
   saving,
   currency = 'ILS',
@@ -102,6 +106,7 @@ export function InvestmentForm({
   const [coinResults, setCoinResults] = useState<CoinOption[]>([]);
 
   const [isNew, setIsNew] = useState(true);
+  const [fundedFromBudget, setFundedFromBudget] = useState(false);
   const [openingDate, setOpeningDate] = useState(initialData?.openingDate ?? new Date());
   const [openingAmount, setOpeningAmount] = useState(initialData?.openingAmount ?? '');
   const [currentValue, setCurrentValue] = useState(initialData?.currentValue ?? '');
@@ -163,6 +168,11 @@ export function InvestmentForm({
       cancelled = true;
     };
   }, [assetCoinId, quantity, currency, isCrypto, isNew, showIsNew]);
+
+  // Funding from this month only makes sense for new investments, not imports.
+  useEffect(() => {
+    if (!isNew) setFundedFromBudget(false);
+  }, [isNew]);
 
   const isMarketAsset =
     category === 'Crypto' ||
@@ -234,6 +244,7 @@ export function InvestmentForm({
       note,
       isMarketAsset,
       isCrypto,
+      fundedFromBudget,
     });
   }
 
@@ -643,6 +654,24 @@ export function InvestmentForm({
         </View>
       )}
 
+      {showFundedFromBudget && (!showIsNew || isNew) && (
+        <View style={styles.fundedRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fundedLabelText}>Funded from this month's budget?</Text>
+            <Text style={styles.fundedHint}>
+              Counts toward your monthly Invest budget.
+            </Text>
+          </View>
+          <Switch
+            value={fundedFromBudget}
+            onValueChange={setFundedFromBudget}
+            trackColor={{ false: colors.border, true: colors.keep + 'CC' }}
+            thumbColor={fundedFromBudget ? colors.keep : colors.white}
+            accessibilityLabel="Funded from this month's budget"
+          />
+        </View>
+      )}
+
       <View style={styles.field}>
         <Text style={styles.label}>Note (optional)</Text>
         <TextInput
@@ -795,5 +824,27 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '500',
     lineHeight: 18,
+  },
+  fundedRow: {
+    marginTop: spacing[5],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
+    padding: spacing[4],
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fundedLabelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  fundedHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textTertiary,
   },
 });

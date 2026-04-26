@@ -189,9 +189,14 @@ export default function HistoryScreen() {
                       <Text style={styles.rowTitle} numberOfLines={1}>
                         {item.title}
                       </Text>
-                      <Text style={styles.rowMeta}>
-                        {formatFriendlyDate(item.spent_on)}
-                      </Text>
+                      <View style={styles.rowMetaRow}>
+                        <Text style={styles.rowMeta}>
+                          {formatFriendlyDate(item.spent_on)}
+                        </Text>
+                        {!!item.is_investment && (
+                          <Text style={styles.investBadge}>Investment</Text>
+                        )}
+                      </View>
                     </View>
                     <View style={styles.rowRight}>
                       <Text
@@ -336,9 +341,20 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 3,
   },
+  rowMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   rowMeta: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+  investBadge: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.keep,
+    letterSpacing: 0.2,
   },
 
   rowPressed: {

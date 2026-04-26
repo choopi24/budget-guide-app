@@ -8,6 +8,7 @@ type ChipProps = {
   active?: boolean;
   activeColor?: string;
   activeBgColor?: string;
+  disabled?: boolean;
   onPress?: () => void;
   accessibilityLabel?: string;
 };
@@ -18,23 +19,25 @@ export function Chip({
   active = false,
   activeColor = colors.primary,
   activeBgColor = colors.surfaceSoft,
+  disabled = false,
   onPress,
   accessibilityLabel,
 }: ChipProps) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected: active }}
+      accessibilityState={{ selected: active, disabled }}
       style={({ pressed }) => [
         styles.chip,
         active && { backgroundColor: activeBgColor, borderColor: activeColor },
-        pressed && !active && styles.pressed,
+        disabled && styles.disabled,
+        pressed && !active && !disabled && styles.pressed,
       ]}
     >
-      {emoji ? <Text style={styles.emoji}>{emoji}</Text> : null}
-      <Text style={[styles.text, active && { color: activeColor }]}>{label}</Text>
+      {emoji ? <Text style={[styles.emoji, disabled && styles.disabledText]}>{emoji}</Text> : null}
+      <Text style={[styles.text, active && { color: activeColor }, disabled && styles.disabledText]}>{label}</Text>
     </Pressable>
   );
 }
@@ -60,5 +63,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.textMuted,
+  },
+  disabled: {
+    opacity: 0.35,
+  },
+  disabledText: {
+    color: colors.textTertiary,
   },
 });

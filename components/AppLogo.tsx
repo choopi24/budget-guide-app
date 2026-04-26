@@ -9,7 +9,7 @@ interface AppLogoProps {
 }
 
 /**
- * The BullBudget app logo — a business bull head in a circular badge.
+ * The BudgetBull app logo — a business bull head in a circular badge.
  * Used on the profile page, streak card, and splash context.
  */
 export function AppLogo({ size = 80, showName = false, streakCount }: AppLogoProps) {
@@ -47,7 +47,7 @@ export function AppLogo({ size = 80, showName = false, streakCount }: AppLogoPro
       )}
 
       {showName && (
-        <Text style={[styles.appName, { fontSize: size * 0.18 }]}>BullBudget</Text>
+        <Text style={[styles.appName, { fontSize: size * 0.18 }]}>BudgetBull</Text>
       )}
     </View>
   );

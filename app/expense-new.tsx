@@ -66,14 +66,13 @@ export default function NewExpenseScreen() {
   const router = useRouter();
   const { addExpense } = useExpensesDb();
 
-  const [selected, setSelected]           = useState<string | null>(_lastCategory);
-  const [customTitle, setCustomTitle]     = useState('');
-  const [amount, setAmount]               = useState('');
-  const [note, setNote]                   = useState('');
-  const [bucket, setBucket]               = useState<ExpenseBucket>(_lastBucket);
-  const [saving, setSaving]               = useState(false);
-  const [isInvestmentTransfer, setIsInvestmentTransfer] = useState(false);
-  const [isRecurring, setIsRecurring]     = useState(false);
+  const [selected, setSelected]       = useState<string | null>(_lastCategory);
+  const [customTitle, setCustomTitle] = useState('');
+  const [amount, setAmount]           = useState('');
+  const [note, setNote]               = useState('');
+  const [bucket, setBucket]           = useState<ExpenseBucket>(_lastBucket);
+  const [saving, setSaving]           = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
 
   const amountRef      = useRef<TextInput>(null);
   const customTitleRef = useRef<TextInput>(null);
@@ -89,7 +88,6 @@ export default function NewExpenseScreen() {
     setBucket(cat.bucket);
     _lastCategory = cat.label;
     _lastBucket = cat.bucket;
-    setTimeout(() => amountRef.current?.focus(), 50);
   }
 
   function pickCustom() {
@@ -108,22 +106,10 @@ export default function NewExpenseScreen() {
         spentOn: new Date().toISOString(),
         note,
         finalBucket: bucket,
-        createInvestmentRecord: isInvestmentTransfer,
         isRecurring,
       });
-
       hapticSuccess();
-      if (isInvestmentTransfer) {
-        router.replace({
-          pathname: '/investment-new' as any,
-          params: {
-            prefillName: title.trim(),
-            prefillAmountCents: String(amountCents),
-          },
-        });
-      } else {
-        router.replace('/(tabs)/home');
-      }
+      router.replace('/(tabs)/home');
     } finally {
       setSaving(false);
     }
@@ -225,19 +211,17 @@ export default function NewExpenseScreen() {
         )}
 
         {/* ── Bucket (Must / Want) ── */}
-        {!isInvestmentTransfer && (
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Counts as</Text>
-            <SegmentedControl
-              value={bucket}
-              onChange={(v) => setBucket(v as ExpenseBucket)}
-              options={[
-                { value: 'must', label: 'Must', activeColor: colors.must, activeBgColor: colors.mustSoft },
-                { value: 'want', label: 'Want', activeColor: colors.want, activeBgColor: colors.wantSoft },
-              ]}
-            />
-          </View>
-        )}
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Counts as</Text>
+          <SegmentedControl
+            value={bucket}
+            onChange={(v) => setBucket(v as ExpenseBucket)}
+            options={[
+              { value: 'must', label: 'Must', activeColor: colors.must, activeBgColor: colors.mustSoft },
+              { value: 'want', label: 'Want', activeColor: colors.want, activeBgColor: colors.wantSoft },
+            ]}
+          />
+        </View>
 
         {/* ── Options ── */}
         <View style={styles.switchRow}>
@@ -253,30 +237,6 @@ export default function NewExpenseScreen() {
             accessibilityLabel="Mark as recurring expense"
           />
         </View>
-
-        <View style={[styles.switchRow, styles.switchRowGap]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.switchLabel}>This went into an investment</Text>
-            <Text style={styles.switchHint}>
-              Save it as spending and create an investment record too.
-            </Text>
-          </View>
-          <Switch
-            value={isInvestmentTransfer}
-            onValueChange={setIsInvestmentTransfer}
-            trackColor={{ false: colors.border, true: colors.switchTrackOn }}
-            thumbColor={isInvestmentTransfer ? colors.primary : colors.white}
-            accessibilityLabel="Mark as investment transfer"
-          />
-        </View>
-
-        {isInvestmentTransfer && (
-          <View style={styles.investNotice}>
-            <Text style={styles.investNoticeText}>
-              This amount will be tracked under Invest. You'll be taken to the investment form to add more details.
-            </Text>
-          </View>
-        )}
 
         {/* ── Note ── */}
         <Input
@@ -398,9 +358,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  switchRowGap: {
-    marginTop: spacing[3],
-  },
   switchLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -411,17 +368,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     color: colors.textTertiary,
-  },
-  investNotice: {
-    marginTop: spacing[3],
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: radius.md,
-    padding: spacing[4],
-  },
-  investNoticeText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.primary,
-    fontWeight: '500',
   },
 });

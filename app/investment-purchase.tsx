@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -26,7 +27,7 @@ export default function InvestmentPurchaseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const investmentId = Number(id);
 
-  const { getInvestmentDetail, addInvestmentUpdate } = useInvestmentDetailDb();
+  const { getInvestmentDetail, addInvestmentUpdate, addInvestmentPurchaseWithMonthContribution } = useInvestmentDetailDb();
   const { getCurrency } = useSettingsDb();
 
   const [detail, setDetail]     = useState<InvestmentDetail | null>(null);
@@ -35,8 +36,9 @@ export default function InvestmentPurchaseScreen() {
   const [note, setNote]         = useState('');
   const [date, setDate]         = useState(new Date());
   const [dateOpen, setDateOpen] = useState(false);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState('');
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState('');
+  const [fundedFromBudget, setFundedFromBudget] = useState(false);
 
   const noteRef = useRef<TextInput>(null);
 
@@ -59,14 +61,23 @@ export default function InvestmentPurchaseScreen() {
     setSaving(true);
     setError('');
     try {
-      await addInvestmentUpdate({
-        investmentId,
-        effectiveDate: date.toISOString(),
-        valueCents: newTotalCents,
-        type: 'buy',
-        amountCents: purchaseCents,
-        note,
-      });
+      if (fundedFromBudget) {
+        await addInvestmentPurchaseWithMonthContribution({
+          investmentId,
+          effectiveDate: date.toISOString(),
+          purchaseCents,
+          note,
+        });
+      } else {
+        await addInvestmentUpdate({
+          investmentId,
+          effectiveDate: date.toISOString(),
+          valueCents: newTotalCents,
+          type: 'buy',
+          amountCents: purchaseCents,
+          note,
+        });
+      }
       hapticSuccess();
       router.back();
     } catch (e: any) {
@@ -150,6 +161,21 @@ export default function InvestmentPurchaseScreen() {
             <DatePickerField value={date} onChange={setDate} />
           </View>
         )}
+
+        {/* Funded from budget */}
+        <View style={styles.fundedRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.fundedLabel}>Funded from this month's budget?</Text>
+            <Text style={styles.fundedHint}>Counts toward your monthly Invest budget.</Text>
+          </View>
+          <Switch
+            value={fundedFromBudget}
+            onValueChange={setFundedFromBudget}
+            trackColor={{ false: colors.border, true: colors.keep + 'CC' }}
+            thumbColor={fundedFromBudget ? colors.keep : colors.white}
+            accessibilityLabel="Funded from this month's budget"
+          />
+        </View>
 
         {/* Note */}
         <Input
@@ -275,5 +301,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.danger,
+  },
+  fundedRow: {
+    marginTop: spacing[5],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
+    padding: spacing[4],
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fundedLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  fundedHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textTertiary,
   },
 });

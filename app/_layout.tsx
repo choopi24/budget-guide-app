@@ -31,6 +31,7 @@ export default function RootLayout() {
         <Stack.Screen name="add-expense-from-shortcut" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="receipt-scan" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="receipt-review" options={{ headerShown: false }} />
+        <Stack.Screen name="ai-budget-review" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="avatar-edit" options={{ headerShown: false }} />
       </Stack>
     </SQLiteProvider>

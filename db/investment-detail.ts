@@ -310,11 +310,89 @@ export function useInvestmentDetailDb() {
     });
   }, [db]);
 
+  /**
+   * Atomically records an investment purchase AND credits the active month's
+   * Invest budget bucket. Use this only when the user confirms the contribution
+   * was funded from the current month's budget.
+   *
+   * If no active month exists the whole transaction is aborted — nothing is written.
+   */
+  const addInvestmentPurchaseWithMonthContribution = useCallback(
+    async function addInvestmentPurchaseWithMonthContribution(input: {
+      investmentId: number;
+      effectiveDate: string;
+      purchaseCents: number;
+      note?: string;
+    }) {
+      const now = new Date().toISOString();
+
+      const existing = await getInvestmentDetail(input.investmentId);
+      if (!existing) throw new Error('Investment not found.');
+
+      const newTotalCents = existing.current_value_cents + input.purchaseCents;
+
+      await db.withTransactionAsync(async () => {
+        // 1. Record the buy event
+        await db.runAsync(
+          `INSERT INTO savings_updates
+             (saving_item_id, effective_date, value_cents, type, amount_cents, note, created_at)
+           VALUES (?, ?, ?, 'buy', ?, ?, ?)`,
+          [
+            input.investmentId,
+            input.effectiveDate,
+            newTotalCents,
+            input.purchaseCents,
+            input.note?.trim() || null,
+            now,
+          ]
+        );
+
+        // 2. Update investment's current value
+        await db.runAsync(
+          `UPDATE savings_items SET current_value_cents = ?, updated_at = ? WHERE id = ?`,
+          [newTotalCents, now, input.investmentId]
+        );
+
+        // 3. Find active month — abort the whole transaction if none exists
+        const activeMonth = await db.getFirstAsync<{ id: number }>(
+          `SELECT id FROM months WHERE status = 'active' ORDER BY id DESC LIMIT 1`
+        );
+        if (!activeMonth?.id) throw new Error('No active month found. Set up a month before recording budget contributions.');
+
+        // 4. Insert investment expense record
+        await db.runAsync(
+          `INSERT INTO expenses
+             (month_id, title, amount_cents, spent_on, note,
+              suggested_bucket, final_bucket, is_investment, is_recurring,
+              created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, 'want', 'want', 1, 0, ?, ?)`,
+          [
+            activeMonth.id,
+            existing.name.trim(),
+            input.purchaseCents,
+            input.effectiveDate,
+            input.note?.trim() || null,
+            now,
+            now,
+          ]
+        );
+
+        // 5. Credit the month's invest bucket
+        await db.runAsync(
+          `UPDATE months SET invest_spent_cents = invest_spent_cents + ?, updated_at = ? WHERE id = ?`,
+          [input.purchaseCents, now, activeMonth.id]
+        );
+      });
+    },
+    [db, getInvestmentDetail]
+  );
+
   return {
     getInvestmentDetail,
     getInvestmentUpdates,
     getInvestmentUpdate,
     addInvestmentUpdate,
+    addInvestmentPurchaseWithMonthContribution,
     editInvestmentUpdate,
     deleteInvestmentUpdate,
     deleteInvestment,

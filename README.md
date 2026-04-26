@@ -2,8 +2,6 @@
 
 A focused personal finance app for iPhone. Allocate your income into three buckets — **Must**, **Want**, and **Invest** — then track every spend and watch your portfolio grow.
 
-> **Branding note:** `app.json` still uses `"name": "budget-app"` and `"slug": "budget-app"`. The display name visible to users should be updated to `"BullBudget"` when you're ready to publish.
-
 ---
 
 ## What it does
