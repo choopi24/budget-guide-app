@@ -212,8 +212,45 @@ export function useExpensesDb() {
     return { rolloverAdjusted };
   }, [db]);
 
+  const findPotentialDuplicate = useCallback(async function findPotentialDuplicate(input: {
+    amountCents: number;
+    dateIso: string;
+    title: string;
+  }): Promise<{ id: number; title: string; spentOn: string } | null> {
+    // Search for expenses with the same amount within ±1 day
+    const d = new Date(input.dateIso + 'T00:00:00');
+    const dayBefore = new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
+    const dayAfter  = new Date(d.getTime() + 86400000).toISOString().slice(0, 10);
+
+    const rows = await db.getAllAsync<{ id: number; title: string; spent_on: string }>(
+      `SELECT id, title, spent_on FROM expenses
+       WHERE amount_cents = ?
+         AND date(spent_on) BETWEEN ? AND ?
+       ORDER BY spent_on DESC
+       LIMIT 5`,
+      [input.amountCents, dayBefore, dayAfter]
+    );
+
+    if (!rows.length) return null;
+
+    const titleLow = input.title.toLowerCase().trim();
+    for (const row of rows) {
+      const rowLow = row.title.toLowerCase().trim();
+      // Exact match or one title contains the other
+      if (rowLow === titleLow || rowLow.includes(titleLow) || titleLow.includes(rowLow)) {
+        return { id: row.id, title: row.title, spentOn: row.spent_on };
+      }
+    }
+    // Same amount on same date with any title is still suspicious — return first
+    if (rows.length > 0) {
+      return { id: rows[0].id, title: rows[0].title, spentOn: rows[0].spent_on };
+    }
+    return null;
+  }, [db]);
+
   return {
     addExpense,
     addPastMonthExpense,
+    findPotentialDuplicate,
   };
 }

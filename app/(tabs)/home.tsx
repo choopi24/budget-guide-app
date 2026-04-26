@@ -278,6 +278,17 @@ export default function HomeScreen() {
 
       </AppScreen>
 
+      {/* Scan receipt secondary action — sits above the primary FAB */}
+      <Pressable
+        onPress={() => router.push('/receipt-scan' as any)}
+        style={({ pressed }) => [styles.scanFab, pressed && styles.scanFabPressed]}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Scan a receipt"
+      >
+        <Ionicons name="scan-outline" size={22} color={colors.primary} />
+      </Pressable>
+
       <FabButton
         onPress={() => router.push('/expense-new' as any)}
         accessibilityLabel="Add new expense"
@@ -530,6 +541,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.textMuted,
+  },
+
+  // ── Scan receipt FAB (secondary, above primary FAB) ──────────────────────
+  scanFab: {
+    position: 'absolute',
+    // center horizontally with the 56px primary FAB at right:20
+    right: 25,
+    // above primary FAB: bottom(24) + height(56) + gap(12) = 92
+    bottom: 92,
+    width: 46,
+    height: 46,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    shadowColor: colors.text,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
+  scanFabPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.94 }],
   },
 
   // ── Empty state ───────────────────────────────────────────────────────────
