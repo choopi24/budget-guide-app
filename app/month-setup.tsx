@@ -113,7 +113,7 @@ export default function MonthSetupScreen() {
           Build your plan for {getMonthLabelFromKey(currentMonthKey)}.
         </Text>
         <Text style={styles.body}>
-          Enter your net income and we'll map it into your default Must, Want, and Keep plan.
+          {"Enter your net income and we'll map it into your default Must, Want, and Keep plan."}
         </Text>
 
         <Input
@@ -131,7 +131,7 @@ export default function MonthSetupScreen() {
         />
 
         <Card variant="outlined" padding={16} style={styles.previewCard}>
-          <Text style={styles.previewTitle}>This month's plan</Text>
+          <Text style={styles.previewTitle}>{"This month's plan"}</Text>
 
           <PreviewRow
             label={`Must (${mustPct}%)`}

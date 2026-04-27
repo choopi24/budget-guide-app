@@ -15,6 +15,8 @@ import { useMonthsDb } from '../db/months';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { fonts } from '../theme/fonts';
+import { radius, spacing } from '../theme/tokens';
 
 type BudgetPreset = '503020' | '502030' | 'custom';
 
@@ -41,11 +43,11 @@ const PRESETS: Record<Exclude<BudgetPreset, 'custom'>, PresetConfig> = {
 
 const CURRENCIES: { label: string; sublabel: string; value: SupportedCurrency }[] = [
   { label: '₪ NIS', sublabel: 'Israeli Shekel', value: 'ILS' },
-  { label: '$ USD', sublabel: 'US Dollar', value: 'USD' },
-  { label: '€ EUR', sublabel: 'Euro', value: 'EUR' },
+  { label: '$ USD', sublabel: 'US Dollar',      value: 'USD' },
+  { label: '€ EUR', sublabel: 'Euro',            value: 'EUR' },
 ];
 
-// ─── Step dots ───────────────────────────────────────────────────────────────
+// ─── Step dots ────────────────────────────────────────────────────────────────
 
 function StepDots({ current, total }: { current: number; total: number }) {
   return (
@@ -61,14 +63,14 @@ function StepDots({ current, total }: { current: number; total: number }) {
 }
 
 const dots = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 28 },
-  dot: { width: 6, height: 6, borderRadius: 999 },
-  active: { width: 20, backgroundColor: colors.primary },
-  done: { backgroundColor: colors.primary + '40' },
-  idle: { backgroundColor: colors.border },
+  row:    { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 28 },
+  dot:    { height: 6, borderRadius: radius.full },
+  active: { width: 22, backgroundColor: colors.primary },
+  done:   { width: 6,  backgroundColor: colors.primary + '55' },
+  idle:   { width: 6,  backgroundColor: colors.border },
 });
 
-// ─── Split visualization bar ─────────────────────────────────────────────────
+// ─── Split visualization bar ──────────────────────────────────────────────────
 
 function SplitBar({ must, want, keep }: { must: number; want: number; keep: number }) {
   return (
@@ -81,8 +83,8 @@ function SplitBar({ must, want, keep }: { must: number; want: number; keep: numb
 }
 
 const bar = StyleSheet.create({
-  track: { flexDirection: 'row', height: 5, borderRadius: 999, overflow: 'hidden', marginTop: 12 },
-  seg: {},
+  track: { flexDirection: 'row', height: 5, borderRadius: radius.full, overflow: 'hidden', marginTop: spacing[3] },
+  seg:   {},
 });
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -95,15 +97,15 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
 
   // Step 1 — Profile
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [name,     setName]     = useState('');
+  const [email,    setEmail]    = useState('');
   const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
 
   // Step 2 — Budget
-  const [preset, setPreset] = useState<BudgetPreset>('502030');
-  const [customMust, setCustomMust] = useState('50');
-  const [customWant, setCustomWant] = useState('20');
-  const [customKeep, setCustomKeep] = useState('30');
+  const [preset,      setPreset]      = useState<BudgetPreset>('502030');
+  const [customMust,  setCustomMust]  = useState('50');
+  const [customWant,  setCustomWant]  = useState('20');
+  const [customKeep,  setCustomKeep]  = useState('30');
 
   // Step 3 — Income
   const [income, setIncome] = useState('');
@@ -112,12 +114,11 @@ export default function OnboardingScreen() {
   const activeMust = preset === 'custom' ? (Number(customMust) || 0) : PRESETS[preset as Exclude<BudgetPreset, 'custom'>].must;
   const activeWant = preset === 'custom' ? (Number(customWant) || 0) : PRESETS[preset as Exclude<BudgetPreset, 'custom'>].want;
   const activeKeep = preset === 'custom' ? (Number(customKeep) || 0) : PRESETS[preset as Exclude<BudgetPreset, 'custom'>].keep;
-  const totalPct = activeMust + activeWant + activeKeep;
+  const totalPct   = activeMust + activeWant + activeKeep;
 
-  const incomeCents = useMemo(() => parseMoneyToCents(income), [income]);
-
-  const customValid = preset !== 'custom' || totalPct === 100;
-  const canFinish = incomeCents > 0 && customValid && !saving;
+  const incomeCents  = useMemo(() => parseMoneyToCents(income), [income]);
+  const customValid  = preset !== 'custom' || totalPct === 100;
+  const canFinish    = incomeCents > 0 && customValid && !saving;
 
   async function handleFinish() {
     if (!canFinish) return;
@@ -125,8 +126,8 @@ export default function OnboardingScreen() {
     try {
       await updateCurrency(currency);
       await saveOnboarding({
-        name: name.trim() || undefined,
-        email: email.trim() || undefined,
+        name:    name.trim()  || undefined,
+        email:   email.trim() || undefined,
         mustPct: activeMust,
         wantPct: activeWant,
         keepPct: activeKeep,
@@ -138,20 +139,21 @@ export default function OnboardingScreen() {
     }
   }
 
-  // ── Welcome screen ────────────────────────────────────────────────────────
+  // ── Welcome ───────────────────────────────────────────────────────────────
 
   if (step === 0) {
     return (
       <SafeAreaView style={welcome.safeArea}>
         <View style={welcome.container}>
-          {/* Mark */}
+
+          {/* Brand mark */}
           <View style={welcome.markRow}>
             <View style={welcome.markDot} />
             <View style={[welcome.markDot, welcome.markDotMid]} />
             <View style={welcome.markDot} />
           </View>
 
-          {/* Copy */}
+          {/* Hero copy */}
           <View style={welcome.copyBlock}>
             <Text style={welcome.headline}>Your income,{'\n'}working for you.</Text>
             <Text style={welcome.subline}>
@@ -175,7 +177,9 @@ export default function OnboardingScreen() {
               <Text style={welcome.primaryBtnText}>Get started</Text>
             </Pressable>
             <Text style={welcome.footerNote}>Takes about a minute to set up.</Text>
+            <Text style={welcome.privacyNote}>🔒 All data stays on your device</Text>
           </View>
+
         </View>
       </SafeAreaView>
     );
@@ -216,8 +220,8 @@ export default function OnboardingScreen() {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="e.g. Alex"
-                  placeholderTextColor={colors.textMuted}
+                  placeholder="What should we call you?"
+                  placeholderTextColor={colors.textTertiary}
                   style={s.input}
                   autoCorrect={false}
                 />
@@ -228,7 +232,7 @@ export default function OnboardingScreen() {
                   value={email}
                   onChangeText={setEmail}
                   placeholder="name@example.com"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textTertiary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -322,8 +326,8 @@ export default function OnboardingScreen() {
                   <>
                     <SplitBar must={activeMust} want={activeWant} keep={activeKeep} />
                     <View style={s.customRow}>
-                      <CustomSplit label="Must" color={colors.must} value={customMust} onChangeText={setCustomMust} />
-                      <CustomSplit label="Want" color={colors.want} value={customWant} onChangeText={setCustomWant} />
+                      <CustomSplit label="Must"   color={colors.must} value={customMust} onChangeText={setCustomMust} />
+                      <CustomSplit label="Want"   color={colors.want} value={customWant} onChangeText={setCustomWant} />
                       <CustomSplit label="Invest" color={colors.keep} value={customKeep} onChangeText={setCustomKeep} />
                     </View>
                     {totalPct !== 100 && (
@@ -354,7 +358,7 @@ export default function OnboardingScreen() {
           {step === 3 && (
             <View style={s.card}>
               <Text style={s.stepEyebrow}>Step 3 of 3</Text>
-              <Text style={s.stepTitle}>This month's income</Text>
+              <Text style={s.stepTitle}>{"This month's income"}</Text>
               <Text style={s.stepBody}>
                 Your net take-home pay. This sets your Must, Want, and Invest budgets for the month.
               </Text>
@@ -364,7 +368,7 @@ export default function OnboardingScreen() {
                   value={income}
                   onChangeText={setIncome}
                   placeholder="5,000"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.border}
                   keyboardType="decimal-pad"
                   style={[s.input, s.incomeInput]}
                   autoFocus
@@ -374,7 +378,7 @@ export default function OnboardingScreen() {
               {/* Preview */}
               {incomeCents > 0 && (
                 <View style={s.previewCard}>
-                  <Text style={s.previewTitle}>Monthly breakdown preview</Text>
+                  <Text style={s.previewTitle}>Monthly breakdown</Text>
                   <PreviewRow
                     label={`Must (${activeMust}%)`}
                     cents={Math.round(incomeCents * activeMust / 100)}
@@ -417,7 +421,7 @@ export default function OnboardingScreen() {
   );
 }
 
-// ─── Small helpers ─────────────────────────────────────────────────────────
+// ─── Small helpers ────────────────────────────────────────────────────────────
 
 function ValueProp({ icon, label }: { icon: string; label: string }) {
   return (
@@ -429,8 +433,8 @@ function ValueProp({ icon, label }: { icon: string; label: string }) {
 }
 
 const vp = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-  icon: { fontSize: 14, color: colors.primary, width: 18, textAlign: 'center' },
+  row:   { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: 14 },
+  icon:  { fontSize: 14, color: colors.primary, width: 18, textAlign: 'center' },
   label: { fontSize: 15, color: colors.text, fontWeight: '500', flex: 1, lineHeight: 21 },
 });
 
@@ -444,8 +448,12 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 }
 
 const fr = StyleSheet.create({
-  wrap: { marginTop: 18 },
-  label: { fontSize: 12, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+  wrap:  { marginTop: 18 },
+  label: {
+    fontSize: 11, fontWeight: '700', fontFamily: fonts.semiBold,
+    color: colors.textTertiary, textTransform: 'uppercase',
+    letterSpacing: 1.0, marginBottom: spacing[2],
+  },
 });
 
 function SplitPct({ value, color, label }: { value: number; color: string; label: string }) {
@@ -458,9 +466,9 @@ function SplitPct({ value, color, label }: { value: number; color: string; label
 }
 
 const sp = StyleSheet.create({
-  box: { alignItems: 'center', minWidth: 36 },
-  value: { fontSize: 14, fontWeight: '800' },
-  label: { fontSize: 9, color: colors.textMuted, fontWeight: '600', marginTop: 2 },
+  box:   { alignItems: 'center', minWidth: 36 },
+  value: { fontSize: 14, fontWeight: '800', fontFamily: fonts.bold },
+  label: { fontSize: 9, color: colors.textTertiary, fontWeight: '600', marginTop: 2 },
 });
 
 function CustomSplit({ label, color, value, onChangeText }: { label: string; color: string; value: string; onChangeText: (t: string) => void }) {
@@ -482,11 +490,11 @@ function CustomSplit({ label, color, value, onChangeText }: { label: string; col
 }
 
 const cs = StyleSheet.create({
-  box: { flex: 1, alignItems: 'center' },
-  label: { fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  box:      { flex: 1, alignItems: 'center' },
+  label:    { fontSize: 12, fontWeight: '700', marginBottom: 6 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  input: { fontSize: 22, fontWeight: '700', color: colors.text, minWidth: 40, textAlign: 'center' },
-  pct: { fontSize: 13, color: colors.textMuted },
+  input:    { fontSize: 22, fontWeight: '700', fontFamily: fonts.bold, color: colors.text, minWidth: 40, textAlign: 'center' },
+  pct:      { fontSize: 13, color: colors.textMuted },
 });
 
 function LegendItem({ color, label }: { color: string; label: string }) {
@@ -499,17 +507,17 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 }
 
 const li = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
-  dot: { width: 8, height: 8, borderRadius: 999 },
-  label: { fontSize: 13, color: colors.textMuted },
+  row:   { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: 6 },
+  dot:   { width: 8, height: 8, borderRadius: radius.full },
+  label: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
 });
 
 function PreviewRow({ label, cents, currency, color }: { label: string; cents: number; currency: SupportedCurrency; color: string }) {
-  const symbol = currency === 'ILS' ? '₪' : currency === 'USD' ? '$' : '€';
+  const symbol    = currency === 'ILS' ? '₪' : currency === 'USD' ? '$' : '€';
   const formatted = `${symbol}${Math.floor(cents / 100).toLocaleString()}`;
   return (
     <View style={pr.row}>
-      <View style={[pr.dot, { backgroundColor: color }]} />
+      <View style={[pr.indicator, { backgroundColor: color }]} />
       <Text style={pr.label}>{label}</Text>
       <Text style={pr.value}>{formatted}</Text>
     </View>
@@ -517,13 +525,13 @@ function PreviewRow({ label, cents, currency, color }: { label: string; cents: n
 }
 
 const pr = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  dot: { width: 8, height: 8, borderRadius: 999 },
-  label: { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500' },
-  value: { fontSize: 14, fontWeight: '700', color: colors.text },
+  row:       { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginBottom: spacing[3] },
+  indicator: { width: 3, height: 20, borderRadius: radius.full },
+  label:     { flex: 1, fontSize: 14, color: colors.text, fontWeight: '500', lineHeight: 20 },
+  value:     { fontSize: 15, fontWeight: '700', fontFamily: fonts.bold, color: colors.text, fontVariant: ['tabular-nums'] },
 });
 
-// ─── Styles ────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const welcome = StyleSheet.create({
   safeArea: {
@@ -545,14 +553,14 @@ const welcome = StyleSheet.create({
   markDot: {
     width: 8,
     height: 8,
-    borderRadius: 999,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
   },
   markDotMid: {
     width: 12,
     height: 12,
     backgroundColor: colors.primary,
-    opacity: 0.6,
+    opacity: 0.55,
   },
   copyBlock: {
     flex: 1,
@@ -560,9 +568,10 @@ const welcome = StyleSheet.create({
   },
   headline: {
     fontSize: 42,
+    fontFamily: fonts.bold,
     fontWeight: '800',
     color: colors.text,
-    letterSpacing: -1,
+    letterSpacing: -1.2,
     lineHeight: 50,
     marginBottom: 18,
   },
@@ -578,34 +587,41 @@ const welcome = StyleSheet.create({
     borderTopColor: colors.border,
   },
   ctaBlock: {
-    gap: 14,
+    gap: 10,
   },
   primaryBtn: {
-    height: 52,
-    borderRadius: 999,
+    height: 56,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.18,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
   primaryBtnPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
   primaryBtnText: {
     color: colors.white,
     fontSize: 17,
+    fontFamily: fonts.semiBold,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   footerNote: {
     textAlign: 'center',
     fontSize: 13,
     color: colors.textMuted,
+  },
+  privacyNote: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: colors.textTertiary,
+    letterSpacing: 0.1,
   },
 });
 
@@ -616,9 +632,9 @@ const s = StyleSheet.create({
   },
   flex: { flex: 1 },
   topBar: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
+    paddingBottom: spacing[1],
   },
   backBtn: {
     alignSelf: 'flex-start',
@@ -630,32 +646,43 @@ const s = StyleSheet.create({
     fontWeight: '300',
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing[5],
     paddingBottom: 40,
     flexGrow: 1,
   },
+
+  // ── Card shell ───────────────────────────────────────────────────────────
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
+    borderRadius: radius['2xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 24,
+    padding: spacing[6],
+    shadowColor: '#3D2B1A',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
+
+  // ── Step header ──────────────────────────────────────────────────────────
   stepEyebrow: {
     fontSize: 11,
+    fontFamily: fonts.semiBold,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
     textTransform: 'uppercase',
     color: colors.primary,
     marginBottom: 10,
   },
   stepTitle: {
     fontSize: 30,
+    fontFamily: fonts.bold,
     fontWeight: '800',
     color: colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     lineHeight: 36,
-    marginBottom: 8,
+    marginBottom: spacing[2],
   },
   stepBody: {
     fontSize: 15,
@@ -667,32 +694,40 @@ const s = StyleSheet.create({
     backgroundColor: colors.border,
     marginVertical: 22,
   },
+
+  // ── Text inputs ──────────────────────────────────────────────────────────
   input: {
     height: 52,
-    borderRadius: 14,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 14,
     fontSize: 16,
     color: colors.text,
   },
   incomeInput: {
-    fontSize: 28,
+    fontSize: 36,
+    fontFamily: fonts.bold,
     fontWeight: '700',
-    height: 64,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -1,
+    height: 72,
     paddingHorizontal: 18,
+    backgroundColor: colors.surfaceSoft,
   },
+
+  // ── Currency pills ───────────────────────────────────────────────────────
   pillRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing[2],
   },
   pill: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    backgroundColor: colors.panel,
     paddingVertical: 12,
     alignItems: 'center',
   },
@@ -710,20 +745,21 @@ const s = StyleSheet.create({
   },
   pillSub: {
     fontSize: 10,
-    color: colors.textMuted,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   pillSubActive: {
     color: colors.primary,
     opacity: 0.7,
   },
-  // Preset cards
+
+  // ── Preset cards ─────────────────────────────────────────────────────────
   presetCard: {
-    backgroundColor: colors.white,
-    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing[4],
     marginTop: 14,
   },
   presetCardActive: {
@@ -734,7 +770,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: spacing[2],
   },
   presetLeft: {
     flex: 1,
@@ -756,12 +792,12 @@ const s = StyleSheet.create({
   },
   presetPcts: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing[2],
   },
   customRow: {
     flexDirection: 'row',
-    marginTop: 16,
-    gap: 8,
+    marginTop: spacing[4],
+    gap: spacing[2],
   },
   splitError: {
     marginTop: 10,
@@ -771,40 +807,53 @@ const s = StyleSheet.create({
   },
   legend: {
     marginTop: 18,
-    paddingTop: 16,
+    paddingTop: spacing[4],
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  // Income preview
+
+  // ── Income preview card ──────────────────────────────────────────────────
   previewCard: {
-    marginTop: 20,
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    padding: 16,
+    marginTop: spacing[5],
+    backgroundColor: colors.panel,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing[4],
+    shadowColor: '#3D2B1A',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   previewTitle: {
-    fontSize: 12,
+    fontSize: 11,
+    fontFamily: fonts.semiBold,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: colors.textTertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 1.0,
     marginBottom: 14,
   },
-  // Buttons
+
+  // ── CTA button ───────────────────────────────────────────────────────────
   btn: {
     marginTop: 28,
-    height: 52,
-    borderRadius: 999,
+    height: 56,
+    borderRadius: radius.full,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.18,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
   },
-  btnPressed: { opacity: 0.9 },
+  btnPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
+  },
   btnDisabled: {
     backgroundColor: colors.buttonDisabled,
     shadowOpacity: 0,
@@ -813,13 +862,14 @@ const s = StyleSheet.create({
   btnText: {
     color: colors.white,
     fontSize: 16,
+    fontFamily: fonts.semiBold,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   finalNote: {
     marginTop: 14,
     textAlign: 'center',
     fontSize: 13,
-    color: colors.textMuted,
+    color: colors.textTertiary,
   },
 });

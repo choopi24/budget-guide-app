@@ -157,7 +157,7 @@ export default function AddExpenseFromShortcutScreen() {
           <View style={styles.amountWarning}>
             <Ionicons name="alert-circle-outline" size={14} color={colors.want} />
             <Text style={styles.amountWarningText}>
-              Amount wasn't included by the Shortcut — enter it to save
+              {"Amount wasn't included by the Shortcut — enter it to save"}
             </Text>
           </View>
         )}

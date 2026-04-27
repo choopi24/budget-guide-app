@@ -14,7 +14,7 @@ import {
 } from '../../db/settings';
 import { SectionLabel } from '../../components/ui/SectionLabel';
 import { colors } from '../../theme/colors';
-import { radius, spacing } from '../../theme/tokens';
+import { spacing } from '../../theme/tokens';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -303,7 +303,7 @@ export default function SettingsScreen() {
       <View style={styles.sectionGroupHeader}>
         <Text style={styles.sectionGroupTitle}>Leftover handling</Text>
         <Text style={styles.sectionGroupSubtitle}>
-          Choose where each bucket's unspent balance goes when you close the month.
+          {"Choose where each bucket's unspent balance goes when you close the month."}
         </Text>
       </View>
 

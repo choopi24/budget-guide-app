@@ -159,7 +159,7 @@ export default function AiBudgetReviewScreen() {
             <View style={[styles.iconWrap, styles.iconWrapDanger]}>
               <Ionicons name="alert-circle-outline" size={30} color={colors.danger} />
             </View>
-            <Text style={styles.emptyTitle}>Couldn't load review</Text>
+            <Text style={styles.emptyTitle}>{"Couldn't load review"}</Text>
             <Text style={styles.emptyBody}>{state.message}</Text>
             <Pressable
               onPress={runAnalysis}

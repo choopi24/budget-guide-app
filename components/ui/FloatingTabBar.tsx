@@ -60,10 +60,16 @@ function HistoryIcon({ color }: { color: string }) {
 function InvestIcon({ color }: { color: string }) {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Line x1="3" y1="20" x2="21" y2="20" stroke={color} strokeWidth={S} strokeLinecap="round" />
-      <Polyline points="4,20 4,14 8,14 8,20"   stroke={color} strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" />
-      <Polyline points="10,20 10,9 14,9 14,20"  stroke={color} strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" />
-      <Polyline points="16,20 16,4 20,4 20,20"  stroke={color} strokeWidth={S} strokeLinecap="round" strokeLinejoin="round" />
+      {/* Rising sparkline — organic upward trend */}
+      <Polyline
+        points="3,20 7,14 11,16 15,9 21,4"
+        stroke={color} strokeWidth={S} strokeLinecap="round" strokeLinejoin="round"
+      />
+      {/* Corner bracket at endpoint signals "up and to the right" */}
+      <Polyline
+        points="16,4 21,4 21,9"
+        stroke={color} strokeWidth={S} strokeLinecap="round" strokeLinejoin="round"
+      />
     </Svg>
   );
 }

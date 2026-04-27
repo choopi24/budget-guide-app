@@ -262,7 +262,7 @@ export function InvestmentForm({
                     value={coinQuery}
                     onChangeText={handleCoinSearch}
                     placeholder="Bitcoin, ETH, Solana..."
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={colors.textTertiary}
                     style={[styles.input, styles.searchInput]}
                   />
                 </View>
@@ -289,7 +289,7 @@ export function InvestmentForm({
                   onChangeText={setAssetQuantity}
                   placeholder="0.5"
                   keyboardType="decimal-pad"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textTertiary}
                   style={styles.input}
                 />
               </View>
@@ -301,7 +301,7 @@ export function InvestmentForm({
               value={openingAmount}
               onChangeText={setOpeningAmount}
               placeholder="5000"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               style={styles.input}
             />
@@ -320,7 +320,7 @@ export function InvestmentForm({
                 value={coinQuery}
                 onChangeText={handleCoinSearch}
                 placeholder="Bitcoin, ETH, Solana..."
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.textTertiary}
                 style={[styles.input, styles.searchInput]}
               />
             </View>
@@ -360,7 +360,7 @@ export function InvestmentForm({
                 onChangeText={setAssetQuantity}
                 placeholder="0.5"
                 keyboardType="decimal-pad"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.textTertiary}
                 style={styles.input}
               />
             </View>
@@ -377,7 +377,7 @@ export function InvestmentForm({
                 value={openingAmount}
                 onChangeText={setOpeningAmount}
                 placeholder="5000"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
                 style={styles.input}
               />
@@ -419,7 +419,7 @@ export function InvestmentForm({
                   value={currentValue}
                   onChangeText={setCurrentValue}
                   placeholder="5300"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={colors.textTertiary}
                   keyboardType="decimal-pad"
                   style={styles.input}
                 />
@@ -443,7 +443,7 @@ export function InvestmentForm({
               value={openingAmount}
               onChangeText={setOpeningAmount}
               placeholder="10000"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               style={styles.input}
             />
@@ -456,7 +456,7 @@ export function InvestmentForm({
                 value={currentValue}
                 onChangeText={setCurrentValue}
                 placeholder="12300"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
                 style={styles.input}
               />
@@ -477,7 +477,7 @@ export function InvestmentForm({
               value={openingAmount}
               onChangeText={setOpeningAmount}
               placeholder="700000"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               style={styles.input}
             />
@@ -492,7 +492,7 @@ export function InvestmentForm({
                 value={currentValue}
                 onChangeText={setCurrentValue}
                 placeholder="850000"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
                 style={styles.input}
               />
@@ -514,7 +514,7 @@ export function InvestmentForm({
               onChangeText={setAssetQuantity}
               placeholder="12"
               keyboardType="decimal-pad"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textTertiary}
               style={styles.input}
             />
           </View>
@@ -529,7 +529,7 @@ export function InvestmentForm({
               value={openingAmount}
               onChangeText={setOpeningAmount}
               placeholder="5000"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               style={styles.input}
             />
@@ -542,7 +542,7 @@ export function InvestmentForm({
                 value={currentValue}
                 onChangeText={setCurrentValue}
                 placeholder="5300"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
                 style={styles.input}
               />
@@ -561,7 +561,7 @@ export function InvestmentForm({
             value={openingAmount}
             onChangeText={setOpeningAmount}
             placeholder="5000"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.textTertiary}
             keyboardType="decimal-pad"
             style={styles.input}
           />
@@ -574,7 +574,7 @@ export function InvestmentForm({
               value={currentValue}
               onChangeText={setCurrentValue}
               placeholder="5300"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               style={styles.input}
             />
@@ -609,7 +609,7 @@ export function InvestmentForm({
           value={name}
           onChangeText={setName}
           placeholder="BTC wallet, S&P 500, savings account..."
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textTertiary}
           style={styles.input}
         />
       </View>
@@ -657,7 +657,7 @@ export function InvestmentForm({
       {showFundedFromBudget && (!showIsNew || isNew) && (
         <View style={styles.fundedRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.fundedLabelText}>Funded from this month's budget?</Text>
+            <Text style={styles.fundedLabelText}>{"Funded from this month's budget?"}</Text>
             <Text style={styles.fundedHint}>
               Counts toward your monthly Invest budget.
             </Text>
@@ -678,7 +678,7 @@ export function InvestmentForm({
           value={note}
           onChangeText={setNote}
           placeholder="Optional note"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.textTertiary}
           style={[styles.input, styles.noteInput]}
           multiline
         />
@@ -754,11 +754,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: spacing[4],
+    paddingVertical: 14,
     fontSize: 16,
     color: colors.text,
-    justifyContent: 'center',
   },
   searchRow: {
     flexDirection: 'row',

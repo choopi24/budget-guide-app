@@ -165,7 +165,7 @@ export default function InvestmentPurchaseScreen() {
         {/* Funded from budget */}
         <View style={styles.fundedRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.fundedLabel}>Funded from this month's budget?</Text>
+            <Text style={styles.fundedLabel}>{"Funded from this month's budget?"}</Text>
             <Text style={styles.fundedHint}>Counts toward your monthly Invest budget.</Text>
           </View>
           <Switch

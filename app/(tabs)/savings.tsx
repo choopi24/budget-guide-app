@@ -11,7 +11,7 @@ import { formatDateDisplay } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
-import { radius, shadows, spacing } from '../../theme/tokens';
+import { radius, spacing } from '../../theme/tokens';
 
 type InvestmentItem = {
   id: number;

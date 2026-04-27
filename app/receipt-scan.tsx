@@ -126,7 +126,7 @@ export default function ReceiptScanScreen() {
             <View style={styles.errorIconWrap}>
               <Ionicons name="alert-circle-outline" size={34} color={colors.danger} />
             </View>
-            <Text style={styles.errorTitle}>Couldn't read receipt</Text>
+            <Text style={styles.errorTitle}>{"Couldn't read receipt"}</Text>
             <Text style={styles.errorBody}>{errorMessage}</Text>
 
             <Pressable
@@ -174,7 +174,7 @@ export default function ReceiptScanScreen() {
           <Text style={styles.title}>Scan Receipt</Text>
           <Text style={styles.body}>
             Take a photo or pick an image from your library.{'\n'}
-            We'll extract the details for you.
+            {"We'll extract the details for you."}
           </Text>
         </View>
 
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius['2xl'],
     paddingHorizontal: spacing[6],
-    paddingVertical: spacing[7],
+    paddingVertical: 28,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.danger + '30',

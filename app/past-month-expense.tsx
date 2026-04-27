@@ -107,7 +107,7 @@ export default function PastMonthExpenseScreen() {
         <SectionLabel style={styles.eyebrow}>Missed expense</SectionLabel>
         <Text style={styles.title}>{monthLabel}</Text>
         <Text style={styles.body}>
-          Log an expense you forgot to record. This updates that month's record and adjusts carryover into the next month if needed.
+          {"Log an expense you forgot to record. This updates that month's record and adjusts carryover into the next month if needed."}
         </Text>
 
         {/* ── Title ── */}

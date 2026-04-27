@@ -68,7 +68,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileData>({ name: null, occupation: null, email: null });
   const [months, setMonths] = useState<MonthScoreRow[]>([]);
   const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
-  const [avatar, setAvatar] = useState<AvatarConfig>({ skinTone: 's2', hairStyle: 'clean', hairColor: 'dkbrown', suitColor: 'navy', hat: 'none', glasses: 'none', extra: 'none' });
+  const [avatar, setAvatar] = useState<AvatarConfig>({ skinTone: 's2', hairStyle: 'clean', hairColor: 'dkbrown', suitColor: 'navy', hat: 'none', glasses: 'none', extra: 'none', eyeShape: 'default' });
   const [streak, setStreak] = useState<StreakData | null>(null);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
 
@@ -144,10 +144,10 @@ export default function ProfileScreen() {
               <Text style={styles.occupation}>{profile.occupation}</Text>
             )}
             <Pressable
-              onPress={() => router.push('/(tabs)/settings' as any)}
+              onPress={() => router.push('/avatar-edit' as any)}
               style={styles.editProfileButton}
             >
-              <Text style={styles.editProfileText}>Edit profile</Text>
+              <Text style={styles.editProfileText}>Edit avatar</Text>
             </Pressable>
           </View>
 
@@ -172,6 +172,23 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* ── Settings entry ───────────────────────────── */}
+      <Pressable
+        onPress={() => router.push('/(tabs)/settings' as any)}
+        style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Open Settings"
+      >
+        <View style={styles.settingsIconWrap}>
+          <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
+        </View>
+        <View style={styles.settingsText}>
+          <Text style={styles.settingsLabel}>Settings</Text>
+          <Text style={styles.settingsHint}>Currency, rollovers, Apple Pay</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={15} color={colors.border} />
+      </Pressable>
 
       {/* ── Streak Card ───────────────────────────────── */}
       {streak !== null && (
@@ -269,7 +286,7 @@ export default function ProfileScreen() {
           {nextReq === null && (
             <View style={styles.apexBanner}>
               <Text style={[styles.apexBannerText, { color: leagueMeta.color }]}>
-                You've reached the top league
+                {"You've reached the top league"}
               </Text>
             </View>
           )}
@@ -373,22 +390,6 @@ export default function ProfileScreen() {
           </View>
         </>
       )}
-      {/* ── Settings entry ───────────────────────────── */}
-      <Pressable
-        onPress={() => router.push('/(tabs)/settings' as any)}
-        style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
-        accessibilityRole="button"
-        accessibilityLabel="Open Settings"
-      >
-        <View style={styles.settingsIconWrap}>
-          <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
-        </View>
-        <View style={styles.settingsText}>
-          <Text style={styles.settingsLabel}>Settings</Text>
-          <Text style={styles.settingsHint}>Currency, rollovers, Apple Pay</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={15} color={colors.border} />
-      </Pressable>
 
     </AppScreen>
   );
@@ -650,7 +651,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18, paddingVertical: 6,
     shadowColor: colors.text, shadowOpacity: 0.05,
     shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-    marginBottom: 32,
+    marginBottom: 8,
   },
   scoreRow: {
     flexDirection: 'row', alignItems: 'center',
