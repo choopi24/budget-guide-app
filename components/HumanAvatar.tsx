@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
+import { springEasing } from '../theme/tokens';
 import Svg, {
   Circle, Ellipse, Path, Rect, G, Text as SvgText,
 } from 'react-native-svg';
@@ -211,13 +212,13 @@ export default function HumanAvatar({
     const loop = Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(pulse, { toValue: 1.028, duration: 750,  useNativeDriver: true }),
-          Animated.timing(lean,  { toValue: -2.8,  duration: 750,  useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1.028, duration: 750,  useNativeDriver: true, easing: springEasing }),
+          Animated.timing(lean,  { toValue: -2.8,  duration: 750,  useNativeDriver: true, easing: springEasing }),
         ]),
         Animated.delay(180),
         Animated.parallel([
-          Animated.timing(pulse, { toValue: 1,   duration: 1500, useNativeDriver: true }),
-          Animated.timing(lean,  { toValue: 0,   duration: 1500, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1,   duration: 1500, useNativeDriver: true, easing: springEasing }),
+          Animated.timing(lean,  { toValue: 0,   duration: 1500, useNativeDriver: true, easing: springEasing }),
         ]),
         Animated.delay(700),
       ])

@@ -18,6 +18,7 @@ import { useSettingsDb, type SupportedCurrency } from '../db/settings';
 import { analyzeBudget, buildAnalysisInput, type BudgetAnalysisResponse } from '../lib/ai';
 import { formatCentsToMoney } from '../lib/money';
 import { colors } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 import { radius, shadows, spacing } from '../theme/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -334,7 +335,8 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontSize: 26,
     fontWeight: '700',
-    color: colors.text,
+    fontFamily: fonts.semiBold,
+    color: colors.textInverse,
     letterSpacing: -0.3,
     marginBottom: spacing[4],
   },

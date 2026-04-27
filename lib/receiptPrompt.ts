@@ -1,6 +1,7 @@
 /**
- * Prompt sent to Claude for receipt extraction.
- * Isolated here so it can be tuned without touching extraction logic.
+ * System prompt for the backend receipt extraction service.
+ * Describes the expected JSON response shape — backend-side only.
+ * Isolated here so it can be tuned and referenced without touching app logic.
  */
 export const RECEIPT_EXTRACTION_PROMPT = `
 You are a receipt data extractor. Analyze the receipt image and return structured data.

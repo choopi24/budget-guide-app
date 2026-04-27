@@ -1,38 +1,40 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { AppScreen } from '../components/AppScreen';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Chip } from '../components/ui/Chip';
-import { Input } from '../components/ui/Input';
-import { SegmentedControl } from '../components/ui/SegmentedControl';
-import { SectionLabel } from '../components/ui/SectionLabel';
+import { useSettingsDb, type SupportedCurrency } from '../db/settings';
 import { useExpensesDb } from '../db/expenses';
 import { detectExpenseBucket, ExpenseBucket } from '../lib/expenseClassifier';
-import { hapticSuccess } from '../lib/haptics';
-import { parseMoneyToCents } from '../lib/money';
+import { hapticLight, hapticSuccess } from '../lib/haptics';
+import { formatCentsToMoney, parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
-import { radius, spacing } from '../theme/tokens';
+import { fonts } from '../theme/fonts';
+import { radius } from '../theme/tokens';
+
+// ── Currency symbol map ───────────────────────────────────────────────────────
+const CURRENCY_SYMBOL: Record<SupportedCurrency, string> = {
+  ILS: '₪',
+  USD: '$',
+  EUR: '€',
+};
 
 // ── Session-persistent smart defaults ────────────────────────────────────────
 let _lastCategory: string | null = null;
 let _lastBucket: ExpenseBucket = 'want';
 
 // ── Category presets ─────────────────────────────────────────────────────────
-
-type Category = {
-  label: string;
-  emoji: string;
-  bucket: ExpenseBucket;
-};
+type Category = { label: string; emoji: string; bucket: ExpenseBucket };
 
 const ESSENTIALS: Category[] = [
   { label: 'Rent',      emoji: '🏠', bucket: 'must' },
@@ -64,33 +66,57 @@ const LIFESTYLE: Category[] = [
 
 export default function NewExpenseScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { addExpense } = useExpensesDb();
+  const { getCurrency } = useSettingsDb();
 
-  const [selected, setSelected]       = useState<string | null>(_lastCategory);
+  const [currency,    setCurrency]    = useState<SupportedCurrency>('ILS');
+  const [selected,    setSelected]    = useState<string | null>(_lastCategory);
   const [customTitle, setCustomTitle] = useState('');
-  const [amount, setAmount]           = useState('');
-  const [note, setNote]               = useState('');
-  const [bucket, setBucket]           = useState<ExpenseBucket>(_lastBucket);
-  const [saving, setSaving]           = useState(false);
+  const [amount,      setAmount]      = useState('');
+  const [note,        setNote]        = useState('');
+  const [bucket,      setBucket]      = useState<ExpenseBucket>(_lastBucket);
+  const [saving,      setSaving]      = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
+  const [showNote,    setShowNote]    = useState(false);
+
+  useEffect(() => { getCurrency().then(setCurrency); }, [getCurrency]);
 
   const amountRef      = useRef<TextInput>(null);
   const customTitleRef = useRef<TextInput>(null);
+  const noteRef        = useRef<TextInput>(null);
 
   const isCustom    = selected === 'custom';
   const title       = isCustom ? customTitle : (selected ?? '');
   const amountCents = useMemo(() => parseMoneyToCents(amount), [amount]);
+  const canSave     = title.trim().length > 0 && amountCents > 0 && !saving;
 
-  const canSave = title.trim().length > 0 && amountCents > 0 && !saving;
+  const visibleChips = bucket === 'must' ? ESSENTIALS : LIFESTYLE;
+  const bucketColor  = bucket === 'must' ? colors.must      : colors.want;
+  const bucketSoft   = bucket === 'must' ? colors.mustSoft  : colors.wantSoft;
+
+  function handleBucketChange(newBucket: ExpenseBucket) {
+    hapticLight();
+    setBucket(newBucket);
+    _lastBucket = newBucket;
+    if (selected && selected !== 'custom') {
+      const wasEssential = ESSENTIALS.some(c => c.label === selected);
+      const wasLifestyle = LIFESTYLE.some(c => c.label === selected);
+      if (newBucket === 'must' && wasLifestyle) setSelected(null);
+      if (newBucket === 'want' && wasEssential) setSelected(null);
+    }
+  }
 
   function pickCategory(cat: Category) {
+    hapticLight();
     setSelected(cat.label);
     setBucket(cat.bucket);
     _lastCategory = cat.label;
-    _lastBucket = cat.bucket;
+    _lastBucket   = cat.bucket;
   }
 
   function pickCustom() {
+    hapticLight();
     setSelected('custom');
     _lastCategory = 'custom';
     setTimeout(() => customTitleRef.current?.focus(), 50);
@@ -115,258 +141,399 @@ export default function NewExpenseScreen() {
     }
   }
 
+  const ctaBg    = canSave ? bucketColor        : colors.buttonDisabled;
+  const ctaColor = canSave ? colors.background  : colors.textMuted;
+
   return (
-    <AppScreen scroll>
-      {/* ── Top bar ── */}
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={({ pressed }) => pressed && styles.cancelPressed}
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
         >
-          <Text style={styles.cancelText}>Cancel</Text>
-        </Pressable>
-      </View>
-
-      <Card variant="elevated">
-        <SectionLabel style={styles.eyebrow}>Expense</SectionLabel>
-        <Text style={styles.title}>What did you spend on?</Text>
-
-        {/* ── Amount — primary focus ── */}
-        <View style={styles.amountSection}>
-          <Text style={styles.amountLabel}>Amount</Text>
-          <TextInput
-            ref={amountRef}
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="0"
-            placeholderTextColor={colors.border}
-            keyboardType="decimal-pad"
-            returnKeyType="done"
-            style={styles.amountInput}
-            autoFocus
-            accessibilityLabel="Amount"
-          />
-        </View>
-
-        {/* ── Category chips ── */}
-        <View style={styles.categorySection}>
-          <Text style={styles.sectionLabel}>Essentials</Text>
-          <View style={styles.chipRow}>
-            {ESSENTIALS.map((cat) => (
-              <Chip
-                key={cat.label}
-                label={cat.label}
-                emoji={cat.emoji}
-                active={selected === cat.label}
-                activeColor={colors.must}
-                activeBgColor={colors.mustSoft}
-                onPress={() => pickCategory(cat)}
-              />
-            ))}
+          {/* ── Top bar ── */}
+          <View style={styles.topBar}>
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={12}
+              style={({ pressed }) => pressed && styles.cancelPressed}
+            >
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
           </View>
 
-          <Text style={[styles.sectionLabel, styles.sectionLabelGap]}>Lifestyle</Text>
-          <View style={styles.chipRow}>
-            {LIFESTYLE.map((cat) => (
-              <Chip
-                key={cat.label}
-                label={cat.label}
-                emoji={cat.emoji}
-                active={selected === cat.label}
-                activeColor={colors.want}
-                activeBgColor={colors.wantSoft}
-                onPress={() => pickCategory(cat)}
+          {/* ── Amount hero ── */}
+          <View style={styles.amountHero}>
+            <View style={styles.amountInputRow}>
+              <Text style={styles.currencyGlyph}>
+                {CURRENCY_SYMBOL[currency]}
+              </Text>
+              <TextInput
+                ref={amountRef}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0"
+                placeholderTextColor={colors.border}
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                style={styles.amountInput}
+                autoFocus
+                accessibilityLabel="Amount"
               />
-            ))}
-            <Chip
-              label="Custom"
-              emoji="✏️"
-              active={isCustom}
-              activeColor={colors.primary}
-              activeBgColor={colors.surfaceSoft}
-              onPress={pickCustom}
-              accessibilityLabel="Custom category"
+            </View>
+          </View>
+
+          {/* ── Bucket toggle ── */}
+          <View style={styles.bucketRow}>
+            {(['must', 'want'] as ExpenseBucket[]).map(b => {
+              const isActive = bucket === b;
+              const bColor   = b === 'must' ? colors.must     : colors.want;
+              const bSoft    = b === 'must' ? colors.mustSoft : colors.wantSoft;
+              return (
+                <Pressable
+                  key={b}
+                  onPress={() => handleBucketChange(b)}
+                  style={[
+                    styles.bucketBtn,
+                    isActive && { backgroundColor: bSoft, borderColor: bColor + '60' },
+                  ]}
+                >
+                  <View style={[
+                    styles.bucketDot,
+                    { backgroundColor: bColor, opacity: isActive ? 1 : 0.35 },
+                  ]} />
+                  <Text style={[styles.bucketLabel, isActive && { color: bColor }]}>
+                    {b === 'must' ? 'Must' : 'Want'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* ── Category chips ── */}
+          <View style={styles.chipsSection}>
+            <Text style={styles.sectionCap}>Category</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {visibleChips.map(cat => (
+                <Chip
+                  key={cat.label}
+                  label={cat.label}
+                  emoji={cat.emoji}
+                  active={selected === cat.label}
+                  activeColor={bucketColor}
+                  activeBgColor={bucketSoft}
+                  onPress={() => pickCategory(cat)}
+                />
+              ))}
+              <Chip
+                label="Custom"
+                emoji="✏️"
+                active={isCustom}
+                activeColor={colors.primary}
+                activeBgColor={colors.surfaceSoft}
+                onPress={pickCustom}
+                accessibilityLabel="Custom category"
+              />
+            </ScrollView>
+          </View>
+
+          {/* ── Custom title ── */}
+          {isCustom && (
+            <View style={styles.fieldSection}>
+              <Text style={styles.sectionCap}>What was it for?</Text>
+              <TextInput
+                ref={customTitleRef}
+                value={customTitle}
+                onChangeText={(text: string) => {
+                  setCustomTitle(text);
+                  setBucket(detectExpenseBucket(text));
+                }}
+                placeholder="Birthday gift, parking fine…"
+                placeholderTextColor={colors.textTertiary}
+                returnKeyType="next"
+                onSubmitEditing={() => { if (showNote) noteRef.current?.focus(); }}
+                blurOnSubmit={false}
+                style={styles.fieldInput}
+                accessibilityLabel="Custom expense description"
+              />
+            </View>
+          )}
+
+          {/* ── Note ── */}
+          {showNote ? (
+            <View style={styles.fieldSection}>
+              <Text style={styles.sectionCap}>Note</Text>
+              <TextInput
+                ref={noteRef}
+                value={note}
+                onChangeText={setNote}
+                placeholder="Optional note…"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                style={[styles.fieldInput, styles.noteInput]}
+                accessibilityLabel="Note"
+              />
+            </View>
+          ) : (
+            <Pressable
+              onPress={() => {
+                setShowNote(true);
+                setTimeout(() => noteRef.current?.focus(), 50);
+              }}
+              style={styles.addNotePressable}
+              hitSlop={8}
+            >
+              <Text style={styles.addNoteText}>＋ Add a note</Text>
+            </Pressable>
+          )}
+
+          {/* ── Recurring ── */}
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextBlock}>
+              <Text style={styles.switchLabel}>Recurring</Text>
+              <Text style={styles.switchHint}>Repeats monthly</Text>
+            </View>
+            <Switch
+              value={isRecurring}
+              onValueChange={setIsRecurring}
+              trackColor={{ false: colors.border, true: colors.switchTrackOn }}
+              thumbColor={isRecurring ? colors.primary : colors.white}
+              accessibilityLabel="Mark as recurring"
             />
           </View>
-        </View>
+        </ScrollView>
 
-        {/* ── Custom title ── */}
-        {isCustom && (
-          <Input
-            ref={customTitleRef}
-            label="What was it for?"
-            value={customTitle}
-            onChangeText={(text) => {
-              setCustomTitle(text);
-              setBucket(detectExpenseBucket(text));
-            }}
-            placeholder="e.g. Birthday gift, parking fine…"
-            returnKeyType="next"
-            onSubmitEditing={() => amountRef.current?.focus()}
-            blurOnSubmit={false}
-            accessibilityLabel="Custom expense description"
-            containerStyle={styles.field}
-          />
-        )}
-
-        {/* ── Bucket (Must / Want) ── */}
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Counts as</Text>
-          <SegmentedControl
-            value={bucket}
-            onChange={(v) => setBucket(v as ExpenseBucket)}
-            options={[
-              { value: 'must', label: 'Must', activeColor: colors.must, activeBgColor: colors.mustSoft },
-              { value: 'want', label: 'Want', activeColor: colors.want, activeBgColor: colors.wantSoft },
+        {/* ── Live CTA ── */}
+        <View style={[styles.ctaWrapper, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Pressable
+            onPress={handleSave}
+            disabled={!canSave}
+            style={({ pressed }) => [
+              styles.ctaButton,
+              { backgroundColor: ctaBg },
+              pressed && canSave && styles.ctaPressed,
             ]}
-          />
+          >
+            <Text style={[styles.ctaLabel, { color: ctaColor }]}>
+              {saving
+                ? 'Saving…'
+                : amountCents > 0
+                  ? `Save · ${formatCentsToMoney(amountCents, currency)} to ${bucket === 'must' ? 'Must' : 'Want'}`
+                  : `Save to ${bucket === 'must' ? 'Must' : 'Want'}`}
+            </Text>
+            {!saving && canSave && (
+              <Text style={[styles.ctaArrow, { color: ctaColor }]}>→</Text>
+            )}
+          </Pressable>
         </View>
-
-        {/* ── Options ── */}
-        <View style={styles.switchRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.switchLabel}>Recurring expense</Text>
-            <Text style={styles.switchHint}>Repeats monthly — rent, subscriptions, insurance.</Text>
-          </View>
-          <Switch
-            value={isRecurring}
-            onValueChange={setIsRecurring}
-            trackColor={{ false: colors.border, true: colors.switchTrackOn }}
-            thumbColor={isRecurring ? colors.primary : colors.white}
-            accessibilityLabel="Mark as recurring expense"
-          />
-        </View>
-
-        {/* ── Note ── */}
-        <Input
-          label="Note (optional)"
-          value={note}
-          onChangeText={setNote}
-          placeholder="Optional note"
-          multiline
-          style={styles.noteInput}
-          containerStyle={styles.field}
-        />
-
-        <Button
-          label={saving ? 'Saving…' : 'Save'}
-          onPress={handleSave}
-          disabled={!canSave}
-          loading={saving}
-          style={{ marginTop: spacing[6] }}
-        />
-      </Card>
-    </AppScreen>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  flex:   { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+
+  // ── Top bar ───────────────────────────────────────────────────────────────
   topBar: {
-    marginBottom: spacing[3],
-    alignItems: 'flex-end',
+    paddingTop: 14,
+    paddingBottom: 4,
   },
   cancelText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
     color: colors.textMuted,
   },
-  cancelPressed: {
-    opacity: 0.55,
-    transform: [{ scale: 0.97 }],
-  },
-  eyebrow: {
-    marginBottom: spacing[2],
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.3,
-  },
+  cancelPressed: { opacity: 0.5 },
 
-  // ── Amount — primary field ────────────────────────────────────────────────
-  amountSection: {
-    marginTop: spacing[4],
+  // ── Amount hero ───────────────────────────────────────────────────────────
+  amountHero: {
+    paddingTop: 8,
+    paddingBottom: 4,
+    alignItems: 'center',
   },
-  amountLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.7,
-    textTransform: 'uppercase',
+  amountInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  currencyGlyph: {
+    fontSize: 36,
+    fontFamily: fonts.bold,
+    fontWeight: '800',
     color: colors.textTertiary,
-    marginBottom: spacing[2],
+    letterSpacing: -1.5,
+    includeFontPadding: false,
+    paddingBottom: 9,
   },
   amountInput: {
-    minHeight: 68,
-    borderRadius: radius.xl,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: spacing[5],
-    paddingVertical: spacing[4],
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -1,
-    color: colors.text,
+    width: 240,
+    fontSize: 72,
+    fontFamily: fonts.bold,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -3,
+    color: colors.textInverse,
+    textAlign: 'left',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    includeFontPadding: false,
   },
 
-  // ── Category ──────────────────────────────────────────────────────────────
-  categorySection: {
-    marginTop: spacing[6],
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
-    color: colors.textTertiary,
-    marginBottom: spacing[2] + 2,
-  },
-  sectionLabelGap: {
-    marginTop: spacing[4],
-  },
-  chipRow: {
+  // ── Bucket toggle ─────────────────────────────────────────────────────────
+  bucketRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[2],
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 24,
+    marginBottom: 32,
   },
-
-  // ── Secondary fields ──────────────────────────────────────────────────────
-  field: {
-    marginTop: spacing[5],
+  bucketBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 24,
+    paddingVertical: 11,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.panel,
   },
-  fieldLabel: {
+  bucketDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  bucketLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing[2],
+    color: colors.textMuted,
+    letterSpacing: -0.1,
+  },
+
+  // ── Chips ─────────────────────────────────────────────────────────────────
+  chipsSection: {
+    marginBottom: 24,
+  },
+  sectionCap: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textTertiary,
+    marginBottom: 10,
+  },
+  chipsRow: {
+    gap: 8,
+    paddingRight: 20,
+  },
+
+  // ── Custom title / note ───────────────────────────────────────────────────
+  fieldSection: {
+    marginBottom: 20,
+  },
+  fieldInput: {
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textInverse,
+    letterSpacing: -0.1,
   },
   noteInput: {
-    minHeight: 80,
-    paddingTop: spacing[4],
+    minHeight: 72,
+    paddingTop: 13,
     textAlignVertical: 'top',
   },
 
-  // ── Options ───────────────────────────────────────────────────────────────
+  // ── Add note ──────────────────────────────────────────────────────────────
+  addNotePressable: {
+    marginBottom: 20,
+    alignSelf: 'flex-start',
+  },
+  addNoteText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textTertiary,
+  },
+
+  // ── Recurring ─────────────────────────────────────────────────────────────
   switchRow: {
-    marginTop: spacing[6],
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing[4],
-    padding: spacing[4],
-    backgroundColor: colors.background,
+    gap: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: colors.panel,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
   },
+  switchTextBlock: { flex: 1 },
   switchLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textInverse,
     marginBottom: 2,
   },
   switchHint: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
     color: colors.textTertiary,
+  },
+
+  // ── Live CTA ──────────────────────────────────────────────────────────────
+  ctaWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 56,
+    borderRadius: 999,
+  },
+  ctaLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  ctaArrow: {
+    fontSize: 17,
+  },
+  ctaPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
   },
 });

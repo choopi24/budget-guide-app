@@ -14,18 +14,6 @@ type CardProps = {
   style?: ViewStyle;
 };
 
-/**
- * A consistent surface container.
- *
- *   elevated  — white background with a soft shadow (default)
- *   outlined  — white background with a 1px border, no shadow
- *   flat      — no border, no shadow; just the surface background
- *
- * Usage:
- *   <Card>…</Card>
- *   <Card variant="outlined" padding={spacing[4]}>…</Card>
- *   <Card padding={false} style={{ overflow: 'hidden' }}>…</Card>
- */
 export function Card({
   children,
   variant = 'elevated',
@@ -46,11 +34,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   elevated: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
   },
   outlined: {
     borderWidth: 1,

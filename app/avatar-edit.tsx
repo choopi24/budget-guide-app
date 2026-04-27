@@ -19,6 +19,7 @@ import HumanAvatar, {
 import { useAvatarDb } from '../db/avatar';
 import { useProfileDb } from '../db/profile';
 import { colors } from '../theme/colors';
+import { springEasing } from '../theme/tokens';
 
 // ─── Category definitions ─────────────────────────────────────────────────────
 type TabId = 'look' | 'eyes' | 'hat' | 'glasses' | 'extras';
@@ -101,7 +102,7 @@ export default function AvatarEditScreen() {
 
   function triggerBounce() {
     Animated.sequence([
-      Animated.timing(bounce, { toValue: 1.06, duration: 100, useNativeDriver: true }),
+      Animated.timing(bounce, { toValue: 1.06, duration: 100, useNativeDriver: true, easing: springEasing }),
       Animated.spring(bounce, { toValue: 1, useNativeDriver: true, friction: 4 }),
     ]).start();
   }

@@ -10,6 +10,7 @@ import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatDateDisplay } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/fonts';
 import { radius, shadows, spacing } from '../../theme/tokens';
 
 type InvestmentItem = {
@@ -162,7 +163,8 @@ const styles = StyleSheet.create({
   topTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: colors.text,
+    fontFamily: fonts.semiBold,
+    color: colors.textInverse,
     letterSpacing: -0.2,
   },
   countPill: {
@@ -194,7 +196,9 @@ const styles = StyleSheet.create({
   heroAmount: {
     fontSize: 48,
     fontWeight: '800',
-    color: colors.text,
+    fontFamily: fonts.bold,
+    fontVariant: ['tabular-nums'],
+    color: colors.textInverse,
     letterSpacing: -2,
     lineHeight: 54,
     marginBottom: spacing[3],
@@ -207,6 +211,7 @@ const styles = StyleSheet.create({
   heroMetaText: {
     fontSize: 13,
     fontWeight: '500',
+    fontVariant: ['tabular-nums'],
     color: colors.textMuted,
   },
   heroMetaDot: {
@@ -218,6 +223,7 @@ const styles = StyleSheet.create({
   heroMetaGain: {
     fontSize: 13,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   positive: { color: colors.primary },
   negative: { color: colors.danger },
@@ -266,12 +272,14 @@ const styles = StyleSheet.create({
   rowValue: {
     fontSize: 15,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
     color: colors.text,
     letterSpacing: -0.2,
   },
   rowGain: {
     fontSize: 12,
     fontWeight: '600',
+    fontVariant: ['tabular-nums'],
     marginTop: 3,
   },
   rowChevron: { flexShrink: 0 },

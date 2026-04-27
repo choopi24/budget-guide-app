@@ -5,8 +5,8 @@
  * and in combination — to produce a more accurate suggestion than the
  * generic keyword classifier in lib/expenseClassifier.ts.
  *
- * Claude's `categorySuggestion` is used as a weighted tiebreak when the
- * local patterns produce no clear winner.
+ * The AI provider's `categorySuggestion` is used as a weighted tiebreak when
+ * the local patterns produce no clear winner.
  */
 
 // ── Must patterns ─────────────────────────────────────────────────────────────
@@ -121,17 +121,17 @@ type ClassifyInput = {
   merchant?: string;
   items?: string[];
   rawText?: string;
-  claudeSuggestion?: 'must' | 'want';
+  aiSuggestion?: 'must' | 'want';
 };
 
 export function classifyReceiptBucket(input: ClassifyInput): 'must' | 'want' {
-  const { merchant, items, rawText, claudeSuggestion } = input;
+  const { merchant, items, rawText, aiSuggestion } = input;
 
   const merchantLow = (merchant ?? '').toLowerCase();
   const itemsCorpus = (items ?? []).map((i) => i.toLowerCase()).join(' ');
   const fullCorpus  = [merchantLow, itemsCorpus, (rawText ?? '').toLowerCase()].join(' ');
 
-  if (!fullCorpus.trim()) return claudeSuggestion ?? 'want';
+  if (!fullCorpus.trim()) return aiSuggestion ?? 'want';
 
   let mustScore = 0;
   let wantScore = 0;
@@ -144,13 +144,13 @@ export function classifyReceiptBucket(input: ClassifyInput): 'must' | 'want' {
   for (const p of MUST_ITEMS) { if (itemsCorpus.includes(p) || fullCorpus.includes(p)) mustScore += 1; }
   for (const p of WANT_ITEMS) { if (itemsCorpus.includes(p) || fullCorpus.includes(p)) wantScore += 1; }
 
-  // Claude's suggestion is a soft +1 tiebreak
-  if (claudeSuggestion === 'must') mustScore += 1;
-  if (claudeSuggestion === 'want') wantScore += 1;
+  // AI provider's suggestion is a soft +1 tiebreak
+  if (aiSuggestion === 'must') mustScore += 1;
+  if (aiSuggestion === 'want') wantScore += 1;
 
   if (mustScore > wantScore) return 'must';
   if (wantScore > mustScore) return 'want';
 
-  // Pure tie: prefer Claude's suggestion, then 'want'
-  return claudeSuggestion ?? 'want';
+  // Pure tie: prefer AI suggestion, then 'want'
+  return aiSuggestion ?? 'want';
 }

@@ -1,10 +1,27 @@
+import {
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+  useFonts,
+} from '@expo-google-fonts/space-grotesk';
+import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { migrateDbIfNeeded } from '../db/migrations';
 import { colors } from '../theme/colors';
 
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({ SpaceGrotesk_700Bold, SpaceGrotesk_600SemiBold });
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
+
   return (
     <SQLiteProvider
       databaseName="budget-guide.db"

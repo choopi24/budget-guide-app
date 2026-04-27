@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -27,6 +28,7 @@ import { getMonthLabelFromKey } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { SectionLabel } from '../../components/ui/SectionLabel';
 import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/fonts';
 
 function GradeBadge({ grade }: { grade: BudgetGrade }) {
   return (
@@ -371,6 +373,23 @@ export default function ProfileScreen() {
           </View>
         </>
       )}
+      {/* ── Settings entry ───────────────────────────── */}
+      <Pressable
+        onPress={() => router.push('/(tabs)/settings' as any)}
+        style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Open Settings"
+      >
+        <View style={styles.settingsIconWrap}>
+          <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
+        </View>
+        <View style={styles.settingsText}>
+          <Text style={styles.settingsLabel}>Settings</Text>
+          <Text style={styles.settingsHint}>Currency, rollovers, Apple Pay</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={15} color={colors.border} />
+      </Pressable>
+
     </AppScreen>
   );
 }
@@ -536,7 +555,7 @@ const styles = StyleSheet.create({
     fontSize: 11, fontWeight: '700', letterSpacing: 1,
     textTransform: 'uppercase', color: colors.textMuted, marginBottom: 6,
   },
-  leagueName: { fontSize: 36, fontWeight: '800', letterSpacing: -0.5 },
+  leagueName: { fontSize: 36, fontWeight: '800', fontFamily: fonts.bold, letterSpacing: -0.5 },
   leagueDescription: {
     marginTop: 4, fontSize: 13, color: colors.textMuted, maxWidth: 200, lineHeight: 18,
   },
@@ -646,4 +665,27 @@ const styles = StyleSheet.create({
   gradeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   gradeText: { fontSize: 13, fontWeight: '800' },
   scorePoints: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  // Settings row
+  settingsRow: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             12,
+    backgroundColor: colors.surface,
+    borderRadius:    16,
+    borderWidth:     1,
+    borderColor:     colors.border,
+    paddingVertical:   14,
+    paddingHorizontal: 16,
+    marginBottom:    8,
+  },
+  settingsRowPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
+  settingsIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: colors.background,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  settingsText:  { flex: 1 },
+  settingsLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 2 },
+  settingsHint:  { fontSize: 12, color: colors.textMuted },
 });

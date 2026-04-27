@@ -4,6 +4,7 @@ import Svg, { Circle, Defs, LinearGradient, Path, Stop, Line } from 'react-nativ
 import type { SupportedCurrency } from '../db/settings';
 import { formatCompactMoney } from '../lib/money';
 import { colors } from '../theme/colors';
+import { springEasing } from '../theme/tokens';
 
 type ChartItem = {
   value: number;
@@ -59,7 +60,7 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
   useEffect(() => {
     if (data.length > 0 && width > 0) {
       fadeAnim.setValue(0);
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true, easing: springEasing }).start();
     }
   }, [data.length, width]);
 

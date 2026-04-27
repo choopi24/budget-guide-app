@@ -1,9 +1,13 @@
-/**
- * Design tokens — spacing, radii, shadows, typography scale.
- *
- * Import from here (or from theme/index) in all UI primitives and screens.
- * Screens can adopt these gradually; nothing is forced.
- */
+import { Easing } from 'react-native';
+
+/** Shared easing for all Animated.timing calls and press scale transitions. */
+export const springEasing = Easing.bezier(0.32, 0.72, 0, 1);
+
+// ── Floating tab bar + FAB layout constants ───────────────────────────────────
+export const TAB_BAR_PILL_HEIGHT   = 64;
+export const TAB_BAR_MARGIN_BOTTOM = 8;
+/** Bottom offset (above safeArea) for FABs sitting above the floating tab bar. */
+export const FAB_BOTTOM_OFFSET = TAB_BAR_PILL_HEIGHT + TAB_BAR_MARGIN_BOTTOM + 16;
 
 // ── Spacing (4-point grid) ────────────────────────────────────────────────────
 export const spacing = {
@@ -30,106 +34,113 @@ export const radius = {
 } as const;
 
 // ── Shadows ───────────────────────────────────────────────────────────────────
-// Use these objects spread into StyleSheet entries.
-// e.g. StyleSheet.create({ card: { ...shadows.md, ... } })
+// Warm-tinted shadow color so they read naturally on the paper background.
+// Opacities are slightly higher than a dark-mode app — needed for visibility.
 export const shadows = {
   sm: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.04,
+    shadowColor: '#3D2B1A',
+    shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
   md: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.07,
+    shadowColor: '#3D2B1A',
+    shadowOpacity: 0.09,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
   lg: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.11,
+    shadowColor: '#3D2B1A',
+    shadowOpacity: 0.13,
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
   },
 } as const;
 
-// ── Typography scale (Apple HIG–inspired) ─────────────────────────────────────
-// fontWeight must be typed as a string literal for RN compatibility.
+// ── Tabular numbers ───────────────────────────────────────────────────────────
+// Spread into any Text style that displays money or numeric values to prevent
+// digit-width layout shifts as values change.
+// e.g. StyleSheet.create({ amount: { ...tabularNums, fontSize: 32, ... } })
+export const tabularNums = {
+  fontVariant: ['tabular-nums'] as const,
+} as const;
+
+// ── Typography scale (Apple HIG–inspired) ────────────────────────────────────
 export const type = {
-  /** Hero numbers, top-of-screen stat displays */
+  /** 34 / 700 — hero numbers, top-of-screen stat displays */
   largeTitle: {
     fontSize: 34,
     fontWeight: '700' as const,
     letterSpacing: -0.5,
     lineHeight: 41,
   },
-  /** Primary screen title */
+  /** 28 / 700 — primary screen title */
   title1: {
     fontSize: 28,
     fontWeight: '700' as const,
     letterSpacing: -0.3,
     lineHeight: 34,
   },
-  /** Card / section title */
+  /** 22 / 700 — card / section title */
   title2: {
     fontSize: 22,
     fontWeight: '700' as const,
     letterSpacing: -0.2,
     lineHeight: 28,
   },
-  /** Sub-section title */
+  /** 18 / 600 — sub-section title */
   title3: {
     fontSize: 18,
     fontWeight: '600' as const,
     letterSpacing: -0.1,
     lineHeight: 24,
   },
-  /** Label, field name, list item primary */
+  /** 16 / 600 — label, field name, list item primary */
   headline: {
     fontSize: 16,
     fontWeight: '600' as const,
     letterSpacing: 0,
     lineHeight: 22,
   },
-  /** Paragraph body text */
+  /** 16 / 400 — paragraph body */
   body: {
     fontSize: 16,
     fontWeight: '400' as const,
     letterSpacing: 0,
     lineHeight: 24,
   },
-  /** Secondary body, list item secondary */
+  /** 15 / 400 — secondary body, list item secondary */
   callout: {
     fontSize: 15,
     fontWeight: '400' as const,
     letterSpacing: 0,
     lineHeight: 22,
   },
-  /** Subheading, metadata */
+  /** 14 / 500 — subheading, metadata */
   subhead: {
     fontSize: 14,
     fontWeight: '500' as const,
     letterSpacing: 0,
     lineHeight: 20,
   },
-  /** Small supporting text */
+  /** 13 / 400 — small supporting text */
   footnote: {
     fontSize: 13,
     fontWeight: '400' as const,
     letterSpacing: 0,
     lineHeight: 18,
   },
-  /** Timestamps, hints, secondary metadata */
+  /** 12 / 400 — timestamps, hints, secondary metadata */
   caption: {
     fontSize: 12,
     fontWeight: '400' as const,
     letterSpacing: 0,
     lineHeight: 16,
   },
-  /** Section labels, badge text — always uppercase via component */
+  /** 11 / 700 uppercase — section eyebrows, badge labels */
   eyebrow: {
     fontSize: 11,
     fontWeight: '700' as const,

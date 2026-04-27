@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
-import { extractReceiptData, ReceiptExtractionError } from '../lib/extractReceipt';
+import { extractReceiptData, ReceiptExtractionError } from '../lib/receipts';
 import { hapticLight } from '../lib/haptics';
 import { setPendingReceiptUri } from '../lib/receiptImageState';
 import { colors } from '../theme/colors';

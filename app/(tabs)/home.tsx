@@ -1,11 +1,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
 import { AppScreen } from '../../components/AppScreen';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { FabButton } from '../../components/ui/FabButton';
+import { HomeFab } from '../../components/ui/HomeFab';
 import { useHomeDb, type HomeData } from '../../db/home';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { getMonthLabelFromKey } from '../../lib/date';
@@ -18,7 +25,12 @@ import {
 } from '../../lib/grade';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/fonts';
 import { radius, shadows, spacing } from '../../theme/tokens';
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const FILL_EASING = Easing.bezier(0.32, 0.72, 0, 1);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,9 +43,31 @@ type RowItem = {
   softColor: string;
 };
 
+type Verdict = { text: string; color: string };
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getMonthPace(monthKey: string): number {
+  const [y, mo] = monthKey.split('-').map(Number);
+  const today = new Date();
+  if (today.getFullYear() !== y || today.getMonth() + 1 !== mo) return 1;
+  return today.getDate() / new Date(y, mo, 0).getDate();
+}
+
+function getVerdict(used: number, planned: number, pace: number): Verdict | null {
+  if (planned <= 0) return null;
+  const r = used / planned;
+  if (r >= 1)           return { text: 'Maxed',      color: colors.danger };
+  if (r > pace + 0.10)  return { text: 'Over pace',  color: colors.want };
+  if (r >= pace - 0.10) return { text: 'On track',   color: colors.textMuted };
+  return                        { text: 'Ahead',      color: colors.primary };
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
+  'use no memo';
+
   const router = useRouter();
   const { getActiveMonthHomeData } = useHomeDb();
   const { getCurrency } = useSettingsDb();
@@ -43,6 +77,15 @@ export default function HomeScreen() {
   const [grade, setGrade]               = useState<BudgetGrade | null>(null);
   const [gradeExp, setGradeExp]         = useState<GradeExplanation | null>(null);
   const [showGradeExp, setShowGradeExp] = useState(false);
+
+  // ── Reanimated shared values for bar fill animation ──────────────────────
+  const mustAnim   = useSharedValue(0);
+  const wantAnim   = useSharedValue(0);
+  const investAnim = useSharedValue(0);
+
+  const mustBarStyle   = useAnimatedStyle(() => ({ flex: mustAnim.value }));
+  const wantBarStyle   = useAnimatedStyle(() => ({ flex: wantAnim.value }));
+  const investBarStyle = useAnimatedStyle(() => ({ flex: investAnim.value }));
 
   const load = useCallback(async () => {
     const [monthData, savedCurrency] = await Promise.all([
@@ -75,6 +118,27 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // Trigger bar fill animation whenever month data updates
+  useEffect(() => {
+    if (!month) {
+      mustAnim.value   = 0;
+      wantAnim.value   = 0;
+      investAnim.value = 0;
+      return;
+    }
+    const mustTarget   = month.must_budget_cents > 0
+      ? Math.min(month.must_spent_cents   / month.must_budget_cents,  1) : 0;
+    const wantTarget   = month.want_budget_cents > 0
+      ? Math.min(month.want_spent_cents   / month.want_budget_cents,  1) : 0;
+    const investTarget = month.keep_budget_cents > 0
+      ? Math.min(month.invest_spent_cents / month.keep_budget_cents,  1) : 0;
+
+    mustAnim.value   = withDelay(0,   withTiming(mustTarget,   { duration: 600, easing: FILL_EASING }));
+    wantAnim.value   = withDelay(80,  withTiming(wantTarget,   { duration: 600, easing: FILL_EASING }));
+    investAnim.value = withDelay(160, withTiming(investTarget, { duration: 600, easing: FILL_EASING }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month]);
+
   // ── Empty state ──────────────────────────────────────────────────────────────
   if (!month) {
     return (
@@ -100,6 +164,8 @@ export default function HomeScreen() {
   }
 
   // ── Derived values ────────────────────────────────────────────────────────────
+
+  const paceRatio = getMonthPace(month.month_key);
 
   const rows: RowItem[] = [
     {
@@ -127,6 +193,8 @@ export default function HomeScreen() {
       softColor:  colors.keepSoft,
     },
   ];
+
+  const barStyles = [mustBarStyle, wantBarStyle, investBarStyle];
 
   const totalSpent   = month.must_spent_cents + month.want_spent_cents + month.invest_spent_cents;
   const spendLeft    = month.income_cents - totalSpent;
@@ -217,8 +285,10 @@ export default function HomeScreen() {
         {/* ── Breakdown: single grouped card ── */}
         <Card variant="outlined" padding={false} style={styles.breakdownCard}>
           {rows.map((row, index) => {
-            const progress   = row.planned > 0 ? Math.min((row.used / row.planned) * 100, 100) : 0;
             const overBudget = row.used > row.planned && row.planned > 0;
+            const fillColor  = overBudget ? colors.danger : row.color;
+            const barStyle   = barStyles[index];
+            const verdict    = getVerdict(row.used, row.planned, paceRatio);
 
             return (
               <View key={row.label}>
@@ -244,19 +314,34 @@ export default function HomeScreen() {
                     </Text>
                   </View>
 
-                  {/* Progress bar */}
+                  {/* Progress bar + pace tick + verdict */}
                   <View style={styles.rowTrackWrap}>
-                    <View style={[styles.rowTrack, { backgroundColor: row.softColor }]}>
-                      <View
-                        style={[
-                          styles.rowFill,
-                          {
-                            width: `${progress}%` as any,
-                            backgroundColor: overBudget ? colors.danger : row.color,
-                          },
-                        ]}
-                      />
+                    {/* Container keeps pace tick visible outside overflow:hidden track */}
+                    <View style={styles.rowTrackContainer}>
+                      <View style={[styles.rowTrack, { backgroundColor: row.softColor }]}>
+                        <Animated.View
+                          style={[styles.rowFill, barStyle, { backgroundColor: fillColor }]}
+                        />
+                      </View>
+                      {/* Pace tick: where you should be at today's date */}
+                      {paceRatio > 0.02 && paceRatio < 0.98 && (
+                        <View
+                          style={[
+                            styles.paceTick,
+                            { left: `${paceRatio * 100}%` as any },
+                          ]}
+                        />
+                      )}
                     </View>
+
+                    {/* Monospace verdict readout */}
+                    {verdict && (
+                      <View style={styles.verdictRow}>
+                        <Text style={[styles.verdictText, { color: verdict.color }]}>
+                          {verdict.text}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </View>
@@ -298,20 +383,9 @@ export default function HomeScreen() {
 
       </AppScreen>
 
-      {/* Scan receipt secondary action — sits above the primary FAB */}
-      <Pressable
-        onPress={() => router.push('/receipt-scan' as any)}
-        style={({ pressed }) => [styles.scanFab, pressed && styles.scanFabPressed]}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Scan a receipt"
-      >
-        <Ionicons name="scan-outline" size={22} color={colors.primary} />
-      </Pressable>
-
-      <FabButton
-        onPress={() => router.push('/expense-new' as any)}
-        accessibilityLabel="Add new expense"
+      <HomeFab
+        onAdd={() => router.push('/expense-new' as any)}
+        onScan={() => router.push('/receipt-scan' as any)}
       />
     </View>
   );
@@ -336,13 +410,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: colors.textTertiary,   // neutral — no longer competes with hero
+    color: colors.textTertiary,
     marginBottom: 3,
   },
   topMonth: {
     fontSize: 17,
     fontWeight: '600',
-    color: colors.text,
+    fontFamily: fonts.semiBold,
+    color: colors.textInverse,
     letterSpacing: -0.2,
   },
   gradeBadge: {
@@ -365,8 +440,8 @@ const styles = StyleSheet.create({
 
   // ── Hero ──────────────────────────────────────────────────────────────────
   hero: {
-    paddingTop:        spacing[10],   // 40 — generous air above the number
-    paddingBottom:     spacing[10],   // 40 — generous air below
+    paddingTop:        spacing[10],
+    paddingBottom:     spacing[10],
     paddingHorizontal: spacing[1],
   },
   heroEyebrow: {
@@ -378,12 +453,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
   },
   heroAmount: {
-    fontSize: 56,                     // dominant — largest element on screen
+    fontSize: 56,
     fontWeight: '800',
-    color: colors.text,
+    fontFamily: fonts.bold,
+    fontVariant: ['tabular-nums'],
+    color: colors.textInverse,
     letterSpacing: -2.5,
     lineHeight: 62,
-    marginBottom: spacing[4],         // 16 — clear gap before meta
+    marginBottom: spacing[4],
   },
   heroMeta: {
     flexDirection: 'row',
@@ -393,7 +470,8 @@ const styles = StyleSheet.create({
   heroMetaSpent: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.textMuted,          // secondary — noticeable but not competing
+    fontVariant: ['tabular-nums'],
+    color: colors.textMuted,
   },
   heroMetaDot: {
     width: 3,
@@ -404,7 +482,8 @@ const styles = StyleSheet.create({
   heroMetaIncome: {
     fontSize: 13,
     fontWeight: '400',
-    color: colors.textTertiary,       // tertiary — clearly supporting info
+    fontVariant: ['tabular-nums'],
+    color: colors.textTertiary,
   },
 
   // ── Grade panel ───────────────────────────────────────────────────────────
@@ -471,7 +550,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.9,
     textTransform: 'uppercase',
-    color: colors.textTertiary,       // demoted — structural, not content
+    color: colors.textTertiary,
     marginBottom: spacing[3],
     paddingHorizontal: spacing[1],
   },
@@ -489,8 +568,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    paddingHorizontal: spacing[5],    // 20
-    paddingVertical:   spacing[5],    // 20 — more room per row
+    paddingHorizontal: spacing[5],
+    paddingVertical:   spacing[5],
     gap: 0,
   },
   rowLabelGroup: {
@@ -513,7 +592,7 @@ const styles = StyleSheet.create({
   },
   rowHint: {
     fontSize: 12,
-    color: colors.textTertiary,       // barely-there — context without noise
+    color: colors.textTertiary,
     marginTop: 2,
     lineHeight: 16,
   },
@@ -523,11 +602,13 @@ const styles = StyleSheet.create({
   rowAmountMain: {
     fontSize: 15,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
     color: colors.text,
     letterSpacing: -0.2,
   },
   rowAmountOf: {
     fontSize: 11,
+    fontVariant: ['tabular-nums'],
     color: colors.textTertiary,
     marginTop: 2,
   },
@@ -535,14 +616,39 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: spacing[3],
   },
+  // Container lets the pace tick render outside the track's overflow:hidden
+  rowTrackContainer: {
+    // no overflow hidden — pace tick can poke above/below
+  },
   rowTrack: {
-    height: 5,                        // slightly thicker — better visual weight
+    height: 5,
     borderRadius: radius.full,
     overflow: 'hidden',
+    flexDirection: 'row',   // flex-based fill
   },
   rowFill: {
-    height: '100%',
+    alignSelf: 'stretch',
     borderRadius: radius.full,
+  },
+  // Vertical tick at the pace position (where you should be today)
+  paceTick: {
+    position: 'absolute',
+    top: -3,
+    height: 11,
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: colors.border,
+    transform: [{ translateX: -1 }],
+  },
+  verdictRow: {
+    marginTop: 5,
+    alignItems: 'flex-start',
+  },
+  verdictText: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
 
   // ── AI Budget Review entry ───────────────────────────────────────────────
@@ -594,7 +700,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[1],
-    paddingVertical: spacing[6],      // 24
+    paddingVertical: spacing[6],
   },
   allExpensesPressed: {
     opacity: 0.55,
@@ -604,32 +710,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.textMuted,
-  },
-
-  // ── Scan receipt FAB (secondary, above primary FAB) ──────────────────────
-  scanFab: {
-    position: 'absolute',
-    // center horizontally with the 56px primary FAB at right:20
-    right: 25,
-    // above primary FAB: bottom(24) + height(56) + gap(12) = 92
-    bottom: 92,
-    width: 46,
-    height: 46,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    shadowColor: colors.text,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 5,
-  },
-  scanFabPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.94 }],
   },
 
   // ── Empty state ───────────────────────────────────────────────────────────
@@ -661,5 +741,4 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
   },
-
 });

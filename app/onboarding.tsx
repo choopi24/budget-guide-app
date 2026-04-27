@@ -216,7 +216,7 @@ export default function OnboardingScreen() {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="What should we call you?"
+                  placeholder="e.g. Alex"
                   placeholderTextColor={colors.textMuted}
                   style={s.input}
                   autoCorrect={false}

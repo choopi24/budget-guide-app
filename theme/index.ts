@@ -1,2 +1,3 @@
 export { colors } from './colors';
-export { spacing, radius, shadows, type } from './tokens';
+export { fonts } from './fonts';
+export { spacing, radius, shadows, tabularNums, type } from './tokens';

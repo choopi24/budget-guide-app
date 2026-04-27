@@ -8,7 +8,10 @@ import {
   View,
 } from 'react-native';
 import { colors } from '../theme/colors';
-import { spacing } from '../theme/tokens';
+import { FAB_BOTTOM_OFFSET, spacing } from '../theme/tokens';
+
+// Enough clearance for the floating tab bar + a 56px FAB sitting above it.
+const SCROLL_BOTTOM_PAD = FAB_BOTTOM_OFFSET + 56 + 8; // ≈ 152
 
 type AppScreenProps = {
   children: ReactNode;
@@ -84,9 +87,9 @@ const styles = StyleSheet.create({
     paddingBottom:     spacing[6],  // 24
   },
   scrollContent: {
-    paddingHorizontal: spacing[5],  // 20
-    paddingTop:        spacing[3],  // 12
-    paddingBottom:     spacing[10], // 40
+    paddingHorizontal: spacing[5],    // 20
+    paddingTop:        spacing[3],    // 12
+    paddingBottom:     SCROLL_BOTTOM_PAD,
     flexGrow: 1,
   },
   zeroPad: {

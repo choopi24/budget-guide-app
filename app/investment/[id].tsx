@@ -18,6 +18,7 @@ import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatDateDisplay, formatShortDate } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
 import { colors } from '../../theme/colors';
+import { fonts } from '../../theme/fonts';
 import { radius, spacing } from '../../theme/tokens';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -342,7 +343,9 @@ const styles = StyleSheet.create({
   heroAmount: {
     fontSize: 44,
     fontWeight: '800',
-    color: colors.text,
+    fontFamily: fonts.bold,
+    fontVariant: ['tabular-nums'],
+    color: colors.textInverse,
     letterSpacing: -1.5,
     lineHeight: 50,
     marginBottom: spacing[3],
@@ -354,11 +357,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginBottom: spacing[2],
   },
-  heroMetaText: { fontSize: 13, fontWeight: '500', color: colors.textMuted },
+  heroMetaText: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'], color: colors.textMuted },
   heroMetaDot: {
     width: 3, height: 3, borderRadius: 999, backgroundColor: colors.border,
   },
-  heroMetaGain: { fontSize: 13, fontWeight: '700' },
+  heroMetaGain: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
   heroDate:     { fontSize: 12, color: colors.textTertiary },
   positive:     { color: colors.primary },
   negative:     { color: colors.danger },
@@ -437,6 +440,6 @@ const styles = StyleSheet.create({
   },
   historyNote: { fontSize: 13, color: colors.textMuted },
   historyValueBlock: { alignItems: 'flex-end' },
-  historyValue: { fontSize: 15, fontWeight: '700', color: colors.text },
-  historyDelta: { marginTop: 3, fontSize: 12, fontWeight: '600' },
+  historyValue: { fontSize: 15, fontWeight: '700', fontVariant: ['tabular-nums'], color: colors.text },
+  historyDelta: { marginTop: 3, fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
 });
