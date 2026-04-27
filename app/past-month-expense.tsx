@@ -8,7 +8,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
@@ -58,6 +57,11 @@ export default function PastMonthExpenseScreen() {
   const amountCents = useMemo(() => parseMoneyToCents(amount), [amount]);
   const canSave = title.trim().length > 0 && amountCents > 0 && !saving;
 
+  function localDateIso(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
   async function handleSave() {
     if (!canSave || !monthIdNum) return;
 
@@ -69,6 +73,7 @@ export default function PastMonthExpenseScreen() {
         amountCents,
         note,
         finalBucket: bucket,
+        spentOn: localDateIso(date),
       });
 
       if (result.rolloverAdjusted) {
@@ -283,7 +288,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -307,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: spacing[4],
   },
   dateButtonText: {
@@ -316,7 +321,7 @@ const styles = StyleSheet.create({
   },
   pickerWrap: {
     marginTop: spacing[2],
-    backgroundColor: colors.white,
+    backgroundColor: colors.surfaceSoft,
     borderRadius: radius.lg,
     overflow: 'hidden',
     borderWidth: 1,

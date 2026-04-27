@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -13,6 +14,7 @@ import { SectionLabel } from '../components/ui/SectionLabel';
 import { useExpenseHistoryDb } from '../db/expense-history';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 import { radius, spacing } from '../theme/tokens';
 
 export default function ExpenseEditScreen() {
@@ -97,6 +99,13 @@ export default function ExpenseEditScreen() {
       <Card variant="outlined">
         <SectionLabel style={styles.eyebrow}>Edit expense</SectionLabel>
         <Text style={styles.title}>{loading ? '…' : title}</Text>
+
+        {isInvestment && (
+          <View style={styles.investBanner}>
+            <Ionicons name="trending-up-outline" size={13} color={colors.keep} />
+            <Text style={styles.investBannerText}>Investment contribution</Text>
+          </View>
+        )}
 
         {/* ── Amount — primary focus ── */}
         <View style={styles.amountSection}>
@@ -186,6 +195,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.3,
+  },
+
+  // ── Investment badge ──────────────────────────────────────────────────────
+  investBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.keepSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+    marginTop: spacing[3],
+  },
+  investBannerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: fonts.semiBold,
+    color: colors.keep,
   },
 
   // ── Amount — primary ──────────────────────────────────────────────────────

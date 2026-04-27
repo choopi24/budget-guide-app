@@ -91,7 +91,7 @@ export default function SavingsScreen() {
           <Card variant="elevated">
             <Text style={styles.emptyTitle}>No investments yet</Text>
             <Text style={styles.emptyBody}>
-              Add a new investment manually, or document one directly from an expense.
+              {"Add your first investment here. You can choose whether it counts toward this month's Invest budget."}
             </Text>
           </Card>
         ) : (

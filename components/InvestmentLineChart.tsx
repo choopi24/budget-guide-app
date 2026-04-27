@@ -24,7 +24,7 @@ const PAD_BOTTOM = 36;
 
 // ── Catmull-Rom → cubic bezier smooth path ───────────────────────────────────
 // Produces a smooth curve through all data points without overshooting.
-function buildSmoothPath(pts: Array<{ x: number; y: number }>): string {
+function buildSmoothPath(pts: { x: number; y: number }[]): string {
   if (pts.length === 0) return '';
   if (pts.length === 1) return `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
   if (pts.length === 2) {
@@ -62,7 +62,7 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
       fadeAnim.setValue(0);
       Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true, easing: springEasing }).start();
     }
-  }, [data.length, width]);
+  }, [data.length, width, fadeAnim]);
 
   function handleLayout(event: LayoutChangeEvent) {
     setWidth(event.nativeEvent.layout.width);
@@ -211,7 +211,9 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
         </Svg>
         </Animated.View>
       ) : (
-        <View style={[styles.empty, { height }]} />
+        <View style={[styles.empty, { height }]}>
+          <Text style={styles.emptyText}>No data yet</Text>
+        </View>
       )}
 
       {/* X-axis labels */}
@@ -233,8 +235,8 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
         </View>
       )}
 
-      {/* Y-axis labels: top / mid / bottom */}
-      {width > 0 && (
+      {/* Y-axis labels: top / mid / bottom — only when 2+ points so labels are meaningful */}
+      {width > 0 && data.length >= 2 && (
         <View style={[StyleSheet.absoluteFillObject, styles.yAxisOverlay]}>
           <Text style={[styles.yLabel, { top: PAD_TOP - 8 }]}         numberOfLines={1}>{topLabel}</Text>
           {midY !== null && (
@@ -253,6 +255,13 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 16,
     backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 13,
+    color: colors.textTertiary,
+    fontWeight: '500',
   },
   xAxisRow: {
     flexDirection: 'row',

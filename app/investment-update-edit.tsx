@@ -190,7 +190,7 @@ export default function InvestmentUpdateEditScreen() {
         {/* ── Amount field (buy / sell only) ── */}
         {showAmountField && (
           <Input
-            label={row ? AMOUNT_LABEL[row.type] : ''}
+            label={row ? `${AMOUNT_LABEL[row.type]} (${currency})` : ''}
             value={amount}
             onChangeText={setAmount}
             placeholder="1000"
@@ -207,7 +207,7 @@ export default function InvestmentUpdateEditScreen() {
         {/* ── Total / value field ── */}
         <Input
           ref={showAmountField ? amountRef : undefined}
-          label={row ? VALUE_LABEL[row.type] : 'Value'}
+          label={row ? `${VALUE_LABEL[row.type]} (${currency})` : 'Value'}
           value={value}
           onChangeText={setValue}
           placeholder="5200"

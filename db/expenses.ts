@@ -106,6 +106,7 @@ export function useExpensesDb() {
     amountCents: number;
     note?: string;
     finalBucket: 'must' | 'want';
+    spentOn: string;
   }): Promise<{ rolloverAdjusted: boolean }> {
     const now = new Date().toISOString();
     const suggestedBucket = detectExpenseBucket(input.title);
@@ -176,7 +177,7 @@ export function useExpensesDb() {
       await db.runAsync(
         `INSERT INTO expenses (month_id, title, amount_cents, spent_on, note, suggested_bucket, final_bucket, is_investment, is_recurring, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
-        [input.monthId, input.title.trim(), input.amountCents, now,
+        [input.monthId, input.title.trim(), input.amountCents, input.spentOn,
          input.note?.trim() || null, suggestedBucket, input.finalBucket, now, now]
       );
 

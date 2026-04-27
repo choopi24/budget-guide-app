@@ -63,7 +63,7 @@ export default function ProfileScreen() {
   const { getProfile, getMonthScores } = useProfileDb();
   const { getCurrency } = useSettingsDb();
   const { getAvatarConfig } = useAvatarDb();
-  const { getStreak, touchStreak, getAchievements, checkAndUnlockAchievements } = useAchievementsDb();
+  const { touchStreak, getAchievements, checkAndUnlockAchievements } = useAchievementsDb();
 
   const [profile, setProfile] = useState<ProfileData>({ name: null, occupation: null, email: null });
   const [months, setMonths] = useState<MonthScoreRow[]>([]);
@@ -73,13 +73,12 @@ export default function ProfileScreen() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   const load = useCallback(async () => {
-    const [p, m, c, cfg, s, ach] = await Promise.all([
+    const [p, m, c, cfg, s] = await Promise.all([
       getProfile(),
       getMonthScores(),
       getCurrency(),
       getAvatarConfig(),
       touchStreak(),
-      getAchievements(),
     ]);
 
     setProfile(p);
@@ -173,7 +172,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* ── Settings entry ───────────────────────────── */}
+      {/* ── Utility rows: Settings + Calculators ────── */}
       <Pressable
         onPress={() => router.push('/(tabs)/settings' as any)}
         style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
@@ -186,6 +185,22 @@ export default function ProfileScreen() {
         <View style={styles.settingsText}>
           <Text style={styles.settingsLabel}>Settings</Text>
           <Text style={styles.settingsHint}>Currency, rollovers, Apple Pay</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={15} color={colors.border} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/calculators' as any)}
+        style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Open Calculators"
+      >
+        <View style={styles.settingsIconWrap}>
+          <Ionicons name="calculator-outline" size={18} color={colors.textMuted} />
+        </View>
+        <View style={styles.settingsText}>
+          <Text style={styles.settingsLabel}>Calculators</Text>
+          <Text style={styles.settingsHint}>Compound interest, loan, salary, and more</Text>
         </View>
         <Ionicons name="chevron-forward" size={15} color={colors.border} />
       </Pressable>
