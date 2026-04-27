@@ -1,4 +1,4 @@
-# BullBudget
+# BudgetBull
 
 A focused personal finance app for iPhone. Allocate your income into three buckets — **Must**, **Want**, and **Invest** — then track every spend and watch your portfolio grow.
 
@@ -6,7 +6,7 @@ A focused personal finance app for iPhone. Allocate your income into three bucke
 
 ## What it does
 
-Most budgeting apps are overwhelming. BullBudget does one thing well: it forces a clear monthly decision upfront (how much goes where?), then stays out of your way while you track it.
+Most budgeting apps are overwhelming. BudgetBull does one thing well: it forces a clear monthly decision upfront (how much goes where?), then stays out of your way while you track it.
 
 - Log an expense in seconds, with auto-classification into Must or Want
 - See your remaining budget at a glance from the home dashboard
@@ -30,6 +30,10 @@ Most budgeting apps are overwhelming. BullBudget does one thing well: it forces 
 | Profile & streaks | Avatar customisation, achievements, daily streak tracking |
 | League system | Iron → Bronze → Silver → Gold → Apex, gated by score + months |
 | Multi-currency | ILS, USD, EUR throughout |
+| Receipt scanning | Camera or photo library → AI extracts merchant, amount, date |
+| AI budget review | Claude-powered monthly analysis with personalised recommendations |
+| Apple Pay shortcut | Siri Shortcut integration auto-adds expenses from Apple Pay notifications |
+| Calculators | Placeholder hub for finance tools (compound interest, loan, salary, etc.) |
 | Local-first | All data stored on-device in SQLite — no account, no sync |
 
 ---
@@ -46,6 +50,7 @@ Most budgeting apps are overwhelming. BullBudget does one thing well: it forces 
 | Charts | Custom SVG line chart via `react-native-svg` |
 | Icons | Ionicons (`@expo/vector-icons`) |
 | Crypto prices | CoinGecko public API (no key required) |
+| AI analysis | Claude API via a backend proxy (budget review + receipt scanning) |
 
 ---
 
@@ -77,49 +82,84 @@ Scan the QR code with Expo Go, or press `i` to open the iOS Simulator.
 
 ```
 app/
-  (tabs)/           # Tab screens: home, savings, history, profile, settings, tips
-  investment/[id].tsx   # Investment detail (dynamic route)
-  onboarding.tsx    # 3-step onboarding wizard
-  month-setup.tsx   # New-month setup flow
-  expense-new.tsx   # Quick add expense modal
-  expense-edit.tsx  # Edit or delete an expense
-  expenses.tsx      # Full expense list (current month)
-  past-month-expense.tsx  # Log a missed expense on a closed month
-  investment-new.tsx      # Add investment
-  investment-edit.tsx     # Edit investment metadata
-  investment-update-new.tsx  # Record a new investment value
-  avatar-edit.tsx   # Avatar customisation screen
+  (tabs)/                      # 4 main tab screens
+    home.tsx                   # Dashboard: budget overview, grade, quick stats
+    history.tsx                # Full expense history with filters
+    savings.tsx                # Investment portfolio overview (Invest tab)
+    profile.tsx                # Profile, streak, achievements, nav to Settings
+    settings.tsx               # Currency, rollover rules, split — opened from Profile
+    tips.tsx                   # Budget tips — opened from Profile
+  investment/[id].tsx          # Investment detail: chart, history, buy/sell
+  onboarding.tsx               # 3-step onboarding wizard
+  month-setup.tsx              # New-month setup flow
+  expense-new.tsx              # Quick add expense modal
+  expense-edit.tsx             # Edit or delete an expense
+  expenses.tsx                 # Full expense list (current month)
+  past-month-expense.tsx       # Log a missed expense on a closed month
+  investment-new.tsx           # Add investment
+  investment-edit.tsx          # Edit investment metadata
+  investment-purchase.tsx      # Record a buy/sell with month contribution
+  investment-value-update.tsx  # Record a total-value snapshot
+  investment-update-new.tsx    # Generic new update (type selector)
+  investment-update-edit.tsx   # Edit or delete an existing update entry
+  avatar-edit.tsx              # Avatar customisation screen
+  receipt-scan.tsx             # Camera / photo library receipt capture
+  receipt-review.tsx           # Review and confirm AI-extracted receipt data
+  add-expense-from-shortcut.tsx  # Handles Siri Shortcut deep-link (Apple Pay)
+  ai-budget-review.tsx         # Claude-powered monthly budget analysis screen
+  calculators.tsx              # Finance calculator hub (coming soon)
 
 components/
-  AppScreen.tsx     # Scrollable/static screen wrapper with safe area
-  AppLogo.tsx       # Brand mark
-  DatePickerField.tsx     # Reusable Today / Yesterday / Pick date chip row
-  HumanAvatar.tsx   # Composable SVG avatar
-  InvestmentForm.tsx      # Shared investment create/edit form
-  InvestmentLineChart.tsx # SVG portfolio chart
+  AppScreen.tsx                # Scrollable/static screen wrapper with safe area
+  AppLogo.tsx                  # Brand mark — red badge, white bull, gold nose ring
+  DatePickerField.tsx          # Reusable Today / Yesterday / Pick date chip row
+  HumanAvatar.tsx              # Composable SVG avatar
+  InvestmentForm.tsx           # Shared investment create/edit form
+  InvestmentLineChart.tsx      # SVG portfolio chart with smooth Catmull-Rom curve
 
-db/                 # All SQLite logic, one file per domain
-  migrations.ts     # Versioned schema (current: v14)
-  home.ts           # Active month dashboard query
-  months.ts         # Month lifecycle: create, close, rollover
-  expenses.ts       # Expense CRUD + past-month correction
-  expense-history.ts  # History tab queries
-  investments.ts    # Investment CRUD
-  investment-detail.ts  # Detail view + value updates
-  settings.ts       # Currency, rollover rules, split defaults
-  profile.ts        # User profile, league, score
-  achievements.ts   # Achievement unlock logic
-  avatar.ts         # Avatar configuration
+db/                            # All SQLite logic, one file per domain
+  migrations.ts                # Versioned schema (current: v15)
+  home.ts                      # Active month dashboard query
+  months.ts                    # Month lifecycle: create, close, rollover
+  expenses.ts                  # Expense CRUD + past-month correction
+  expense-history.ts           # History tab queries
+  investments.ts               # Investment CRUD
+  investment-detail.ts         # Detail view + value updates
+  settings.ts                  # Currency, rollover rules, split defaults
+  profile.ts                   # User profile, league, score
+  achievements.ts              # Achievement unlock logic
+  avatar.ts                    # Avatar configuration
+  aiAnalysis.ts                # Queries for AI budget review input data
 
 lib/
-  money.ts          # Parse and format cents ↔ display strings
-  date.ts           # Date formatting and month key utilities
-  grade.ts          # A+–F budget grade + per-bucket explanation
-  coins.ts          # CoinGecko coin search
-  expenseClassifier.ts  # Suggest Must vs Want for new expenses
+  money.ts                     # Parse and format cents ↔ display strings
+  date.ts                      # Date formatting and month key utilities
+  grade.ts                     # A+–F budget grade + per-bucket explanation
+  coins.ts                     # CoinGecko coin search
+  expenseClassifier.ts         # Suggest Must vs Want for new expenses
+  haptics.ts                   # Centralised haptic feedback helpers
+  parseShortcutParams.ts       # Parse URL params from Siri Shortcut deep-link
+  receiptClassifier.ts         # Map receipt category suggestions to Must/Want
+  receiptImageState.ts         # In-memory bridge: scan screen → review screen
+  receiptPrompt.ts             # System prompt reference for backend receipt service
+  ai/                          # AI budget analysis pipeline
+    types.ts                   # Shared input/output types
+    buildAnalysisInput.ts      # Assembles MonthSnapshot + ExpenseSample data
+    provider.ts                # Provider interface
+    remoteProvider.ts          # Calls Claude via backend proxy
+    mockProvider.ts            # Local stub for development
+    index.ts                   # Public API: analyzeBudget, buildAnalysisInput
+  receipts/                    # Receipt scanning pipeline
+    types.ts                   # ExtractedReceipt type + ReceiptExtractionError
+    provider.ts                # Provider interface
+    remoteProvider.ts          # Calls backend vision endpoint
+    mockProvider.ts            # Returns fixture data for development
+    index.ts                   # Public API: extractReceipt
 
 theme/
-  colors.ts         # Single source of truth for the colour palette
+  colors.ts                    # Single source of truth for the colour palette
+  fonts.ts                     # Font family constants (Space Grotesk)
+  tokens.ts                    # Spacing, radius, shadows, type scale, easing
 ```
 
 ---
@@ -136,7 +176,7 @@ theme/
 
 ## Database migrations
 
-Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v14**. Each version gate runs `ALTER TABLE` statements and bumps `PRAGMA user_version`. Fresh installs skip straight to the full schema at v0 and set `user_version = 14`.
+Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v15**. Each version gate runs `ALTER TABLE` statements and bumps `PRAGMA user_version`. Fresh installs skip straight to the full schema at v0 and set `user_version = 15`.
 
 ---
 
@@ -159,10 +199,14 @@ The app is in active personal development. Core budgeting flows are complete and
 **Working now:**
 - Full monthly cycle (setup → track → close → rollover)
 - Expense add / edit / delete, including corrections to past months
-- Investment portfolio with value history and chart
-- Grading with explanation
+- Investment portfolio with value history and chart (buy, sell, value updates)
+- Receipt scanning via camera or photo library with AI extraction
+- AI-powered monthly budget review via Claude
+- Apple Pay Siri Shortcut integration — expenses auto-added from notifications
+- Grading with plain-language explanation
 - Streaks, achievements, avatar, league progression
 - Multi-currency, rollover settings, onboarding
+- Finance calculators hub (UI scaffolded, logic coming)
 
 **Possible future improvements:**
 - Recurring expenses (infrastructure exists via `is_recurring` column)
@@ -171,11 +215,15 @@ The app is in active personal development. Core budgeting flows are complete and
 - Notification reminders
 - Multi-hop rollover cascade for past-month corrections
 - App Store distribution
+- Calculator implementations (compound interest, loan payment, net salary, etc.)
 
 ---
 
 ## Local data note
 
-BullBudget stores everything in an SQLite database on your device. There is no backend, no account, and no network calls except for CoinGecko crypto price lookups (optional, used only on the Savings tab).
+BudgetBull stores everything in an SQLite database on your device. There is no backend account or sync. Optional network calls:
+
+- **CoinGecko** — live crypto price lookups on the Invest tab
+- **AI backend proxy** — receipt scanning and budget analysis (requires a configured backend endpoint)
 
 Uninstalling the app will erase all data. Back up your device regularly if this data matters to you.

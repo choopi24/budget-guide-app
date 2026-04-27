@@ -344,20 +344,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  // placeholder — styles.button no longer used (replaced with Button primitive)
-  button: {
-    marginTop: spacing[6],
-    height: 52,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPressed: { opacity: 0.9 },
-  buttonDisabled: { backgroundColor: colors.buttonDisabled },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
 });
