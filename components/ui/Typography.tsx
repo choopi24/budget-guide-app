@@ -13,9 +13,10 @@
  *   <Caption style={{ marginTop: 4 }}>Last updated just now</Caption>
  */
 
-import { Text, TextProps, StyleSheet } from 'react-native';
+import { Text, TextProps } from 'react-native';
 import { colors } from '../../theme/colors';
-import { type as typeScale } from '../../theme/tokens';
+import { fonts } from '../../theme/fonts';
+import { type as typeScale, tabularNums } from '../../theme/tokens';
 
 type TypographyProps = TextProps & { color?: string };
 
@@ -62,3 +63,16 @@ export const Caption = make(typeScale.caption, colors.textTertiary);
 
 /** 11 / 700 uppercase — section eyebrows, badge labels */
 export const Eyebrow = make(typeScale.eyebrow, colors.textMuted);
+
+/** 36 / 700 — hero numbers (portfolio value, "left to spend", income hero) */
+export const HeroNumber = make(
+  {
+    fontFamily: fonts.bold,
+    fontSize: 36,
+    fontWeight: '700' as const,
+    letterSpacing: -1.4,
+    lineHeight: 40,
+    ...tabularNums,
+  },
+  colors.text,
+);

@@ -1,10 +1,11 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
+import { InvestmentLineChart } from '../../components/InvestmentLineChart';
 import { Card } from '../../components/ui/Card';
 import { FabButton } from '../../components/ui/FabButton';
+import { Eyebrow, Headline, HeroNumber } from '../../components/ui/Typography';
 import { useInvestmentsDb } from '../../db/investments';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { formatDateDisplay } from '../../lib/date';
@@ -46,7 +47,19 @@ export default function SavingsScreen() {
   const totalCurrent   = items.reduce((sum, item) => sum + item.current_value_cents, 0);
   const totalCostBasis = items.reduce((sum, item) => sum + item.total_cost_basis_cents, 0);
   const totalGain      = totalCurrent - totalCostBasis;
-  const isPositive   = totalGain >= 0;
+  const isPositive     = totalGain >= 0;
+
+  const currencySymbol = currency === 'ILS' ? '₪' : currency === 'USD' ? '$' : '€';
+  const heroAmountText = Math.floor(totalCurrent / 100).toLocaleString('en-US');
+  const deltaPct       = totalCostBasis > 0
+    ? (Math.abs(totalGain) / totalCostBasis * 100).toFixed(1)
+    : '0.0';
+  const arrow          = isPositive ? '▲' : '▼';
+  const deltaColor     = isPositive ? colors.primary : colors.danger;
+  const sparkData      = [
+    { value: totalCostBasis / 100 },
+    { value: totalCurrent / 100 },
+  ];
 
   return (
     <View style={styles.root}>
@@ -65,28 +78,37 @@ export default function SavingsScreen() {
           </View>
         </View>
 
-        {/* ── Hero: current portfolio value ── */}
-        <View style={styles.hero}>
-          <Text style={styles.heroEyebrow}>Current value</Text>
-          <Text style={styles.heroAmount}>
-            {formatCentsToMoney(totalCurrent, currency)}
-          </Text>
-          <View style={styles.heroMeta}>
-            <Text style={styles.heroMetaText}>
-              {formatCentsToMoney(totalCostBasis, currency)} invested
-            </Text>
-            <View style={styles.heroMetaDot} />
-            <Text style={[styles.heroMetaGain, isPositive ? styles.positive : styles.negative]}>
-              {isPositive ? '+' : '−'}
-              {formatCentsToMoney(Math.abs(totalGain), currency)}
-            </Text>
+        {/* ── Hero: portfolio value ── */}
+        <Card variant="hero" style={styles.heroCard}>
+          {/* Row A — eyebrow */}
+          <Eyebrow color={colors.textTertiary}>PORTFOLIO VALUE</Eyebrow>
+
+          {/* Row B — amount */}
+          <View style={styles.heroAmountRow}>
+            <Text style={styles.heroCurrencySymbol}>{currencySymbol}</Text>
+            <HeroNumber color={colors.surface}>{heroAmountText}</HeroNumber>
           </View>
-        </View>
 
-        {/* ── Section label ── */}
-        <Text style={styles.sectionLabel}>Holdings</Text>
+          {/* Row C — gain strip */}
+          <Text style={styles.heroGainStrip}>
+            {arrow}{' '}
+            <Text style={{ color: deltaColor }}>{formatCentsToMoney(Math.abs(totalGain), currency)}</Text>
+            {' '}({deltaPct}%) · ALL TIME
+          </Text>
 
-        {/* ── Investment list ── */}
+          {/* Row D — sparkline */}
+          <View style={styles.heroSparkline}>
+            <InvestmentLineChart
+              data={sparkData}
+              height={80}
+              variant="sparkline"
+              tintColor={deltaColor}
+              fillOpacity={0.10}
+            />
+          </View>
+        </Card>
+
+        {/* ── Holdings ── */}
         {items.length === 0 ? (
           <Card variant="elevated">
             <Text style={styles.emptyTitle}>No investments yet</Text>
@@ -95,38 +117,53 @@ export default function SavingsScreen() {
             </Text>
           </Card>
         ) : (
-          <Card variant="outlined" padding={false} style={styles.listCard}>
+          <Card padding={false} style={styles.holdingsCard}>
+            <Eyebrow color={colors.textTertiary} style={styles.holdingsEyebrow}>HOLDINGS</Eyebrow>
+
             {items.map((item, index) => {
-              const gain       = item.current_value_cents - item.total_cost_basis_cents;
-              const gainPos    = gain >= 0;
+              const gain      = item.current_value_cents - item.total_cost_basis_cents;
+              const gainPos   = gain >= 0;
+              const gainPct   = item.total_cost_basis_cents > 0
+                ? (Math.abs(gain) / item.total_cost_basis_cents * 100).toFixed(1)
+                : '0.0';
+              const gainColor = gainPos ? colors.primary : colors.danger;
+              const isLast    = index === items.length - 1;
 
               return (
-                <View key={item.id}>
-                  {index > 0 && <View style={styles.rowDivider} />}
-                  <Pressable
-                    onPress={() => router.push(`/investment/${item.id}` as any)}
-                    style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                  >
-                    <View style={styles.rowLeft}>
-                      <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.rowMeta}>
-                        {item.category} · {formatDateDisplay(item.opening_date)}
-                      </Text>
-                    </View>
+                <Pressable
+                  key={item.id}
+                  onPress={() => router.push(`/investment/${item.id}` as any)}
+                  style={({ pressed }) => [
+                    styles.holdingRow,
+                    !isLast && styles.holdingRowBorder,
+                    pressed && styles.holdingRowPressed,
+                  ]}
+                >
+                  {/* Avatar: first letter of name */}
+                  <View style={styles.holdingAvatar}>
+                    <Text style={styles.holdingAvatarText}>
+                      {item.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
 
-                    <View style={styles.rowRight}>
-                      <Text style={styles.rowValue}>
-                        {formatCentsToMoney(item.current_value_cents, currency)}
-                      </Text>
-                      <Text style={[styles.rowGain, gainPos ? styles.positive : styles.negative]}>
-                        {gainPos ? '+' : '−'}
-                        {formatCentsToMoney(Math.abs(gain), currency)}
-                      </Text>
-                    </View>
+                  {/* Middle: name + meta */}
+                  <View style={styles.holdingMiddle}>
+                    <Headline numberOfLines={1}>{item.name}</Headline>
+                    <Text style={styles.holdingMeta} numberOfLines={1}>
+                      {item.category} · {formatDateDisplay(item.opening_date)}
+                    </Text>
+                  </View>
 
-                    <Ionicons name="chevron-forward" size={14} color={colors.border} style={styles.rowChevron} />
-                  </Pressable>
-                </View>
+                  {/* Right: total value + gain % */}
+                  <View style={styles.holdingRight}>
+                    <Text style={styles.holdingValue}>
+                      {formatCentsToMoney(item.current_value_cents, currency)}
+                    </Text>
+                    <Text style={[styles.holdingGain, { color: gainColor }]}>
+                      {gainPos ? '+' : '-'}{gainPct}%
+                    </Text>
+                  </View>
+                </Pressable>
               );
             })}
           </Card>
@@ -180,109 +217,102 @@ const styles = StyleSheet.create({
   },
 
   // ── Hero ────────────────────────────────────────────────────────────────────
-  hero: {
-    paddingTop: spacing[8],      // 32
-    paddingBottom: spacing[8],   // 32
-    paddingHorizontal: spacing[1],
+  heroCard: {
+    marginTop:    spacing[5],
+    marginBottom: spacing[6],
   },
-  heroEyebrow: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-    marginBottom: spacing[2],
-  },
-  heroAmount: {
-    fontSize: 48,
-    fontWeight: '800',
-    fontFamily: fonts.bold,
-    fontVariant: ['tabular-nums'],
-    color: colors.textInverse,
-    letterSpacing: -2,
-    lineHeight: 54,
-    marginBottom: spacing[3],
-  },
-  heroMeta: {
+  heroAmountRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
+    alignItems:    'flex-start',
+    marginTop:     spacing[3],
+    marginBottom:  spacing[2],
   },
-  heroMetaText: {
-    fontSize: 13,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
-    color: colors.textMuted,
+  heroCurrencySymbol: {
+    fontSize:    18,
+    color:       colors.textTertiary,
+    marginTop:   spacing[1],
+    marginRight: 2,
   },
-  heroMetaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 999,
-    backgroundColor: colors.border,
+  heroGainStrip: {
+    fontFamily:    fonts.mono,
+    fontSize:      12,
+    letterSpacing: 0.8,
+    color:         colors.textTertiary,
+    marginBottom:  spacing[4],
   },
-  heroMetaGain: {
-    fontSize: 13,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
+  heroSparkline: {
+    marginTop: spacing[2],
   },
   positive: { color: colors.primary },
   negative: { color: colors.danger },
 
-  // ── Section label ────────────────────────────────────────────────────────────
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-    marginBottom: spacing[3],
-    paddingHorizontal: spacing[1],
-  },
-
   // ── Holdings list ────────────────────────────────────────────────────────────
-  listCard: {
-    overflow: 'hidden',
+  holdingsCard: {
+    marginBottom: spacing[6],
+    overflow:     'hidden',
   },
-  rowDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing[5],
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  holdingsEyebrow: {
     paddingHorizontal: spacing[5],
-    paddingVertical: spacing[4],
-    gap: spacing[3],
+    paddingTop:        spacing[5],
+    paddingBottom:     spacing[3],
   },
-  rowPressed: { opacity: 0.6, transform: [{ scale: 0.99 }] },
-  rowLeft: { flex: 1, minWidth: 0 },
-  rowName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    letterSpacing: -0.1,
+  holdingRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    paddingHorizontal: spacing[5],
+    paddingVertical:   spacing[3],
+    gap:               spacing[3],
   },
-  rowMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 3,
+  holdingRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  rowRight:  { alignItems: 'flex-end' },
-  rowValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-    color: colors.text,
-    letterSpacing: -0.2,
+  holdingRowPressed: {
+    opacity:   0.6,
+    transform: [{ scale: 0.99 }],
   },
-  rowGain: {
-    fontSize: 12,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-    marginTop: 3,
+  holdingAvatar: {
+    width:           36,
+    height:          36,
+    borderRadius:    12,
+    backgroundColor: colors.surfaceSoft,
+    alignItems:      'center',
+    justifyContent:  'center',
+    flexShrink:      0,
   },
-  rowChevron: { flexShrink: 0 },
+  holdingAvatarText: {
+    fontFamily: fonts.semiBold,
+    fontSize:   16,
+    color:      colors.text,
+  },
+  holdingMiddle: {
+    flex:     1,
+    minWidth: 0,
+  },
+  holdingMeta: {
+    fontFamily:    fonts.mono,
+    fontSize:      11,
+    letterSpacing: 0.3,
+    color:         colors.textTertiary,
+    marginTop:     3,
+  },
+  holdingRight: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
+  holdingValue: {
+    fontFamily:    fonts.bold,
+    fontSize:      16,
+    fontVariant:   ['tabular-nums'],
+    color:         colors.text,
+    letterSpacing: -0.3,
+  },
+  holdingGain: {
+    fontFamily:    fonts.mono,
+    fontSize:      11,
+    letterSpacing: 0.3,
+    marginTop:     2,
+  },
 
   // ── Empty state ──────────────────────────────────────────────────────────────
   emptyTitle: {

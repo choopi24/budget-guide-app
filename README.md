@@ -115,7 +115,7 @@ components/
   DatePickerField.tsx          # Reusable Today / Yesterday / Pick date chip row
   HumanAvatar.tsx              # Composable SVG avatar
   InvestmentForm.tsx           # Shared investment create/edit form
-  InvestmentLineChart.tsx      # SVG portfolio chart with smooth Catmull-Rom curve
+  InvestmentLineChart.tsx      # SVG portfolio chart with smooth Catmull-Rom curve; supports a compact `sparkline` variant (no axes, thinner stroke) used in the portfolio hero card
 
 db/                            # All SQLite logic, one file per domain
   migrations.ts                # Versioned schema (current: v15)
@@ -157,7 +157,7 @@ lib/
     index.ts                   # Public API: extractReceipt
 
 theme/
-  colors.ts                    # Single source of truth for the colour palette
+  colors.ts                    # Single source of truth for the colour palette (includes `ink` for hero cards, `gold` for achievements)
   fonts.ts                     # Font family constants (Space Grotesk)
   tokens.ts                    # Spacing, radius, shadows, type scale, easing
 ```
@@ -207,6 +207,10 @@ The app is in active personal development. Core budgeting flows are complete and
 - Streaks, achievements, avatar, league progression
 - Multi-currency, rollover settings, onboarding
 - Finance calculators hub (UI scaffolded, logic coming)
+- Ink hero cards on Home, Investments, and Profile screens — large `HeroNumber` amount, eyebrow labels, and a mono pace/gain strip
+- Home breakdown replaced with a compact meters card: per-bucket name, used/planned amounts, pace label, and a 96px progress bar with a pace-position tick
+- Investments holdings list rebuilt with letter-avatar rows, percentage gain, and a 2-point sparkline in the hero card
+- Profile identity, streak, and league collapsed into a single hero card; achievements rendered as a 4-column locked/unlocked tile grid
 
 **Possible future improvements:**
 - Recurring expenses (infrastructure exists via `is_recurring` column)

@@ -15,6 +15,12 @@ type Props = {
   data: ChartItem[];
   height?: number;
   currency?: SupportedCurrency;
+  /** When 'sparkline': renders 1px line + soft fill, no axes / grid / labels / dot. */
+  variant?: 'sparkline';
+  /** Override line + fill color. Defaults to green/red based on direction. */
+  tintColor?: string;
+  /** Gradient fill opacity at the top of the area. Default 0.16. */
+  fillOpacity?: number;
 };
 
 const PAD_LEFT   = 52;
@@ -53,7 +59,16 @@ function buildSmoothPath(pts: { x: number; y: number }[]): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Props) {
+export function InvestmentLineChart({
+  data,
+  height = 200,
+  currency = 'ILS',
+  variant,
+  tintColor,
+  fillOpacity,
+}: Props) {
+  const isSparkline = variant === 'sparkline';
+
   const [width, setWidth] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -67,6 +82,12 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
   function handleLayout(event: LayoutChangeEvent) {
     setWidth(event.nativeEvent.layout.width);
   }
+
+  // Sparkline uses zero padding — no room needed for axes or labels
+  const padL = isSparkline ? 2 : PAD_LEFT;
+  const padR = isSparkline ? 2 : PAD_RIGHT;
+  const padT = isSparkline ? 4 : PAD_TOP;
+  const padB = isSparkline ? 4 : PAD_BOTTOM;
 
   const { points, minVal, maxVal } = useMemo(() => {
     if (!width || data.length === 0) return { points: [], minVal: 0, maxVal: 0 };
@@ -82,31 +103,31 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
     const pts = data.map((item, index) => {
       const x =
         data.length === 1
-          ? PAD_LEFT + (width - PAD_LEFT - PAD_RIGHT) / 2
-          : PAD_LEFT + (index * (width - PAD_LEFT - PAD_RIGHT)) / (data.length - 1);
+          ? padL + (width - padL - padR) / 2
+          : padL + (index * (width - padL - padR)) / (data.length - 1);
 
-      const y = PAD_TOP + ((maxVal - item.value) / range) * (height - PAD_TOP - PAD_BOTTOM);
+      const y = padT + ((maxVal - item.value) / range) * (height - padT - padB);
 
       return { x, y, label: item.label ?? '', value: item.value };
     });
 
     return { points: pts, minVal, maxVal };
-  }, [data, height, width]);
+  }, [data, height, width, padL, padR, padT, padB]);
 
   const smoothLine = useMemo(() => buildSmoothPath(points), [points]);
 
   // Area fill: same control points as line, closed to baseline
   const areaPath = useMemo(() => {
     if (points.length < 2) return '';
-    const baseline = (height - PAD_BOTTOM).toFixed(1);
+    const baseline = (height - padB).toFixed(1);
     return `${smoothLine} L ${points[points.length - 1].x.toFixed(1)} ${baseline} L ${points[0].x.toFixed(1)} ${baseline} Z`;
-  }, [smoothLine, points, height]);
+  }, [smoothLine, points, height, padB]);
 
   // Only the mid-axis gridline — reduces visual noise
   const midY = useMemo(() => {
     if (!width) return null;
-    return PAD_TOP + (height - PAD_TOP - PAD_BOTTOM) / 2;
-  }, [width, height]);
+    return padT + (height - padT - padB) / 2;
+  }, [width, height, padT, padB]);
 
   const midLabel = useMemo(
     () => formatCompactMoney(Math.round(((minVal + maxVal) / 2) * 100), currency),
@@ -135,7 +156,8 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
   const isPositive = data.length >= 2
     ? data[data.length - 1].value >= data[0].value
     : true;
-  const lineColor = isPositive ? colors.primary : colors.danger;
+  const lineColor   = tintColor ?? (isPositive ? colors.primary : colors.danger);
+  const areaOpacity = fillOpacity ?? 0.16;
 
   const lastPoint = points[points.length - 1];
 
@@ -146,13 +168,13 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
         <Svg width={width} height={height}>
           <Defs>
             <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%"   stopColor={lineColor} stopOpacity={0.16} />
-              <Stop offset="100%" stopColor={lineColor} stopOpacity={0}    />
+              <Stop offset="0%"   stopColor={lineColor} stopOpacity={areaOpacity} />
+              <Stop offset="100%" stopColor={lineColor} stopOpacity={0}           />
             </LinearGradient>
           </Defs>
 
           {/* Single mid-axis grid line — minimal, not distracting */}
-          {midY !== null && (
+          {!isSparkline && midY !== null && (
             <Line
               x1={PAD_LEFT}
               y1={midY}
@@ -173,7 +195,7 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
               d={smoothLine}
               fill="none"
               stroke={lineColor}
-              strokeWidth={2.5}
+              strokeWidth={isSparkline ? 1.5 : 2.5}
               strokeLinejoin="round"
               strokeLinecap="round"
             />
@@ -182,14 +204,16 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
           {/* Single-point: horizontal rule */}
           {points.length === 1 && (
             <Line
-              x1={PAD_LEFT}    y1={points[0].y}
-              x2={width - PAD_RIGHT} y2={points[0].y}
-              stroke={lineColor} strokeWidth={2.5} strokeLinecap="round"
+              x1={padL}          y1={points[0].y}
+              x2={width - padR}  y2={points[0].y}
+              stroke={lineColor}
+              strokeWidth={isSparkline ? 1.5 : 2.5}
+              strokeLinecap="round"
             />
           )}
 
-          {/* Endpoint dot — outer glow ring + white fill + border */}
-          {lastPoint && (
+          {/* Endpoint dot — outer glow ring + white fill + border (full chart only) */}
+          {!isSparkline && lastPoint && (
             <>
               <Circle
                 cx={lastPoint.x}
@@ -216,8 +240,8 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
         </View>
       )}
 
-      {/* X-axis labels */}
-      {xLabels.length > 0 && (
+      {/* X-axis labels (full chart only) */}
+      {!isSparkline && xLabels.length > 0 && (
         <View style={[styles.xAxisRow, { marginLeft: PAD_LEFT, marginRight: PAD_RIGHT }]}>
           {xLabels.map((pt, i) => (
             <Text
@@ -235,14 +259,14 @@ export function InvestmentLineChart({ data, height = 200, currency = 'ILS' }: Pr
         </View>
       )}
 
-      {/* Y-axis labels: top / mid / bottom — only when 2+ points so labels are meaningful */}
-      {width > 0 && data.length >= 2 && (
+      {/* Y-axis labels: top / mid / bottom (full chart only) */}
+      {!isSparkline && width > 0 && data.length >= 2 && (
         <View style={[StyleSheet.absoluteFillObject, styles.yAxisOverlay]}>
-          <Text style={[styles.yLabel, { top: PAD_TOP - 8 }]}         numberOfLines={1}>{topLabel}</Text>
+          <Text style={[styles.yLabel, { top: PAD_TOP - 8 }]}              numberOfLines={1}>{topLabel}</Text>
           {midY !== null && (
-            <Text style={[styles.yLabel, { top: midY - 8 }]}          numberOfLines={1}>{midLabel}</Text>
+            <Text style={[styles.yLabel, { top: midY - 8 }]}               numberOfLines={1}>{midLabel}</Text>
           )}
-          <Text style={[styles.yLabel, { top: height - PAD_BOTTOM - 8 }]} numberOfLines={1}>{bottomLabel}</Text>
+          <Text style={[styles.yLabel, { top: height - PAD_BOTTOM - 8 }]}  numberOfLines={1}>{bottomLabel}</Text>
         </View>
       )}
     </View>

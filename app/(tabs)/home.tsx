@@ -1,17 +1,11 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
 import { AppScreen } from '../../components/AppScreen';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Eyebrow, Headline, HeroNumber } from '../../components/ui/Typography';
 import { HomeFab } from '../../components/ui/HomeFab';
 import { useHomeDb, type HomeData } from '../../db/home';
 import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
@@ -28,10 +22,6 @@ import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
 import { radius, shadows, spacing } from '../../theme/tokens';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const FILL_EASING = Easing.bezier(0.32, 0.72, 0, 1);
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type RowItem = {
@@ -43,8 +33,6 @@ type RowItem = {
   softColor: string;
 };
 
-type Verdict = { text: string; color: string };
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getMonthPace(monthKey: string): number {
@@ -52,15 +40,6 @@ function getMonthPace(monthKey: string): number {
   const today = new Date();
   if (today.getFullYear() !== y || today.getMonth() + 1 !== mo) return 1;
   return today.getDate() / new Date(y, mo, 0).getDate();
-}
-
-function getVerdict(used: number, planned: number, pace: number): Verdict | null {
-  if (planned <= 0) return null;
-  const r = used / planned;
-  if (r >= 1)           return { text: 'Maxed',      color: colors.danger };
-  if (r > pace + 0.10)  return { text: 'Over pace',  color: colors.want };
-  if (r >= pace - 0.10) return { text: 'On track',   color: colors.textMuted };
-  return                        { text: 'Ahead',      color: colors.primary };
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -77,15 +56,6 @@ export default function HomeScreen() {
   const [grade, setGrade]               = useState<BudgetGrade | null>(null);
   const [gradeExp, setGradeExp]         = useState<GradeExplanation | null>(null);
   const [showGradeExp, setShowGradeExp] = useState(false);
-
-  // ── Reanimated shared values for bar fill animation ──────────────────────
-  const mustAnim   = useSharedValue(0);
-  const wantAnim   = useSharedValue(0);
-  const investAnim = useSharedValue(0);
-
-  const mustBarStyle   = useAnimatedStyle(() => ({ flex: mustAnim.value }));
-  const wantBarStyle   = useAnimatedStyle(() => ({ flex: wantAnim.value }));
-  const investBarStyle = useAnimatedStyle(() => ({ flex: investAnim.value }));
 
   const load = useCallback(async () => {
     const [monthData, savedCurrency] = await Promise.all([
@@ -117,27 +87,6 @@ export default function HomeScreen() {
   }, [getActiveMonthHomeData, getCurrency]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  // Trigger bar fill animation whenever month data updates
-  useEffect(() => {
-    if (!month) {
-      mustAnim.value   = 0;
-      wantAnim.value   = 0;
-      investAnim.value = 0;
-      return;
-    }
-    const mustTarget   = month.must_budget_cents > 0
-      ? Math.min(month.must_spent_cents   / month.must_budget_cents,  1) : 0;
-    const wantTarget   = month.want_budget_cents > 0
-      ? Math.min(month.want_spent_cents   / month.want_budget_cents,  1) : 0;
-    const investTarget = month.keep_budget_cents > 0
-      ? Math.min(month.invest_spent_cents / month.keep_budget_cents,  1) : 0;
-
-    mustAnim.value   = withDelay(0,   withTiming(mustTarget,   { duration: 600, easing: FILL_EASING }));
-    wantAnim.value   = withDelay(80,  withTiming(wantTarget,   { duration: 600, easing: FILL_EASING }));
-    investAnim.value = withDelay(160, withTiming(investTarget, { duration: 600, easing: FILL_EASING }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month]);
 
   // ── Empty state ──────────────────────────────────────────────────────────────
   if (!month) {
@@ -194,11 +143,23 @@ export default function HomeScreen() {
     },
   ];
 
-  const barStyles = [mustBarStyle, wantBarStyle, investBarStyle];
-
   const totalSpent   = month.must_spent_cents + month.want_spent_cents + month.invest_spent_cents;
   const spendLeft    = month.income_cents - totalSpent;
   const isOverBudget = spendLeft < 0;
+
+  const currencySymbol  = currency === 'ILS' ? '₪' : currency === 'USD' ? '$' : '€';
+  const heroAmountText  = Math.floor(Math.abs(spendLeft) / 100).toLocaleString('en-US');
+  const [heroY, heroMo] = month.month_key.split('-').map(Number);
+  const heroToday       = new Date();
+  const daysLeft        = heroToday.getFullYear() === heroY && heroToday.getMonth() + 1 === heroMo
+    ? Math.max(0, new Date(heroY, heroMo, 0).getDate() - heroToday.getDate())
+    : 0;
+  const pctUsed    = month.income_cents > 0
+    ? Math.round(totalSpent / month.income_cents * 100) : 0;
+  const spendRatio = month.income_cents > 0 ? totalSpent / month.income_cents : 0;
+  const paceLabel  = spendRatio > paceRatio + 0.10 ? 'OVER PACE'
+    : spendRatio < paceRatio - 0.10 ? 'UNDER PACE'
+    : 'ON PACE';
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -235,23 +196,17 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Hero: remaining budget ── */}
-        <View style={styles.hero}>
-          <Text style={[styles.heroEyebrow, isOverBudget && { color: colors.danger }]}>
-            {isOverBudget ? 'Over budget' : 'Left this month'}
-          </Text>
-          <Text style={[styles.heroAmount, isOverBudget && { color: colors.danger }]}>
-            {formatCentsToMoney(Math.abs(spendLeft), currency)}
-          </Text>
-          <View style={styles.heroMeta}>
-            <Text style={styles.heroMetaSpent}>
-              {formatCentsToMoney(totalSpent, currency)} spent
-            </Text>
-            <View style={styles.heroMetaDot} />
-            <Text style={styles.heroMetaIncome}>
-              {formatCentsToMoney(month.income_cents, currency)} income
-            </Text>
+        <Card variant="hero" style={styles.heroCard}>
+          <View style={styles.heroEyebrowRow}>
+            <Eyebrow color={colors.textTertiary}>LEFT TO SPEND</Eyebrow>
+            <Eyebrow color={colors.textTertiary}>{daysLeft} DAYS LEFT</Eyebrow>
           </View>
-        </View>
+          <View style={styles.heroAmountRow}>
+            <Text style={styles.heroCurrencySymbol}>{currencySymbol}</Text>
+            <HeroNumber color={isOverBudget ? colors.danger : colors.surface}>{heroAmountText}</HeroNumber>
+          </View>
+          <Text style={styles.heroPaceStrip}>{pctUsed}% USED · {paceLabel}</Text>
+        </Card>
 
         {/* ── Grade explanation panel ── */}
         {showGradeExp && grade && gradeExp && (
@@ -279,69 +234,39 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── Section label ── */}
-        <Text style={styles.sectionLabel}>Breakdown</Text>
-
-        {/* ── Breakdown: single grouped card ── */}
-        <Card variant="outlined" padding={false} style={styles.breakdownCard}>
+        {/* ── Meters card ── */}
+        <Card padding={spacing[5]} style={styles.metersCard}>
+          <View style={styles.metersTitleRow}>
+            <Eyebrow color={colors.textTertiary}>THIS MONTH</Eyebrow>
+            <Eyebrow color={colors.textTertiary}>{getMonthLabelFromKey(month.month_key)}</Eyebrow>
+          </View>
           {rows.map((row, index) => {
-            const overBudget = row.used > row.planned && row.planned > 0;
-            const fillColor  = overBudget ? colors.danger : row.color;
-            const barStyle   = barStyles[index];
-            const verdict    = getVerdict(row.used, row.planned, paceRatio);
-
+            const fillPct      = row.planned > 0 ? Math.min(row.used / row.planned, 1) : 0;
+            const ratio        = row.planned > 0 ? row.used / row.planned : 0;
+            const overBudget   = row.used > row.planned && row.planned > 0;
+            const fillColor    = overBudget ? colors.danger : row.color;
+            const rowPaceLabel = ratio > paceRatio + 0.05 ? 'OVER'
+              : ratio < paceRatio - 0.05 ? 'AHEAD'
+              : 'ON PACE';
             return (
               <View key={row.label}>
-                {index > 0 && <View style={styles.rowDivider} />}
-
-                <View style={styles.breakdownRow}>
-                  {/* Label + hint */}
-                  <View style={styles.rowLabelGroup}>
-                    <View style={[styles.rowDot, { backgroundColor: row.color }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowLabel}>{row.label}</Text>
-                      <Text style={styles.rowHint}>{row.hint}</Text>
-                    </View>
-                  </View>
-
-                  {/* Amount */}
-                  <View style={styles.rowAmounts}>
-                    <Text style={[styles.rowAmountMain, overBudget && { color: colors.danger }]}>
-                      {formatCentsToMoney(row.used, currency)}
-                    </Text>
-                    <Text style={styles.rowAmountOf}>
-                      of {formatCentsToMoney(row.planned, currency)}
+                {index > 0 && <View style={styles.meterSep} />}
+                <View style={styles.meterRow}>
+                  <View style={styles.meterLeft}>
+                    <Headline>{row.label}</Headline>
+                    <Text style={styles.meterMono} numberOfLines={1}>
+                      {formatCentsToMoney(row.used, currency)}/{formatCentsToMoney(row.planned, currency)} · {rowPaceLabel}
                     </Text>
                   </View>
-
-                  {/* Progress bar + pace tick + verdict */}
-                  <View style={styles.rowTrackWrap}>
-                    {/* Container keeps pace tick visible outside overflow:hidden track */}
-                    <View style={styles.rowTrackContainer}>
-                      <View style={[styles.rowTrack, { backgroundColor: row.softColor }]}>
-                        <Animated.View
-                          style={[styles.rowFill, barStyle, { backgroundColor: fillColor }]}
-                        />
-                      </View>
-                      {/* Pace tick: where you should be at today's date */}
+                  <View style={styles.meterRight}>
+                    <View style={styles.meterTrackWrap}>
                       {paceRatio > 0.02 && paceRatio < 0.98 && (
-                        <View
-                          style={[
-                            styles.paceTick,
-                            { left: `${paceRatio * 100}%` as any },
-                          ]}
-                        />
+                        <View style={[styles.meterTick, { left: `${paceRatio * 100}%` as any }]} />
                       )}
-                    </View>
-
-                    {/* Monospace verdict readout */}
-                    {verdict && (
-                      <View style={styles.verdictRow}>
-                        <Text style={[styles.verdictText, { color: verdict.color }]}>
-                          {verdict.text}
-                        </Text>
+                      <View style={[styles.meterTrack, { backgroundColor: row.softColor }]}>
+                        <View style={[styles.meterFill, { width: `${fillPct * 100}%` as any, backgroundColor: fillColor }]} />
                       </View>
-                    )}
+                    </View>
                   </View>
                 </View>
               </View>
@@ -439,51 +364,32 @@ const styles = StyleSheet.create({
   },
 
   // ── Hero ──────────────────────────────────────────────────────────────────
-  hero: {
-    paddingTop:        spacing[10],
-    paddingBottom:     spacing[10],
-    paddingHorizontal: spacing[1],
+  heroCard: {
+    marginTop: spacing[5],
+    marginBottom: spacing[6],
   },
-  heroEyebrow: {
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-    marginBottom: spacing[2],
-  },
-  heroAmount: {
-    fontSize: 56,
-    fontWeight: '800',
-    fontFamily: fonts.bold,
-    fontVariant: ['tabular-nums'],
-    color: colors.textInverse,
-    letterSpacing: -2.5,
-    lineHeight: 62,
-    marginBottom: spacing[4],
-  },
-  heroMeta: {
+  heroEyebrowRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
+    justifyContent: 'space-between',
+    marginBottom: spacing[3],
   },
-  heroMetaSpent: {
-    fontSize: 13,
-    fontWeight: '500',
-    fontVariant: ['tabular-nums'],
-    color: colors.textMuted,
+  heroAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing[3],
   },
-  heroMetaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 999,
-    backgroundColor: colors.border,
-  },
-  heroMetaIncome: {
-    fontSize: 13,
-    fontWeight: '400',
-    fontVariant: ['tabular-nums'],
+  heroCurrencySymbol: {
+    fontSize: 18,
     color: colors.textTertiary,
+    marginTop: spacing[1],
+    marginRight: 2,
+  },
+  heroPaceStrip: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    letterSpacing: 1,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
   },
 
   // ── Grade panel ───────────────────────────────────────────────────────────
@@ -544,111 +450,59 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // ── Section label ─────────────────────────────────────────────────────────
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
-    color: colors.textTertiary,
-    marginBottom: spacing[3],
-    paddingHorizontal: spacing[1],
+  // ── Meters card ───────────────────────────────────────────────────────────
+  metersCard: {
+    marginBottom: spacing[6],
   },
-
-  // ── Breakdown card + rows ─────────────────────────────────────────────────
-  breakdownCard: {
-    overflow: 'hidden',
+  metersTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing[4],
   },
-  rowDivider: {
+  meterSep: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,
-    marginHorizontal: spacing[5],
   },
-  breakdownRow: {
+  meterRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
-    paddingHorizontal: spacing[5],
-    paddingVertical:   spacing[5],
-    gap: 0,
+    paddingVertical: spacing[2],
+    gap: spacing[4],
   },
-  rowLabelGroup: {
+  meterLeft: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
   },
-  rowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    flexShrink: 0,
-  },
-  rowLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    letterSpacing: -0.1,
-  },
-  rowHint: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  rowAmounts: {
-    alignItems: 'flex-end',
-  },
-  rowAmountMain: {
-    fontSize: 15,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-    color: colors.text,
-    letterSpacing: -0.2,
-  },
-  rowAmountOf: {
+  meterMono: {
+    fontFamily: fonts.mono,
     fontSize: 11,
-    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.5,
     color: colors.textTertiary,
-    marginTop: 2,
+    marginTop: 3,
   },
-  rowTrackWrap: {
-    width: '100%',
-    marginTop: spacing[3],
+  meterRight: {
+    width: 96,
   },
-  // Container lets the pace tick render outside the track's overflow:hidden
-  rowTrackContainer: {
-    // no overflow hidden — pace tick can poke above/below
+  meterTrackWrap: {
+    paddingTop: 6,
   },
-  rowTrack: {
-    height: 5,
+  meterTick: {
+    position: 'absolute',
+    top: 0,
+    width: 4,
+    height: 8,
+    borderRadius: 2,
+    backgroundColor: colors.textTertiary,
+    opacity: 0.5,
+    transform: [{ translateX: -2 }],
+  },
+  meterTrack: {
+    height: 4,
     borderRadius: radius.full,
     overflow: 'hidden',
-    flexDirection: 'row',   // flex-based fill
   },
-  rowFill: {
-    alignSelf: 'stretch',
+  meterFill: {
+    height: 4,
     borderRadius: radius.full,
-  },
-  // Vertical tick at the pace position (where you should be today)
-  paceTick: {
-    position: 'absolute',
-    top: -3,
-    height: 11,
-    width: 2,
-    borderRadius: 1,
-    backgroundColor: colors.border,
-    transform: [{ translateX: -1 }],
-  },
-  verdictRow: {
-    marginTop: 5,
-    alignItems: 'flex-start',
-  },
-  verdictText: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
 
   // ── AI Budget Review entry ───────────────────────────────────────────────

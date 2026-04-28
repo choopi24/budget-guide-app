@@ -3,7 +3,7 @@ import { StyleSheet, View, ViewStyle } from 'react-native';
 import { colors } from '../../theme/colors';
 import { radius, shadows, spacing } from '../../theme/tokens';
 
-export type CardVariant = 'elevated' | 'outlined' | 'flat';
+export type CardVariant = 'elevated' | 'outlined' | 'flat' | 'hero';
 
 type CardProps = {
   children: ReactNode;
@@ -43,4 +43,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   flat: {},
+  hero: {
+    backgroundColor: colors.ink,
+    borderWidth: 0,
+    ...shadows.lg,
+  },
 });

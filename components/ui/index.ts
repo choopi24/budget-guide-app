@@ -26,4 +26,5 @@ export {
   Footnote,
   Caption,
   Eyebrow,
+  HeroNumber,
 } from './Typography';

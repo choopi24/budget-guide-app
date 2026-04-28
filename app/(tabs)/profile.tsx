@@ -3,7 +3,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '../../components/AppScreen';
-import { AppLogo } from '../../components/AppLogo';
 import HumanAvatar from '../../components/HumanAvatar';
 import {
   ACHIEVEMENT_DEFS,
@@ -14,7 +13,6 @@ import {
 import { useAvatarDb, type AvatarConfig } from '../../db/avatar';
 import {
   GRADE_SCORE,
-  LEAGUE_META,
   getLeague,
   getNextLeagueRequirements,
   useProfileDb,
@@ -26,9 +24,11 @@ import { useSettingsDb, type SupportedCurrency } from '../../db/settings';
 import { GRADE_COLOR, type BudgetGrade } from '../../lib/grade';
 import { getMonthLabelFromKey } from '../../lib/date';
 import { formatCentsToMoney } from '../../lib/money';
-import { SectionLabel } from '../../components/ui/SectionLabel';
+import { Card } from '../../components/ui/Card';
+import { Eyebrow, Headline } from '../../components/ui/Typography';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/fonts';
+import { radius, spacing } from '../../theme/tokens';
 
 function GradeBadge({ grade }: { grade: BudgetGrade }) {
   return (
@@ -36,26 +36,6 @@ function GradeBadge({ grade }: { grade: BudgetGrade }) {
       <Text style={[styles.gradeText, { color: GRADE_COLOR[grade] }]}>{grade}</Text>
     </View>
   );
-}
-
-function streakFlames(count: number): string {
-  if (count >= 30) return '🔥🔥🔥🔥🔥';
-  if (count >= 14) return '🔥🔥🔥🔥';
-  if (count >= 7)  return '🔥🔥🔥';
-  if (count >= 3)  return '🔥🔥';
-  if (count >= 1)  return '🔥';
-  return '';
-}
-
-function joinedAgo(dateStr: string): string {
-  const joined = new Date(dateStr);
-  const now = new Date();
-  const days = Math.floor((now.getTime() - joined.getTime()) / (1000 * 60 * 60 * 24));
-  if (days === 0) return 'Joined today';
-  if (days === 1) return 'Joined yesterday';
-  if (days < 30)  return `Joined ${days} days ago`;
-  const months = Math.floor(days / 30);
-  return `Joined ${months} month${months > 1 ? 's' : ''} ago`;
 }
 
 export default function ProfileScreen() {
@@ -107,7 +87,6 @@ export default function ProfileScreen() {
   const totalMonths = months.length;
 
   const league: League | null = avgScore !== null ? getLeague(avgScore, totalMonths) : null;
-  const leagueMeta = league ? LEAGUE_META[league] : null;
   const nextReq = league ? getNextLeagueRequirements(league) : null;
 
   const progressToNext = useMemo(() => {
@@ -130,47 +109,94 @@ export default function ProfileScreen() {
 
   const unlockedCount = achievements.filter((a) => a.unlockedAt !== null).length;
 
+  // Inline derived values for hero card — no new hooks or state
+  const leagueOrder: League[] = ['Iron', 'Bronze', 'Silver', 'Gold', 'Apex'];
+  const nextLeagueName: League | null = league && nextReq
+    ? (leagueOrder[leagueOrder.indexOf(league) + 1] ?? null)
+    : null;
+  const pointsToNext = avgScore !== null && nextReq
+    ? Math.max(0, nextReq.score - avgScore)
+    : 0;
+
   return (
     <AppScreen scroll>
 
       {/* ── Profile Hero ──────────────────────────────── */}
-      <View style={styles.heroCard}>
-        <View style={styles.heroTopRow}>
-          <View style={styles.heroLeft}>
-            <SectionLabel style={styles.eyebrow}>Your profile</SectionLabel>
-            <Text style={styles.pageTitle}>{profile.name ?? 'Your name'}</Text>
-            {!!profile.occupation && (
-              <Text style={styles.occupation}>{profile.occupation}</Text>
-            )}
-            <Pressable
-              onPress={() => router.push('/avatar-edit' as any)}
-              style={styles.editProfileButton}
-            >
-              <Text style={styles.editProfileText}>Edit avatar</Text>
-            </Pressable>
-          </View>
+      <Card variant="hero" style={styles.heroCard}>
 
-          {/* Tappable bull avatar */}
-          <Pressable
-            onPress={() => router.push('/avatar-edit' as any)}
-            style={styles.avatarContainer}
-          >
+        {/* Row A — identity */}
+        <View style={styles.heroIdentityRow}>
+          <View style={styles.heroAvatarCircle}>
             <HumanAvatar
               skinTone={avatar.skinTone}
               suitColor={avatar.suitColor}
               hat={avatar.hat}
               glasses={avatar.glasses}
               extra={avatar.extra}
-              size={96}
+              size={56}
               animated
               ownerName={profile.name ?? ''}
             />
-            <View style={styles.editAvatarBadge}>
-              <Text style={styles.editAvatarIcon}>✎</Text>
-            </View>
+          </View>
+          <View style={styles.heroIdentityMid}>
+            <Headline color={colors.surface}>{profile.name ?? 'Your name'}</Headline>
+            <Text style={styles.heroStreakLine}>
+              {streak?.currentStreak ?? 0}-DAY STREAK · {totalMonths} MONTHS
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/settings' as any)}
+            hitSlop={10}
+            style={styles.heroSettingsBtn}
+          >
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </Pressable>
         </View>
-      </View>
+
+        {/* Row B — league name */}
+        {league && (
+          <View style={styles.heroLeagueRow}>
+            <Eyebrow color={colors.textTertiary}>CURRENT LEAGUE</Eyebrow>
+            <Text style={styles.heroLeagueName}>{league}</Text>
+          </View>
+        )}
+
+        {/* Row C — progress bar to next league */}
+        {league && (
+          <View style={styles.heroProgressRow}>
+            <View style={styles.heroProgressTrack}>
+              <View
+                style={[
+                  styles.heroProgressFill,
+                  { width: `${Math.round(progressToNext * 100)}%` as any },
+                ]}
+              />
+            </View>
+            <Text style={styles.heroProgressLabel}>
+              {nextLeagueName
+                ? `${pointsToNext} PTS TO ${nextLeagueName.toUpperCase()}`
+                : 'APEX — TOP LEAGUE'}
+            </Text>
+          </View>
+        )}
+
+        {/* Row D — KPI tiles */}
+        <View style={styles.heroKpiRow}>
+          <View style={styles.heroKpiTile}>
+            <Text style={styles.heroKpiLabel}>AVG SCORE</Text>
+            <Text style={styles.heroKpiValue}>{avgScore ?? '—'}</Text>
+          </View>
+          <View style={styles.heroKpiTile}>
+            <Text style={styles.heroKpiLabel}>MONTHS</Text>
+            <Text style={styles.heroKpiValue}>{totalMonths}</Text>
+          </View>
+          <View style={styles.heroKpiTile}>
+            <Text style={styles.heroKpiLabel}>BEST GRADE</Text>
+            <Text style={styles.heroKpiValue}>{bestGrade ?? '—'}</Text>
+          </View>
+        </View>
+
+      </Card>
 
       {/* ── Utility rows: Settings + Calculators ────── */}
       <Pressable
@@ -205,36 +231,6 @@ export default function ProfileScreen() {
         <Ionicons name="chevron-forward" size={15} color={colors.border} />
       </Pressable>
 
-      {/* ── Streak Card ───────────────────────────────── */}
-      {streak !== null && (
-        <View style={styles.streakCard}>
-          <View style={styles.streakLeft}>
-            <AppLogo size={64} streakCount={streak.currentStreak} />
-          </View>
-          <View style={styles.streakRight}>
-            <Text style={styles.streakTitle}>
-              Day {streak.currentStreak} Streak {streakFlames(streak.currentStreak)}
-            </Text>
-            <Text style={styles.streakSub}>
-              {joinedAgo(streak.joinDate)}
-            </Text>
-            {streak.longestStreak > 1 && (
-              <Text style={styles.streakRecord}>
-                Personal best: {streak.longestStreak} days
-              </Text>
-            )}
-            <View style={styles.streakPips}>
-              {Array.from({ length: Math.min(streak.currentStreak, 7) }).map((_, i) => (
-                <View key={i} style={styles.streakPip} />
-              ))}
-              {streak.currentStreak > 7 && (
-                <Text style={styles.streakMore}>+{streak.currentStreak - 7}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-      )}
-
       {/* ── No data yet ───────────────────────────────── */}
       {months.length === 0 && (
         <View style={styles.emptyCard}>
@@ -242,69 +238,6 @@ export default function ProfileScreen() {
           <Text style={styles.emptyBody}>
             Complete your first budget month to unlock your league and scoreboard.
           </Text>
-        </View>
-      )}
-
-      {/* ── League Card ───────────────────────────────── */}
-      {league && leagueMeta && (
-        <View style={[styles.leagueCard, { borderColor: leagueMeta.color + '40' }]}>
-          <View style={styles.leagueTopRow}>
-            <View>
-              <Text style={styles.leagueEyebrow}>Current league</Text>
-              <Text style={[styles.leagueName, { color: leagueMeta.color }]}>{league}</Text>
-              <Text style={styles.leagueDescription}>{leagueMeta.description}</Text>
-            </View>
-            <View style={[styles.leagueBadge, { backgroundColor: leagueMeta.accent }]}>
-              <Text style={[styles.leagueBadgeIcon, { color: leagueMeta.color }]}>{leagueMeta.icon}</Text>
-              <Text style={[styles.leagueBadgeText, { color: leagueMeta.color }]}>{league}</Text>
-            </View>
-          </View>
-
-          <View style={styles.leagueStats}>
-            <View style={styles.leagueStat}>
-              <Text style={styles.leagueStatValue}>{avgScore}</Text>
-              <Text style={styles.leagueStatLabel}>Avg</Text>
-            </View>
-            <View style={styles.leagueStatDivider} />
-            <View style={styles.leagueStat}>
-              <Text style={styles.leagueStatValue}>{totalMonths}</Text>
-              <Text style={styles.leagueStatLabel}>Months</Text>
-            </View>
-            <View style={styles.leagueStatDivider} />
-            <View style={styles.leagueStat}>
-              <Text style={[styles.leagueStatValue, bestGrade ? { color: GRADE_COLOR[bestGrade] } : undefined]}>
-                {bestGrade ?? '—'}
-              </Text>
-              <Text style={styles.leagueStatLabel}>Best</Text>
-            </View>
-          </View>
-
-          {nextReq !== null && (
-            <View style={styles.progressSection}>
-              <View style={styles.progressLabelRow}>
-                <Text style={styles.progressLabel}>Progress to next league</Text>
-                <Text style={[styles.progressLabel, { color: leagueMeta.color }]}>
-                  {avgScore} / {nextReq.score} pts · {totalMonths} / {nextReq.months} mo
-                </Text>
-              </View>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${Math.round(progressToNext * 100)}%` as any, backgroundColor: leagueMeta.color },
-                  ]}
-                />
-              </View>
-            </View>
-          )}
-
-          {nextReq === null && (
-            <View style={styles.apexBanner}>
-              <Text style={[styles.apexBannerText, { color: leagueMeta.color }]}>
-                {"You've reached the top league"}
-              </Text>
-            </View>
-          )}
         </View>
       )}
 
@@ -339,10 +272,8 @@ export default function ProfileScreen() {
 
       {/* ── Achievements ─────────────────────────────── */}
       <View style={styles.achieveHeader}>
-        <Text style={styles.sectionTitle}>Achievements</Text>
-        <Text style={styles.achieveCount}>
-          {unlockedCount} / {ACHIEVEMENT_DEFS.length}
-        </Text>
+        <Eyebrow>ACHIEVEMENTS</Eyebrow>
+        <Text style={styles.achieveCounter}>{unlockedCount} / {ACHIEVEMENT_DEFS.length}</Text>
       </View>
       <View style={styles.achieveGrid}>
         {achievements.map((ach) => {
@@ -350,19 +281,15 @@ export default function ProfileScreen() {
           return (
             <View
               key={ach.id}
-              style={[styles.achieveCard, !unlocked && styles.achieveCardLocked]}
+              style={[styles.achieveTile, unlocked ? styles.achieveTileUnlocked : styles.achieveTileLocked]}
             >
-              <Text style={[styles.achieveIcon, !unlocked && styles.achieveIconLocked]}>
-                {unlocked ? ach.icon : '🔒'}
-              </Text>
-              <Text style={[styles.achieveTitle, !unlocked && styles.achieveTitleLocked]}>
-                {ach.title}
-              </Text>
-              <Text style={[styles.achieveDesc, !unlocked && styles.achieveDescLocked]}>
-                {ach.description}
-              </Text>
-              {unlocked && (
-                <View style={styles.achieveUnlockedDot} />
+              {unlocked ? (
+                <>
+                  <Text style={styles.achieveTileIcon}>{ach.icon}</Text>
+                  <Text style={styles.achieveTileName} numberOfLines={1}>{ach.title}</Text>
+                </>
+              ) : (
+                <Ionicons name="lock-closed" size={18} color={colors.textTertiary} />
               )}
             </View>
           );
@@ -413,127 +340,98 @@ export default function ProfileScreen() {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+
+  // ── Hero card ────────────────────────────────────────────────────────────────
   heroCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: colors.text,
-    shadowOpacity: 0.07,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    marginTop:    spacing[5],
+    marginBottom: spacing[6],
   },
-  heroTopRow: {
+  heroIdentityRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems:    'center',
+    gap:           spacing[3],
   },
-  heroLeft: {
+  heroAvatarCircle: {
+    width:           56,
+    height:          56,
+    borderRadius:    28,
+    backgroundColor: colors.inkPanel,
+    overflow:        'hidden',
+    flexShrink:      0,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  heroIdentityMid: {
     flex: 1,
-    paddingRight: 8,
   },
-  eyebrow: {
-    marginBottom: 6,
+  heroStreakLine: {
+    fontFamily:    fonts.mono,
+    fontSize:      11,
+    letterSpacing: 0.5,
+    color:         colors.textTertiary,
+    marginTop:     3,
   },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
+  heroSettingsBtn: {
+    padding:    spacing[1],
+    flexShrink: 0,
+  },
+  heroLeagueRow: {
+    marginTop: spacing[5],
+  },
+  heroLeagueName: {
+    fontFamily:    fonts.bold,
+    fontSize:      28,
+    color:         colors.gold,
+    letterSpacing: -0.5,
+    marginTop:     spacing[1],
+  },
+  heroProgressRow: {
+    marginTop: spacing[3],
+  },
+  heroProgressTrack: {
+    height:          4,
+    borderRadius:    radius.full,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    overflow:        'hidden',
+  },
+  heroProgressFill: {
+    height:          4,
+    borderRadius:    radius.full,
+    backgroundColor: colors.gold,
+  },
+  heroProgressLabel: {
+    fontFamily:    fonts.mono,
+    fontSize:      11,
+    letterSpacing: 0.5,
+    color:         colors.textTertiary,
+    marginTop:     spacing[2],
+  },
+  heroKpiRow: {
+    flexDirection: 'row',
+    gap:           spacing[3],
+    marginTop:     spacing[5],
+  },
+  heroKpiTile: {
+    flex:            1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius:    radius.lg,
+    padding:         spacing[3],
+  },
+  heroKpiLabel: {
+    fontFamily:    fonts.mono,
+    fontSize:      10,
+    letterSpacing: 0.6,
+    color:         colors.textTertiary,
+    marginBottom:  spacing[1],
+  },
+  heroKpiValue: {
+    fontFamily:    fonts.bold,
+    fontSize:      22,
+    color:         colors.surface,
+    fontVariant:   ['tabular-nums'],
     letterSpacing: -0.5,
   },
-  occupation: {
-    marginTop: 4,
-    fontSize: 14,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  editProfileButton: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  editProfileText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  editAvatarBadge: {
-    position: 'absolute',
-    bottom: 6,
-    right: -2,
-    width: 22,
-    height: 22,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface,
-  },
-  editAvatarIcon: {
-    fontSize: 11,
-    color: colors.white,
-    lineHeight: 14,
-  },
-  // Streak card
-  streakCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 12,
-    gap: 14,
-  },
-  streakLeft: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakRight: {
-    flex: 1,
-  },
-  streakTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  streakSub: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 4,
-  },
-  streakRecord: {
-    fontSize: 11,
-    color: colors.primary,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  streakPips: {
-    flexDirection: 'row',
-    gap: 4,
-    alignItems: 'center',
-  },
-  streakPip: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-  },
-  streakMore: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
+
   // Empty
   emptyCard: {
     backgroundColor: colors.surface,
@@ -548,64 +446,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
   emptyBody: { fontSize: 15, lineHeight: 22, color: colors.textMuted },
-  // League
-  leagueCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    padding: 22,
-    marginBottom: 20,
-    shadowColor: colors.text,
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  leagueTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 18,
-  },
-  leagueEyebrow: {
-    fontSize: 11, fontWeight: '700', letterSpacing: 1,
-    textTransform: 'uppercase', color: colors.textMuted, marginBottom: 6,
-  },
-  leagueName: { fontSize: 36, fontWeight: '800', fontFamily: fonts.bold, letterSpacing: -0.5 },
-  leagueDescription: {
-    marginTop: 4, fontSize: 13, color: colors.textMuted, maxWidth: 200, lineHeight: 18,
-  },
-  leagueBadge: {
-    width: 70, height: 70, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
-  },
-  leagueBadgeIcon: { fontSize: 22 },
-  leagueBadgeText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5, marginTop: 2 },
-  leagueStats: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.background, borderRadius: 16,
-    paddingVertical: 14, paddingHorizontal: 8, marginBottom: 18,
-  },
-  leagueStat: { flex: 1, alignItems: 'center' },
-  leagueStatDivider: {
-    width: StyleSheet.hairlineWidth, height: 30, backgroundColor: colors.border,
-  },
-  leagueStatValue: { fontSize: 20, fontWeight: '800', color: colors.text },
-  leagueStatLabel: {
-    marginTop: 3, fontSize: 11, color: colors.textMuted,
-    fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3,
-  },
-  progressSection: { marginTop: 2 },
-  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  progressLabel: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  progressTrack: {
-    height: 8, backgroundColor: colors.background, borderRadius: 999, overflow: 'hidden',
-  },
-  progressFill: { height: '100%', borderRadius: 999 },
-  apexBanner: {
-    marginTop: 8, paddingVertical: 10,
-    backgroundColor: colors.background, borderRadius: 12, alignItems: 'center',
-  },
-  apexBannerText: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
   // Section titles
   sectionTitle: {
     fontSize: 13, fontWeight: '700', color: colors.textMuted,
@@ -630,35 +470,50 @@ const styles = StyleSheet.create({
   distCount: { width: 24, fontSize: 13, fontWeight: '700', color: colors.textMuted, textAlign: 'right' },
   // Achievements
   achieveHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'baseline', marginBottom: 12, paddingHorizontal: 4,
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'center',
+    marginBottom:   spacing[3],
   },
-  achieveCount: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
+  achieveCounter: {
+    fontFamily:    fonts.mono,
+    fontSize:      11,
+    letterSpacing: 0.5,
+    color:         colors.textTertiary,
+  },
   achieveGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24,
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           spacing[3],
+    marginBottom:  spacing[6],
   },
-  achieveCard: {
-    width: '47%',
+  achieveTile: {
+    width:          '22%',
+    aspectRatio:    1,
+    borderRadius:   radius.lg,
+    borderWidth:    1,
+    borderColor:    colors.border,
+    alignItems:     'center',
+    justifyContent: 'center',
+    padding:        spacing[1],
+  },
+  achieveTileUnlocked: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    position: 'relative',
   },
-  achieveCardLocked: {
-    backgroundColor: colors.background,
-    opacity: 0.7,
+  achieveTileLocked: {
+    backgroundColor: colors.surfaceSoft,
   },
-  achieveIcon: { fontSize: 26, marginBottom: 8 },
-  achieveIconLocked: { opacity: 0.4 },
-  achieveTitle: { fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 3 },
-  achieveTitleLocked: { color: colors.textMuted },
-  achieveDesc: { fontSize: 11, color: colors.textMuted, lineHeight: 15 },
-  achieveDescLocked: { color: colors.textMuted, opacity: 0.7 },
-  achieveUnlockedDot: {
-    position: 'absolute', top: 10, right: 10,
-    width: 8, height: 8, borderRadius: 999, backgroundColor: colors.primary,
+  achieveTileIcon: {
+    fontSize:   22,
+    lineHeight: 28,
+    textAlign:  'center',
+  },
+  achieveTileName: {
+    fontFamily:  fonts.semiBold,
+    fontSize:    11,
+    color:       colors.text,
+    marginTop:   spacing[1],
+    textAlign:   'center',
   },
   // Scoreboard
   scoreboardCard: {

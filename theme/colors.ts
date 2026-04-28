@@ -43,4 +43,7 @@ export const colors = {
   buttonDisabled: '#D5D1CB',    // warm mid-gray for disabled fill
   switchTrackOn:  '#009E78',
   white: '#FFFFFF',
+
+  // ── League accent — used ONLY for the league name on Profile.
+  gold: '#E5C07B',
 };
