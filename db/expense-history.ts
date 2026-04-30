@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
+import { recalculateMonthChain } from './rollover';
 
 export type ExpenseHistoryItem = {
   id: number;
@@ -89,21 +90,16 @@ export function useExpenseHistoryDb() {
       final_bucket: 'must' | 'want';
       is_investment: number;
     }>(
-      `
-      SELECT
-        id,
-        month_id,
-        title,
-        amount_cents,
-        spent_on,
-        note,
-        final_bucket,
-        is_investment
-      FROM expenses
-      WHERE id = ?
-      LIMIT 1
-      `,
+      `SELECT id, month_id, title, amount_cents, spent_on, note, final_bucket, is_investment
+       FROM expenses WHERE id = ? LIMIT 1`,
       [id]
+    );
+  }, [db]);
+
+  const getMonthStatus = useCallback((monthId: number) => {
+    return db.getFirstAsync<{ status: string; month_key: string }>(
+      `SELECT status, month_key FROM months WHERE id = ? LIMIT 1`,
+      [monthId]
     );
   }, [db]);
 
@@ -117,13 +113,12 @@ export function useExpenseHistoryDb() {
   }) {
     const now = new Date().toISOString();
     const existing = await getExpenseById(input.id);
+    if (!existing) throw new Error('Expense not found.');
 
-    if (!existing) {
-      throw new Error('Expense not found.');
-    }
+    const monthInfo = await getMonthStatus(existing.month_id);
 
     await db.withTransactionAsync(async () => {
-      // Reverse the old amount from whichever counter it came from
+      // Reverse old amount
       if (existing.is_investment) {
         await db.runAsync(
           `UPDATE months SET invest_spent_cents = invest_spent_cents - ?, updated_at = ? WHERE id = ?`,
@@ -142,29 +137,11 @@ export function useExpenseHistoryDb() {
       }
 
       await db.runAsync(
-        `
-        UPDATE expenses
-        SET
-          title = ?,
-          amount_cents = ?,
-          spent_on = ?,
-          note = ?,
-          final_bucket = ?,
-          updated_at = ?
-        WHERE id = ?
-        `,
-        [
-          input.title.trim(),
-          input.amountCents,
-          input.spentOn,
-          input.note?.trim() || null,
-          input.finalBucket,
-          now,
-          input.id,
-        ]
+        `UPDATE expenses SET title = ?, amount_cents = ?, spent_on = ?, note = ?, final_bucket = ?, updated_at = ? WHERE id = ?`,
+        [input.title.trim(), input.amountCents, input.spentOn, input.note?.trim() || null, input.finalBucket, now, input.id]
       );
 
-      // Investment expenses keep going to invest_spent_cents even after edit
+      // Investment expenses stay in invest_spent_cents after edit
       if (existing.is_investment) {
         await db.runAsync(
           `UPDATE months SET invest_spent_cents = invest_spent_cents + ?, updated_at = ? WHERE id = ?`,
@@ -182,15 +159,19 @@ export function useExpenseHistoryDb() {
         );
       }
     });
-  }, [db, getExpenseById]);
+
+    // If the expense was in a closed month, propagate changed spent_cents forward
+    if (monthInfo && monthInfo.status === 'closed') {
+      await recalculateMonthChain(db, monthInfo.month_key);
+    }
+  }, [db, getExpenseById, getMonthStatus]);
 
   const deleteExpense = useCallback(async function deleteExpense(id: number) {
     const now = new Date().toISOString();
     const existing = await getExpenseById(id);
+    if (!existing) throw new Error('Expense not found.');
 
-    if (!existing) {
-      throw new Error('Expense not found.');
-    }
+    const monthInfo = await getMonthStatus(existing.month_id);
 
     await db.withTransactionAsync(async () => {
       if (existing.is_investment) {
@@ -209,10 +190,14 @@ export function useExpenseHistoryDb() {
           [existing.amount_cents, now, existing.month_id]
         );
       }
-
       await db.runAsync(`DELETE FROM expenses WHERE id = ?`, [id]);
     });
-  }, [db, getExpenseById]);
+
+    // If the expense was in a closed month, propagate changed spent_cents forward
+    if (monthInfo && monthInfo.status === 'closed') {
+      await recalculateMonthChain(db, monthInfo.month_key);
+    }
+  }, [db, getExpenseById, getMonthStatus]);
 
   return {
     getAllExpenses,
@@ -221,5 +206,6 @@ export function useExpenseHistoryDb() {
     getExpenseById,
     updateExpense,
     deleteExpense,
+    getMonthStatus,
   };
 }

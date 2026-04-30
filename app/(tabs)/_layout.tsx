@@ -14,10 +14,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
 
       {/* ── Auxiliary screens — not shown in the tab bar ──────────────────── */}
-      {/* Settings lives under Profile as a row entry point.                  */}
-      {/* FloatingTabBar maps the active settings route → Profile tab.        */}
-      <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarButton: () => null }} />
-      <Tabs.Screen name="tips"     options={{ title: 'Tips',     tabBarButton: () => null }} />
+      <Tabs.Screen name="tips" options={{ title: 'Tips', tabBarButton: () => null }} />
     </Tabs>
   );
 }

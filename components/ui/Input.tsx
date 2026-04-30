@@ -67,7 +67,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.white,
     paddingHorizontal: spacing[4],
-    ...typeScale.body,
+    fontSize: typeScale.body.fontSize,
+    fontWeight: typeScale.body.fontWeight,
     color: colors.text,
   },
   inputError: {

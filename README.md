@@ -78,6 +78,75 @@ Scan the QR code with Expo Go, or press `i` to open the iOS Simulator.
 
 ---
 
+## Environment variables
+
+Copy `.env.example` to `.env` and fill in the values you need. `.env` is gitignored.
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Required for |
+|---|---|---|
+| `EXPO_PUBLIC_RECEIPT_SCAN_URL` | _(empty)_ | Receipt scanning |
+| `EXPO_PUBLIC_AI_PROVIDER` | `mock` | AI budget review (remote mode) |
+| `EXPO_PUBLIC_AI_ENDPOINT` | _(empty)_ | AI budget review (remote mode) |
+| `EXPO_PUBLIC_AI_API_KEY` | _(empty)_ | AI budget review (remote mode, if your proxy requires auth) |
+
+### Offline vs. network features
+
+| Feature | Offline? | What it needs |
+|---|---|---|
+| Monthly budgeting, expense tracking | ✅ Always offline | Nothing |
+| Investment portfolio, value history | ✅ Always offline | Nothing |
+| Budget grading (A+–F) | ✅ Always offline | Nothing |
+| Apple Pay / Siri Shortcut | ✅ Always offline | Nothing |
+| AI budget review (`mock` provider) | ✅ Offline | Nothing — the mock runs on-device with your real data |
+| Crypto live price refresh | 🌐 Network | CoinGecko public API — no key needed |
+| Receipt scanning | 🌐 Network | `EXPO_PUBLIC_RECEIPT_SCAN_URL` pointing to your backend |
+| AI budget review (`remote` provider) | 🌐 Network | `EXPO_PUBLIC_AI_PROVIDER=remote` + `EXPO_PUBLIC_AI_ENDPOINT` |
+
+### Configuring receipt scanning
+
+Receipt scanning is powered by a backend you control — the app never calls any AI API directly.
+
+1. Deploy a backend endpoint that accepts `POST { image: "<base64 jpeg>" }` and returns an `ExtractedReceipt` JSON object (see `lib/receipts/types.ts` for the shape).
+2. Set `EXPO_PUBLIC_RECEIPT_SCAN_URL=https://your-backend.com/receipt-scan` in `.env`.
+3. Rebuild the app (env vars are baked in at build time with Expo).
+
+When `EXPO_PUBLIC_RECEIPT_SCAN_URL` is unset, the receipt scan screen shows a "not available" notice and scanning is disabled. No crash.
+
+Your backend should:
+- Call a vision model (e.g. GPT-4o, Claude 3) with the image
+- Return the extracted fields (`merchant`, `amount`, `date`, `items`, `confidence`, etc.)
+- Handle auth and rate-limiting server-side
+
+The client (`lib/receipts/remoteProvider.ts`) normalises the response and handles `network_error`, `api_error`, `parse_error`, and `unreadable` error codes gracefully.
+
+### Configuring AI budget review
+
+The default `mock` provider runs entirely on-device and produces real data-driven analysis from your SQLite data — no configuration needed.
+
+To connect a real LLM backend:
+
+1. Set `EXPO_PUBLIC_AI_PROVIDER=remote` in `.env`.
+2. Set `EXPO_PUBLIC_AI_ENDPOINT=https://your-backend.com/budget-analysis`.
+3. Optionally set `EXPO_PUBLIC_AI_API_KEY` if your endpoint requires a bearer token.
+4. Rebuild the app.
+
+Your endpoint must accept `POST <AnalysisInput JSON>` and return `<BudgetAnalysisResponse JSON>` (see `lib/ai/types.ts`).
+
+### Security — API keys
+
+> **`EXPO_PUBLIC_*` variables are embedded in the JavaScript bundle** and are readable by anyone who downloads your app. Never put a production API key (Anthropic, OpenAI, etc.) directly in an `EXPO_PUBLIC_*` variable.
+
+Use a backend proxy:
+- The proxy holds the real API key server-side.
+- Authenticate the mobile app with a short-lived session token or device-check mechanism.
+- Set that session token as `EXPO_PUBLIC_AI_API_KEY` (or pass it at runtime) — it's not a secret even if extracted, because it's scoped and revocable.
+
+---
+
 ## App structure
 
 ```
@@ -87,9 +156,9 @@ app/
     history.tsx                # Full expense history with filters
     savings.tsx                # Investment portfolio overview (Invest tab)
     profile.tsx                # Profile, streak, achievements, nav to Settings
-    settings.tsx               # Currency, rollover rules, split — opened from Profile
     tips.tsx                   # Budget tips — opened from Profile
   investment/[id].tsx          # Investment detail: chart, history, buy/sell
+  settings.tsx                 # Currency, rollover rules, split — stack screen pushed from Profile
   onboarding.tsx               # 3-step onboarding wizard
   month-setup.tsx              # New-month setup flow
   expense-new.tsx              # Quick add expense modal
@@ -176,7 +245,7 @@ theme/
 
 ## Database migrations
 
-Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v15**. Each version gate runs `ALTER TABLE` statements and bumps `PRAGMA user_version`. Fresh installs skip straight to the full schema at v0 and set `user_version = 15`.
+Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v16**. Each version gate runs `ALTER TABLE` statements and bumps `PRAGMA user_version`. Fresh installs skip straight to the full schema at v0 and set `user_version = 16`.
 
 ---
 
@@ -189,6 +258,79 @@ Each month earns a grade (A+ down to F) based on how well spending stayed within
 - Two consecutive A+ months earn an **S** grade.
 
 The Home screen shows the current grade alongside a 2–3 line plain-language explanation and one actionable improvement hint.
+
+---
+
+## Platform support
+
+| Platform | Status | Notes |
+|---|---|---|
+| iPhone | ✅ Primary target | All UI and safe-area handling is iPhone-optimised |
+| iPad | ⚠️ Enabled, not optimised | `supportsTablet: true` is set (Expo default). The app runs and is usable on iPad, but the layout is iPhone-sized and not adapted for the larger canvas. |
+| Android | ⚠️ Builds, not tested | Adaptive icons and edge-to-edge are configured. Core logic works. UI may have rough edges. Not a current focus. |
+| Web | 🚧 Scaffold only | `expo-router` web output is configured (`"output": "static"`) but the app is not tested or optimised for browsers. |
+
+If you intend to ship iPad or Android, audit safe area handling, font scaling, and the floating tab bar before release.
+
+---
+
+## Pre-release checklist
+
+Run through this list before building a release or submitting to the App Store.
+
+### Code quality
+
+- [ ] `npm run typecheck` — zero TypeScript errors
+- [ ] `npm run lint` — zero ESLint errors or warnings
+- [ ] `npm test` — all tests pass
+- [ ] `npm run format:check` — no formatting drift
+
+### Native project
+
+- [ ] Run `expo prebuild --clean` to regenerate the iOS native project from `app.json`. This ensures all plugin-injected config (permissions, URL schemes, build settings) is applied correctly before archiving.
+- [ ] Confirm `ios.bundleIdentifier` in `app.json` matches the App Store Connect record.
+- [ ] Confirm `ios.buildNumber` in `app.json` is incremented from the last submission.
+- [ ] Open in Xcode → Product → Archive. Confirm the build signs cleanly.
+
+### Fresh install
+
+- [ ] Delete the app from the simulator/device, install clean, complete onboarding.
+- [ ] Confirm all four tabs load without errors.
+- [ ] Add an expense, close the month, verify rollover.
+
+### Upgrade / migration
+
+- [ ] Install an older build over an existing data set.
+- [ ] Confirm DB migrations run cleanly and no data is lost.
+- [ ] Check that the active month, expense history, and investments all display correctly after upgrade.
+
+### Optional feature states
+
+- [ ] Build with `EXPO_PUBLIC_RECEIPT_SCAN_URL` unset. Confirm the receipt scan screen shows the "not available" notice and does not crash.
+- [ ] Build with `EXPO_PUBLIC_AI_PROVIDER=mock` (default). Confirm the AI budget review loads and shows local analysis.
+- [ ] Build with `EXPO_PUBLIC_AI_PROVIDER=remote` and a non-existent endpoint. Confirm the error state is shown with a retry option.
+
+### Features under test
+
+- [ ] Log expense via camera receipt scan (requires a configured backend).
+- [ ] Log expense via Apple Pay / Siri Shortcut deep link.
+- [ ] Crypto live price refresh on an investment with a valid coin ID.
+- [ ] Export all three CSV types (Months, Expenses, Investments) via Settings → Export.
+- [ ] Camera and photo library permission denial — confirm "Open Settings" is shown, not a crash.
+
+### Data safety
+
+- [ ] Verify uninstall warning is visible to the user (Settings or onboarding).
+- [ ] Confirm no data leaves the device except via explicit user export or the configured backend endpoints.
+
+### App Store Connect
+
+- [ ] App name, subtitle, description, and keywords filled in.
+- [ ] Screenshots uploaded for iPhone 15 Pro Max (6.7″) at minimum.
+- [ ] Privacy policy URL filled in (required even for local-only apps).
+- [ ] Data-use declaration completed: select "No data collected" if no analytics/backend is active, or declare only the specific data types your backend processes.
+- [ ] Age rating questionnaire completed.
+- [x] `userInterfaceStyle` is set to `"light"` in `app.json`. The app uses a fixed warm-paper theme with no dark-mode colour variants; `"automatic"` would cause OS-level colour inversion in dark mode.
 
 ---
 
@@ -225,9 +367,12 @@ The app is in active personal development. Core budgeting flows are complete and
 
 ## Local data note
 
-BudgetBull stores everything in an SQLite database on your device. There is no backend account or sync. Optional network calls:
+BudgetBull stores everything in an SQLite database on your device. There is no account, no sync, and no telemetry. The optional network calls are:
 
-- **CoinGecko** — live crypto price lookups on the Invest tab
-- **AI backend proxy** — receipt scanning and budget analysis (requires a configured backend endpoint)
+- **CoinGecko** — live crypto price refresh on the Invest tab (no API key required)
+- **Receipt scanning backend** — only when `EXPO_PUBLIC_RECEIPT_SCAN_URL` is set
+- **AI analysis backend** — only when `EXPO_PUBLIC_AI_PROVIDER=remote` and `EXPO_PUBLIC_AI_ENDPOINT` is set
+
+All other features — budgeting, expense tracking, investment portfolio, grading, streaks, and the default AI review — work fully offline.
 
 Uninstalling the app will erase all data. Back up your device regularly if this data matters to you.

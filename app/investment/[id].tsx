@@ -57,17 +57,23 @@ export default function InvestmentDetailScreen() {
   const [currency, setCurrency]           = useState<SupportedCurrency>('ILS');
   const [refreshingPrice, setRefreshingPrice] = useState(false);
   const [refreshMessage, setRefreshMessage]   = useState('');
+  const [loadError, setLoadError]             = useState(false);
 
   const load = useCallback(async () => {
     if (!investmentId) return;
-    const [detailResult, updatesResult, savedCurrency] = await Promise.all([
-      getInvestmentDetail(investmentId),
-      getInvestmentUpdates(investmentId),
-      getCurrency(),
-    ]);
-    setDetail(detailResult);
-    setUpdates(updatesResult ?? []);
-    setCurrency(savedCurrency);
+    try {
+      setLoadError(false);
+      const [detailResult, updatesResult, savedCurrency] = await Promise.all([
+        getInvestmentDetail(investmentId),
+        getInvestmentUpdates(investmentId),
+        getCurrency(),
+      ]);
+      setDetail(detailResult);
+      setUpdates(updatesResult ?? []);
+      setCurrency(savedCurrency);
+    } catch {
+      setLoadError(true);
+    }
   }, [investmentId, getInvestmentDetail, getInvestmentUpdates, getCurrency]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -108,6 +114,21 @@ export default function InvestmentDetailScreen() {
           },
         },
       ]
+    );
+  }
+
+  if (loadError) {
+    return (
+      <AppScreen>
+        <BackButton onPress={() => router.back()} />
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={36} color={colors.danger} style={{ marginBottom: 12 }} />
+          <Text style={styles.loadingText}>Could not load investment.</Text>
+          <Pressable onPress={load} style={styles.retryLink} hitSlop={12}>
+            <Text style={styles.retryLinkText}>Tap to retry</Text>
+          </Pressable>
+        </View>
+      </AppScreen>
     );
   }
 
@@ -285,7 +306,9 @@ export default function InvestmentDetailScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { fontSize: 15, color: colors.textMuted },
+  loadingText: { fontSize: 15, color: colors.textMuted, textAlign: 'center' },
+  retryLink: { marginTop: 12 },
+  retryLinkText: { fontSize: 14, fontWeight: '600', color: colors.primary },
 
   // ── Top bar ───────────────────────────────────────────────────────────────
   topBar: {

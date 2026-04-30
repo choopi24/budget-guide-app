@@ -145,8 +145,10 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Pressable
-            onPress={() => router.push('/(tabs)/settings' as any)}
+            onPress={() => router.push('/settings' as any)}
             hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
             style={styles.heroSettingsBtn}
           >
             <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
@@ -200,7 +202,23 @@ export default function ProfileScreen() {
 
       {/* ── Utility rows: Settings + Calculators ────── */}
       <Pressable
-        onPress={() => router.push('/(tabs)/settings' as any)}
+        onPress={() => router.push('/recurring' as any)}
+        style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Recurring Expenses"
+      >
+        <View style={styles.settingsIconWrap}>
+          <Ionicons name="repeat-outline" size={18} color={colors.textMuted} />
+        </View>
+        <View style={styles.settingsText}>
+          <Text style={styles.settingsLabel}>Recurring Expenses</Text>
+          <Text style={styles.settingsHint}>Manage monthly bills and subscriptions</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={15} color={colors.border} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/settings' as any)}
         style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
         accessibilityRole="button"
         accessibilityLabel="Open Settings"
@@ -227,6 +245,22 @@ export default function ProfileScreen() {
         <View style={styles.settingsText}>
           <Text style={styles.settingsLabel}>Calculators</Text>
           <Text style={styles.settingsHint}>Compound interest, loan, salary, and more</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={15} color={colors.border} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/privacy' as any)}
+        style={({ pressed }) => [styles.settingsRow, pressed && styles.settingsRowPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Privacy and Data"
+      >
+        <View style={styles.settingsIconWrap}>
+          <Ionicons name="shield-checkmark-outline" size={18} color={colors.textMuted} />
+        </View>
+        <View style={styles.settingsText}>
+          <Text style={styles.settingsLabel}>Privacy & Data</Text>
+          <Text style={styles.settingsHint}>{"What's stored, what goes online, how to back up"}</Text>
         </View>
         <Ionicons name="chevron-forward" size={15} color={colors.border} />
       </Pressable>

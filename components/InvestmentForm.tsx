@@ -186,7 +186,6 @@ export function InvestmentForm({
   const isNewFlow  = showIsNew && isNew;
   // "Already had it" — single "Value" field, no separate opening/current split
   const alreadyHad = showIsNew && !isNew;
-  const needsQuantity = isMarketAsset && !(isCrypto && isNewFlow);
   const needsCurrentValue = !isNewFlow && !alreadyHad;
   const showDatePicker_ = !isNewFlow;
 

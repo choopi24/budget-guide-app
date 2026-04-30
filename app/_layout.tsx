@@ -51,6 +51,9 @@ export default function RootLayout() {
         <Stack.Screen name="ai-budget-review" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
         <Stack.Screen name="avatar-edit" options={{ headerShown: false }} />
         <Stack.Screen name="calculators" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy" options={{ headerShown: false }} />
+        <Stack.Screen name="recurring" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
       </Stack>
     </SQLiteProvider>
   );

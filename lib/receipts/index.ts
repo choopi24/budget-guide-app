@@ -17,11 +17,14 @@ export { ReceiptExtractionError } from './types';
 
 const endpointUrl = (process.env.EXPO_PUBLIC_RECEIPT_SCAN_URL ?? '').trim();
 
+/** True when a backend endpoint is configured and receipt scanning is available. */
+export const isReceiptScanConfigured = endpointUrl.length > 0;
+
 if (__DEV__) {
-  console.log('[receipt] Provider:', endpointUrl ? 'remote' : 'none (scanning unavailable)');
+  console.log('[receipt] Provider:', isReceiptScanConfigured ? 'remote' : 'none (scanning unavailable)');
 }
 
-const _provider: ReceiptScanProvider = endpointUrl
+const _provider: ReceiptScanProvider = isReceiptScanConfigured
   ? createRemoteProvider(endpointUrl)
   : mockProvider;
 

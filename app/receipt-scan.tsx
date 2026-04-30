@@ -4,13 +4,14 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { AppScreen } from '../components/AppScreen';
-import { extractReceiptData, ReceiptExtractionError } from '../lib/receipts';
+import { extractReceiptData, isReceiptScanConfigured, ReceiptExtractionError } from '../lib/receipts';
 import { hapticLight } from '../lib/haptics';
 import { setPendingReceiptUri } from '../lib/receiptImageState';
 import { colors } from '../theme/colors';
@@ -26,8 +27,9 @@ const IMAGE_PICKER_OPTIONS = {
 
 export default function ReceiptScanScreen() {
   const router = useRouter();
-  const [status,       setStatus]       = useState<Status>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [status,            setStatus]            = useState<Status>('idle');
+  const [errorMessage,      setErrorMessage]      = useState('');
+  const [isPermissionError, setIsPermissionError] = useState(false);
 
   // ── Core processing ──────────────────────────────────────────────────────────
 
@@ -61,7 +63,12 @@ export default function ReceiptScanScreen() {
   async function handleCamera() {
     hapticLight();
     const { granted } = await ImagePicker.requestCameraPermissionsAsync();
-    if (!granted) return;
+    if (!granted) {
+      setIsPermissionError(true);
+      setErrorMessage('Camera access is required. Enable it in Settings > Privacy > Camera.');
+      setStatus('error');
+      return;
+    }
     const result = await ImagePicker.launchCameraAsync(IMAGE_PICKER_OPTIONS);
     if (result.canceled) return;
     const asset = result.assets[0];
@@ -76,7 +83,12 @@ export default function ReceiptScanScreen() {
   async function handleGallery() {
     hapticLight();
     const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!granted) return;
+    if (!granted) {
+      setIsPermissionError(true);
+      setErrorMessage('Photo library access is required. Enable it in Settings > Privacy > Photos.');
+      setStatus('error');
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync(IMAGE_PICKER_OPTIONS);
     if (result.canceled) return;
     const asset = result.assets[0];
@@ -129,17 +141,28 @@ export default function ReceiptScanScreen() {
             <Text style={styles.errorTitle}>{"Couldn't read receipt"}</Text>
             <Text style={styles.errorBody}>{errorMessage}</Text>
 
-            <Pressable
-              onPress={() => setStatus('idle')}
-              style={({ pressed }) => [styles.retryBtn, pressed && styles.btnPressed]}
-              accessibilityRole="button"
-            >
-              <Ionicons name="refresh-outline" size={16} color={colors.white} />
-              <Text style={styles.retryBtnText}>Try Again</Text>
-            </Pressable>
+            {isPermissionError ? (
+              <Pressable
+                onPress={() => Linking.openSettings()}
+                style={({ pressed }) => [styles.retryBtn, pressed && styles.btnPressed]}
+                accessibilityRole="button"
+              >
+                <Ionicons name="settings-outline" size={16} color={colors.white} />
+                <Text style={styles.retryBtnText}>Open Settings</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => { setIsPermissionError(false); setStatus('idle'); }}
+                style={({ pressed }) => [styles.retryBtn, pressed && styles.btnPressed]}
+                accessibilityRole="button"
+              >
+                <Ionicons name="refresh-outline" size={16} color={colors.white} />
+                <Text style={styles.retryBtnText}>Try Again</Text>
+              </Pressable>
+            )}
 
             <Pressable
-              onPress={() => router.replace('/expense-new' as any)}
+              onPress={() => { setIsPermissionError(false); router.replace('/expense-new' as any); }}
               style={({ pressed }) => [styles.manualBtn, pressed && styles.btnPressed]}
               accessibilityRole="button"
             >
@@ -176,6 +199,14 @@ export default function ReceiptScanScreen() {
             Take a photo or pick an image from your library.{'\n'}
             {"We'll extract the details for you."}
           </Text>
+          {!isReceiptScanConfigured && (
+            <View style={styles.notConfiguredBanner}>
+              <Ionicons name="information-circle-outline" size={15} color={colors.textTertiary} />
+              <Text style={styles.notConfiguredText}>
+                {"Receipt scanning isn't available in this build."}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Actions */}
@@ -329,6 +360,26 @@ const styles = StyleSheet.create({
   actionHint: {
     fontSize: 13,
     color: colors.textMuted,
+    lineHeight: 18,
+  },
+
+  // ── Not-configured banner ────────────────────────────────────────────────────
+  notConfiguredBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[4],
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+  },
+  notConfiguredText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textTertiary,
     lineHeight: 18,
   },
 

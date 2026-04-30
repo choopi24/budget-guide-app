@@ -30,16 +30,22 @@ export default function SavingsScreen() {
   const { getInvestmentsList } = useInvestmentsDb();
   const { getCurrency } = useSettingsDb();
 
-  const [items, setItems]       = useState<InvestmentItem[]>([]);
-  const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
+  const [items,     setItems]     = useState<InvestmentItem[]>([]);
+  const [currency,  setCurrency]  = useState<SupportedCurrency>('ILS');
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
-    const [result, savedCurrency] = await Promise.all([
-      getInvestmentsList(),
-      getCurrency(),
-    ]);
-    setItems(result as InvestmentItem[]);
-    setCurrency(savedCurrency);
+    try {
+      setLoadError(false);
+      const [result, savedCurrency] = await Promise.all([
+        getInvestmentsList(),
+        getCurrency(),
+      ]);
+      setItems(result as InvestmentItem[]);
+      setCurrency(savedCurrency);
+    } catch {
+      setLoadError(true);
+    }
   }, [getInvestmentsList, getCurrency]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -108,8 +114,15 @@ export default function SavingsScreen() {
           </View>
         </Card>
 
+        {/* ── Load error ── */}
+        {loadError && (
+          <Card variant="elevated" style={styles.errorCard}>
+            <Text style={styles.errorText}>Could not load investments. Check your connection and try again.</Text>
+          </Card>
+        )}
+
         {/* ── Holdings ── */}
-        {items.length === 0 ? (
+        {!loadError && (items.length === 0 ? (
           <Card variant="elevated">
             <Text style={styles.emptyTitle}>No investments yet</Text>
             <Text style={styles.emptyBody}>
@@ -167,7 +180,7 @@ export default function SavingsScreen() {
               );
             })}
           </Card>
-        )}
+        ))}
 
       </AppScreen>
 
@@ -312,6 +325,17 @@ const styles = StyleSheet.create({
     fontSize:      11,
     letterSpacing: 0.3,
     marginTop:     2,
+  },
+
+  // ── Error state ──────────────────────────────────────────────────────────────
+  errorCard: {
+    marginBottom: spacing[4],
+  },
+  errorText: {
+    fontSize: 14,
+    color: colors.danger,
+    fontWeight: '500',
+    lineHeight: 20,
   },
 
   // ── Empty state ──────────────────────────────────────────────────────────────

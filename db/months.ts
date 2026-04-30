@@ -1,6 +1,11 @@
 import { useCallback } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { getCurrentMonthKey } from '../lib/date';
+import {
+  computeBucketBudgets,
+  computeRemainders,
+  computeRolloverBonuses,
+} from '../lib/budget';
 
 export type DefaultSplit = {
   mustPct: number;
@@ -68,19 +73,31 @@ export function useMonthsDb() {
       invest_rollover_target: string;
     }>(`SELECT must_rollover_target, want_rollover_target, invest_rollover_target FROM app_settings WHERE id = 1`);
 
-    const mustTarget   = rolloverSettings?.must_rollover_target   ?? 'invest';
-    const wantTarget   = rolloverSettings?.want_rollover_target   ?? 'want';
-    const investTarget = rolloverSettings?.invest_rollover_target ?? 'invest';
+    const targets = {
+      mustRolloverTarget:   rolloverSettings?.must_rollover_target   ?? 'invest',
+      wantRolloverTarget:   rolloverSettings?.want_rollover_target   ?? 'want',
+      investRolloverTarget: rolloverSettings?.invest_rollover_target ?? 'invest',
+    };
 
-    const mustRemainder   = Math.max(0, (prevMonth?.must_budget_cents  ?? 0) - (prevMonth?.must_spent_cents   ?? 0));
-    const wantRemainder   = Math.max(0, (prevMonth?.want_budget_cents  ?? 0) - (prevMonth?.want_spent_cents   ?? 0));
-    const investRemainder = Math.max(0, (prevMonth?.keep_budget_cents  ?? 0) - (prevMonth?.invest_spent_cents ?? 0));
+    const remainders = computeRemainders({
+      mustBudgetCents:  prevMonth?.must_budget_cents  ?? 0,
+      mustSpentCents:   prevMonth?.must_spent_cents   ?? 0,
+      wantBudgetCents:  prevMonth?.want_budget_cents  ?? 0,
+      wantSpentCents:   prevMonth?.want_spent_cents   ?? 0,
+      keepBudgetCents:  prevMonth?.keep_budget_cents  ?? 0,
+      investSpentCents: prevMonth?.invest_spent_cents ?? 0,
+    });
 
-    const mustBonus  = (mustTarget === 'must'   ? mustRemainder : 0) + (wantTarget === 'must'   ? wantRemainder : 0) + (investTarget === 'must'   ? investRemainder : 0);
-    const wantBonus  = (mustTarget === 'want'   ? mustRemainder : 0) + (wantTarget === 'want'   ? wantRemainder : 0) + (investTarget === 'want'   ? investRemainder : 0);
-    const keepBonus  = (mustTarget === 'invest' ? mustRemainder : 0) + (wantTarget === 'invest' ? wantRemainder : 0) + (investTarget === 'invest' ? investRemainder : 0);
+    const bonuses = computeRolloverBonuses(remainders, targets);
 
-    return { mustRemainder, wantRemainder, investRemainder, mustBonus, wantBonus, keepBonus };
+    return {
+      mustRemainder:   remainders.mustRemainder,
+      wantRemainder:   remainders.wantRemainder,
+      investRemainder: remainders.investRemainder,
+      mustBonus:       bonuses.mustBonus,
+      wantBonus:       bonuses.wantBonus,
+      keepBonus:       bonuses.keepBonus,
+    };
   }, [db]);
 
   const createCurrentMonth = useCallback(async function createCurrentMonth(input: { incomeCents: number }) {
@@ -102,11 +119,10 @@ export function useMonthsDb() {
     }
 
     const split = await getDefaultSplit();
-
-    const mustBudgetCents = Math.round(input.incomeCents * (split.mustPct / 100));
-    const wantBudgetCents = Math.round(input.incomeCents * (split.wantPct / 100));
-    const keepBudgetCents =
-      input.incomeCents - mustBudgetCents - wantBudgetCents;
+    const { mustBudgetCents, wantBudgetCents, keepBudgetCents } = computeBucketBudgets(
+      input.incomeCents,
+      { mustPct: split.mustPct, wantPct: split.wantPct },
+    );
 
     // Read previous active month data and rollover settings before the transaction
     const prevMonth = await db.getFirstAsync<{
@@ -131,17 +147,22 @@ export function useMonthsDb() {
       invest_rollover_target: string;
     }>(`SELECT must_rollover_target, want_rollover_target, invest_rollover_target FROM app_settings WHERE id = 1`);
 
-    const mustTarget   = rolloverSettings?.must_rollover_target   ?? 'invest';
-    const wantTarget   = rolloverSettings?.want_rollover_target   ?? 'want';
-    const investTarget = rolloverSettings?.invest_rollover_target ?? 'invest';
+    const rolloverTargets = {
+      mustRolloverTarget:   rolloverSettings?.must_rollover_target   ?? 'invest',
+      wantRolloverTarget:   rolloverSettings?.want_rollover_target   ?? 'want',
+      investRolloverTarget: rolloverSettings?.invest_rollover_target ?? 'invest',
+    };
 
-    const mustRemainder   = Math.max(0, (prevMonth?.must_budget_cents  ?? 0) - (prevMonth?.must_spent_cents   ?? 0));
-    const wantRemainder   = Math.max(0, (prevMonth?.want_budget_cents  ?? 0) - (prevMonth?.want_spent_cents   ?? 0));
-    const investRemainder = Math.max(0, (prevMonth?.keep_budget_cents  ?? 0) - (prevMonth?.invest_spent_cents ?? 0));
+    const remainders = computeRemainders({
+      mustBudgetCents:  prevMonth?.must_budget_cents  ?? 0,
+      mustSpentCents:   prevMonth?.must_spent_cents   ?? 0,
+      wantBudgetCents:  prevMonth?.want_budget_cents  ?? 0,
+      wantSpentCents:   prevMonth?.want_spent_cents   ?? 0,
+      keepBudgetCents:  prevMonth?.keep_budget_cents  ?? 0,
+      investSpentCents: prevMonth?.invest_spent_cents ?? 0,
+    });
 
-    const mustBonus  = (mustTarget === 'must'   ? mustRemainder : 0) + (wantTarget === 'must'   ? wantRemainder : 0) + (investTarget === 'must'   ? investRemainder : 0);
-    const wantBonus  = (mustTarget === 'want'   ? mustRemainder : 0) + (wantTarget === 'want'   ? wantRemainder : 0) + (investTarget === 'want'   ? investRemainder : 0);
-    const keepBonus  = (mustTarget === 'invest' ? mustRemainder : 0) + (wantTarget === 'invest' ? wantRemainder : 0) + (investTarget === 'invest' ? investRemainder : 0);
+    const { mustBonus, wantBonus, keepBonus } = computeRolloverBonuses(remainders, rolloverTargets);
 
     await db.withTransactionAsync(async () => {
       await db.runAsync(

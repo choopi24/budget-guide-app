@@ -125,18 +125,20 @@ export default function HistoryScreen() {
   const { getAllExpenses, getClosedMonths } = useExpenseHistoryDb();
   const { getCurrency } = useSettingsDb();
 
-  const [groups,   setGroups]   = useState<MonthGroup[]>([]);
-  const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
-  const [filter,   setFilter]   = useState<FilterKey>('all');
+  const [groups,    setGroups]    = useState<MonthGroup[]>([]);
+  const [currency,  setCurrency]  = useState<SupportedCurrency>('ILS');
+  const [filter,    setFilter]    = useState<FilterKey>('all');
+  const [loadError, setLoadError] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
+      setLoadError(false);
       Promise.all([getAllExpenses(), getClosedMonths(), getCurrency()]).then(
         ([expenses, closed, cur]) => {
           setGroups(buildGroups(expenses, closed));
           setCurrency(cur);
         }
-      );
+      ).catch(() => setLoadError(true));
     }, [getAllExpenses, getClosedMonths, getCurrency])
   );
 
@@ -168,6 +170,9 @@ export default function HistoryScreen() {
             <Pressable
               key={f.key}
               onPress={() => setFilter(f.key)}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${f.label}`}
+              accessibilityState={{ selected: isActive }}
               style={[
                 styles.filterChip,
                 isActive && { backgroundColor: f.soft, borderColor: f.color + '70' },
@@ -181,8 +186,15 @@ export default function HistoryScreen() {
         })}
       </ScrollView>
 
+      {/* ── Load error ── */}
+      {loadError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>Could not load history. Pull down to retry.</Text>
+        </View>
+      )}
+
       {/* ── Content ── */}
-      {groups.length === 0 ? (
+      {!loadError && groups.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>No history yet</Text>
           <Text style={styles.emptyBody}>
@@ -230,6 +242,8 @@ export default function HistoryScreen() {
                       pressed && styles.addBtnPressed,
                     ]}
                     hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add expense to ${group.label}`}
                   >
                     <Ionicons name="add" size={14} color={colors.primary} />
                     <Text style={styles.addBtnText}>Add</Text>
@@ -266,6 +280,8 @@ export default function HistoryScreen() {
                                 params: { id: String(item.id) },
                               })
                             }
+                            accessibilityRole="button"
+                            accessibilityLabel={`${item.title}, ${formatCentsToMoney(item.amount_cents, currency)}`}
                             style={({ pressed }) => [
                               styles.row,
                               idx !== 0 && styles.rowBorder,
@@ -352,7 +368,7 @@ const styles = StyleSheet.create({
   },
   filterChip: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: radius.full,
     borderWidth: 1,
     borderColor: colors.border,
@@ -363,6 +379,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
     letterSpacing: -0.1,
+  },
+
+  // ── Error banner ──────────────────────────────────────────────────────────
+  errorBanner: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.danger + '40',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  errorBannerText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.danger,
+    textAlign: 'center',
   },
 
   // ── Empty states ──────────────────────────────────────────────────────────

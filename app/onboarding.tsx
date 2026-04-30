@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -93,6 +93,8 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { saveOnboarding, updateCurrency } = useSettingsDb();
   const { createCurrentMonth } = useMonthsDb();
+
+  const emailRef = useRef<TextInput>(null);
 
   const [step, setStep] = useState(0);
 
@@ -195,7 +197,13 @@ export default function OnboardingScreen() {
       >
         {/* Back button */}
         <View style={s.topBar}>
-          <Pressable onPress={() => setStep(step - 1)} hitSlop={12} style={s.backBtn}>
+          <Pressable
+            onPress={() => setStep(step - 1)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={s.backBtn}
+          >
             <Text style={s.backText}>←</Text>
           </Pressable>
         </View>
@@ -224,11 +232,16 @@ export default function OnboardingScreen() {
                   placeholderTextColor={colors.textTertiary}
                   style={s.input}
                   autoCorrect={false}
+                  textContentType="nickname"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
               </FieldRow>
 
               <FieldRow label="Email">
                 <TextInput
+                  ref={emailRef}
                   value={email}
                   onChangeText={setEmail}
                   placeholder="name@example.com"
@@ -236,6 +249,8 @@ export default function OnboardingScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  textContentType="emailAddress"
+                  returnKeyType="done"
                   style={s.input}
                 />
               </FieldRow>
@@ -248,6 +263,9 @@ export default function OnboardingScreen() {
                     <Pressable
                       key={c.value}
                       onPress={() => setCurrency(c.value)}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`${c.sublabel} (${c.value})`}
+                      accessibilityState={{ selected: currency === c.value }}
                       style={[s.pill, currency === c.value && s.pillActive]}
                     >
                       <Text style={[s.pillText, currency === c.value && s.pillTextActive]}>
@@ -368,8 +386,10 @@ export default function OnboardingScreen() {
                   value={income}
                   onChangeText={setIncome}
                   placeholder="5,000"
-                  placeholderTextColor={colors.border}
+                  placeholderTextColor={colors.textTertiary}
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  textContentType="none"
                   style={[s.input, s.incomeInput]}
                   autoFocus
                 />
@@ -712,7 +732,9 @@ const s = StyleSheet.create({
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
     letterSpacing: -1,
-    height: 72,
+    height: 80,
+    paddingTop: 18,
+    paddingBottom: 14,
     paddingHorizontal: 18,
     backgroundColor: colors.surfaceSoft,
   },

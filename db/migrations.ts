@@ -6,11 +6,15 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   );
 
   const currentVersion = result?.user_version ?? 0;
-  const targetVersion = 15;
+  const targetVersion = 16;
 
   if (currentVersion >= targetVersion) {
     return;
   }
+
+  // Use a mutable local so each migration block can cascade into the next
+  // within a single app launch (avoids requiring N restarts for N-version lag).
+  let version = currentVersion;
 
   if (currentVersion === 0) {
     await db.execAsync(`
@@ -183,9 +187,31 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         VALUES (1, 's2', 'clean', 'dkbrown', 'navy', 'none', 'none', 'none', 'default');
       INSERT OR IGNORE INTO streak (id, join_date, last_open_date, current_streak, longest_streak)
         VALUES (1, date('now'), date('now'), 1, 1);
+
+      CREATE TABLE IF NOT EXISTS recurring_expenses (
+        id           INTEGER PRIMARY KEY NOT NULL,
+        title        TEXT    NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        bucket       TEXT    NOT NULL CHECK (bucket IN ('must', 'want')),
+        day_of_month INTEGER NOT NULL DEFAULT 1,
+        is_active    INTEGER NOT NULL DEFAULT 1,
+        created_at   TEXT    NOT NULL,
+        updated_at   TEXT    NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS recurring_logs (
+        id                   INTEGER PRIMARY KEY NOT NULL,
+        recurring_expense_id INTEGER NOT NULL,
+        month_key            TEXT    NOT NULL,
+        expense_id           INTEGER NOT NULL,
+        created_at           TEXT    NOT NULL,
+        FOREIGN KEY (recurring_expense_id) REFERENCES recurring_expenses(id) ON DELETE CASCADE,
+        FOREIGN KEY (expense_id)           REFERENCES expenses(id)           ON DELETE CASCADE,
+        UNIQUE (recurring_expense_id, month_key)
+      );
     `);
 
-    await db.execAsync(`PRAGMA user_version = 15`);
+    await db.execAsync(`PRAGMA user_version = 16`);
     return;
   }
 
@@ -235,23 +261,25 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     return;
   }
 
-  if (currentVersion === 5) {
+  if (version === 5) {
     await db.execAsync(`
       ALTER TABLE app_settings ADD COLUMN must_rollover_target TEXT NOT NULL DEFAULT 'invest';
       ALTER TABLE app_settings ADD COLUMN want_rollover_target TEXT NOT NULL DEFAULT 'want';
       PRAGMA user_version = 6;
     `);
+    version = 6;
   }
 
-  if (currentVersion === 6) {
+  if (version === 6) {
     await db.execAsync(`
       ALTER TABLE months ADD COLUMN invest_spent_cents INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE expenses ADD COLUMN is_investment INTEGER NOT NULL DEFAULT 0;
       PRAGMA user_version = 7;
     `);
+    version = 7;
   }
 
-  if (currentVersion === 7) {
+  if (version === 7) {
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS avatar_config (
         id         INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
@@ -283,9 +311,10 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
 
       PRAGMA user_version = 8;
     `);
+    version = 8;
   }
 
-  if (currentVersion === 8) {
+  if (version === 8) {
     // Columns may already exist if the user went through the v7→v8 migration
     // (which created avatar_config with all 6 columns). Check before adding.
     const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(avatar_config)`);
@@ -302,51 +331,86 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     }
 
     await db.execAsync(`PRAGMA user_version = 9`);
+    version = 9;
   }
 
-  if (currentVersion === 9) {
+  if (version === 9) {
     await db.execAsync(`
       ALTER TABLE expenses ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0;
       PRAGMA user_version = 10;
     `);
+    version = 10;
   }
 
-  if (currentVersion === 10) {
+  if (version === 10) {
     await db.execAsync(`
       ALTER TABLE avatar_config ADD COLUMN suit_color TEXT NOT NULL DEFAULT 'navy';
       PRAGMA user_version = 11;
     `);
+    version = 11;
   }
 
-  if (currentVersion === 11) {
+  if (version === 11) {
     await db.execAsync(`
       ALTER TABLE avatar_config ADD COLUMN eye_shape TEXT NOT NULL DEFAULT 'default';
       PRAGMA user_version = 12;
     `);
+    version = 12;
   }
 
-  if (currentVersion === 12) {
+  if (version === 12) {
     await db.execAsync(`
       ALTER TABLE app_settings ADD COLUMN invest_rollover_target TEXT NOT NULL DEFAULT 'invest';
       ALTER TABLE months ADD COLUMN must_rollover_cents INTEGER NOT NULL DEFAULT 0;
       PRAGMA user_version = 13;
     `);
+    version = 13;
   }
 
-  if (currentVersion === 13) {
+  if (version === 13) {
     await db.execAsync(`
       ALTER TABLE savings_updates ADD COLUMN type TEXT NOT NULL DEFAULT 'value_update';
       ALTER TABLE savings_updates ADD COLUMN amount_cents INTEGER;
       PRAGMA user_version = 14;
     `);
+    version = 14;
   }
 
-  if (currentVersion === 14) {
+  if (version === 14) {
     // Allow multiple events on the same day (e.g. a purchase and a value update
     // on the same calendar day). The unique constraint was too restrictive.
     await db.execAsync(`
       DROP INDEX IF EXISTS idx_savings_updates_item_date;
       PRAGMA user_version = 15;
+    `);
+    version = 15;
+  }
+
+  if (version === 15) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS recurring_expenses (
+        id           INTEGER PRIMARY KEY NOT NULL,
+        title        TEXT    NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        bucket       TEXT    NOT NULL CHECK (bucket IN ('must', 'want')),
+        day_of_month INTEGER NOT NULL DEFAULT 1,
+        is_active    INTEGER NOT NULL DEFAULT 1,
+        created_at   TEXT    NOT NULL,
+        updated_at   TEXT    NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS recurring_logs (
+        id                   INTEGER PRIMARY KEY NOT NULL,
+        recurring_expense_id INTEGER NOT NULL,
+        month_key            TEXT    NOT NULL,
+        expense_id           INTEGER NOT NULL,
+        created_at           TEXT    NOT NULL,
+        FOREIGN KEY (recurring_expense_id) REFERENCES recurring_expenses(id) ON DELETE CASCADE,
+        FOREIGN KEY (expense_id)           REFERENCES expenses(id)           ON DELETE CASCADE,
+        UNIQUE (recurring_expense_id, month_key)
+      );
+
+      PRAGMA user_version = 16;
     `);
   }
 }

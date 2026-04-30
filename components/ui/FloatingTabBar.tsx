@@ -103,7 +103,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const rawName    = state.routes[state.index]?.name ?? '';
   const activeName: VisibleRoute | null = (VISIBLE as readonly string[]).includes(rawName)
     ? (rawName as VisibleRoute)
-    : rawName === 'settings' ? 'profile' : null;
+    : null;
 
   const anims = useRef(
     Object.fromEntries(

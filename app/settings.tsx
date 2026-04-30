@@ -1,20 +1,22 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { AppScreen } from '../../components/AppScreen';
-import { Button } from '../../components/ui/Button';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppScreen } from '../components/AppScreen';
+import { BackButton } from '../components/ui/BackButton';
+import { Button } from '../components/ui/Button';
 import {
   useSettingsDb,
   type SupportedCurrency,
   type RolloverTarget,
   type WantRolloverTarget,
   type InvestRolloverTarget,
-} from '../../db/settings';
-import { SectionLabel } from '../../components/ui/SectionLabel';
-import { colors } from '../../theme/colors';
-import { spacing } from '../../theme/tokens';
+} from '../db/settings';
+import { SectionLabel } from '../components/ui/SectionLabel';
+import { colors } from '../theme/colors';
+import { spacing } from '../theme/tokens';
+import { exportMonths, exportExpenses, exportInvestments } from '../lib/export';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -60,6 +62,36 @@ const ROLLOVER_OPTIONS: RolloverOption[] = [
   },
 ];
 
+const EXPORT_ROWS: {
+  id: 'months' | 'expenses' | 'investments';
+  label: string;
+  desc: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+}[] = [
+  {
+    id: 'months',
+    label: 'Monthly budgets',
+    desc: 'Income, budgets, spending totals per month',
+    icon: 'calendar-outline',
+    color: colors.primary,
+  },
+  {
+    id: 'expenses',
+    label: 'Expenses',
+    desc: 'Every transaction across all months',
+    icon: 'receipt-outline',
+    color: colors.want,
+  },
+  {
+    id: 'investments',
+    label: 'Investments',
+    desc: 'Portfolio snapshot with current values',
+    icon: 'stats-chart-outline',
+    color: colors.keep,
+  },
+];
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function RolloverPicker({
@@ -73,7 +105,6 @@ function RolloverPicker({
 
   return (
     <View style={pickerStyles.root}>
-      {/* 3-button toggle row */}
       <View style={pickerStyles.toggleRow}>
         {ROLLOVER_OPTIONS.map((opt) => {
           const active = value === opt.value;
@@ -81,6 +112,10 @@ function RolloverPicker({
             <Pressable
               key={opt.value}
               onPress={() => onChange(opt.value)}
+              accessibilityRole="radio"
+              accessibilityLabel={opt.label}
+              accessibilityHint={opt.desc}
+              accessibilityState={{ selected: active }}
               style={({ pressed }) => [
                 pickerStyles.toggleBtn,
                 active && { backgroundColor: opt.bg, borderColor: opt.color },
@@ -105,7 +140,6 @@ function RolloverPicker({
         })}
       </View>
 
-      {/* Description of selected option */}
       <View style={[pickerStyles.descRow, { borderLeftColor: selected.color }]}>
         <Text style={pickerStyles.descText}>{selected.desc}</Text>
       </View>
@@ -165,6 +199,9 @@ export default function SettingsScreen() {
   const [mustRollover,   setMustRollover]   = useState<RolloverTarget>('invest');
   const [wantRollover,   setWantRollover]   = useState<WantRolloverTarget>('want');
   const [investRollover, setInvestRollover] = useState<InvestRolloverTarget>('invest');
+  const [exporting, setExporting] = useState<'months' | 'expenses' | 'investments' | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => { return () => { mountedRef.current = false; }; }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -199,6 +236,20 @@ export default function SettingsScreen() {
   async function handleInvestRolloverChange(value: InvestRolloverTarget) {
     setInvestRollover(value);
     await updateRolloverSettings({ investRolloverTarget: value });
+  }
+
+  async function handleExport(type: 'months' | 'expenses' | 'investments') {
+    setExporting(type);
+    try {
+      if (type === 'months')      await exportMonths(db);
+      if (type === 'expenses')    await exportExpenses(db);
+      if (type === 'investments') await exportInvestments(db);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert('Export failed', message);
+    } finally {
+      if (mountedRef.current) setExporting(null);
+    }
   }
 
   async function resetApp() {
@@ -256,6 +307,8 @@ export default function SettingsScreen() {
   return (
     <AppScreen scroll>
 
+      <BackButton onPress={() => router.back()} />
+
       {/* ── Page header ── */}
       <View style={styles.pageHeader}>
         <SectionLabel style={styles.eyebrow}>Preferences</SectionLabel>
@@ -273,6 +326,9 @@ export default function SettingsScreen() {
               <Pressable
                 key={item.value}
                 onPress={() => handleCurrencyChange(item.value)}
+                accessibilityRole="radio"
+                accessibilityLabel={`${item.label} (${item.value})`}
+                accessibilityState={{ selected: active, checked: active }}
                 style={({ pressed }) => [
                   styles.optionRow,
                   idx < CURRENCIES.length - 1 && styles.optionRowBorder,
@@ -390,6 +446,61 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* ── Data & Backup ── */}
+      <View style={styles.sectionGroupHeader}>
+        <Text style={styles.sectionGroupTitle}>Data & Backup</Text>
+        <Text style={styles.sectionGroupSubtitle}>
+          Your data is stored locally on this device. Exporting creates a file you can save or share for backup.
+        </Text>
+      </View>
+      <View style={[styles.section, styles.exportSection]}>
+        {EXPORT_ROWS.map((row, idx) => {
+          const busy = exporting === row.id;
+          const anyBusy = exporting !== null;
+          return (
+            <Pressable
+              key={row.id}
+              onPress={() => !anyBusy && handleExport(row.id)}
+              disabled={anyBusy}
+              accessibilityRole="button"
+              accessibilityLabel={`Export ${row.label} as CSV`}
+              accessibilityState={{ disabled: anyBusy, busy }}
+              style={({ pressed }) => [
+                styles.exportRow,
+                idx < EXPORT_ROWS.length - 1 && styles.exportRowBorder,
+                pressed && !anyBusy && styles.exportRowPressed,
+                anyBusy && !busy && styles.exportRowDimmed,
+              ]}
+            >
+              <View style={styles.exportIconBox}>
+                <Ionicons name={row.icon} size={18} color={row.color} />
+              </View>
+              <View style={styles.exportTextGroup}>
+                <Text style={styles.exportLabel}>{row.label}</Text>
+                <Text style={styles.exportDesc}>{row.desc}</Text>
+              </View>
+              {busy ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="share-outline" size={20} color={anyBusy ? colors.border : colors.textMuted} />
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* ── Privacy link ── */}
+      <Pressable
+        onPress={() => router.push('/privacy' as any)}
+        style={({ pressed }) => [styles.privacyLink, pressed && styles.privacyLinkPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Privacy and Data"
+      >
+        <Ionicons name="shield-checkmark-outline" size={15} color={colors.textMuted} />
+        <Text style={styles.privacyLinkText}>Privacy & Data</Text>
+        <Ionicons name="chevron-forward" size={13} color={colors.border} style={{ marginLeft: 'auto' }} />
+      </Pressable>
+
       {/* ── Danger zone ── */}
       <View style={[styles.section, styles.dangerSection]}>
         <Text style={[styles.sectionTitle, styles.dangerTitle]}>Danger zone</Text>
@@ -451,7 +562,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  // Rollover section
   rolloverSection: {
     marginBottom: 10,
   },
@@ -469,7 +579,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 
-  // Group header above the 3 rollover cards
   sectionGroupHeader: {
     paddingHorizontal: 4,
     marginBottom: 12,
@@ -487,7 +596,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // Option list (currency radio rows)
   optionList: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -557,7 +665,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
 
-  // Apple Pay shortcut setup
   shortcutSection: {
     marginBottom: 12,
   },
@@ -629,7 +736,63 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // Danger zone
+  exportSection: {
+    marginBottom: 12,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  exportRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: colors.surface,
+  },
+  exportRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  exportRowPressed: { backgroundColor: colors.surfaceSoft },
+  exportRowDimmed: { opacity: 0.45 },
+  exportIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  exportTextGroup: { flex: 1 },
+  exportLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 1,
+  },
+  exportDesc: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 16,
+  },
+
+  privacyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  privacyLinkPressed: { opacity: 0.55 },
+  privacyLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+
   dangerSection: {
     borderWidth: 1.5,
     borderColor: colors.danger + '30',
