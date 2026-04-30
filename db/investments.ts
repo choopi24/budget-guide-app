@@ -321,11 +321,50 @@ export function useInvestmentsDb() {
     `);
   }, [db]);
 
+  /**
+   * Returns dated portfolio totals built from actual savings_updates rows.
+   *
+   * For each unique calendar date that any investment was touched, the query
+   * sums each investment's most-recent recorded value on or before that date.
+   * Investments that hadn't opened yet on a given date are excluded, so the
+   * numbers are always accurate and never invented.
+   *
+   * Returns rows ordered oldest → newest.
+   */
+  const getPortfolioTimeline = useCallback(() => {
+    return db.getAllAsync<{ effective_date: string; portfolio_value_cents: number }>(`
+      SELECT
+        d.effective_date,
+        SUM(
+          (SELECT su2.value_cents
+           FROM savings_updates su2
+           WHERE su2.saving_item_id = si.id
+             AND date(su2.effective_date) <= d.effective_date
+           ORDER BY su2.effective_date DESC, su2.id DESC
+           LIMIT 1)
+        ) AS portfolio_value_cents
+      FROM (
+        SELECT DISTINCT date(effective_date) AS effective_date
+        FROM savings_updates
+      ) d
+      CROSS JOIN savings_items si
+      WHERE EXISTS (
+        SELECT 1
+        FROM savings_updates su3
+        WHERE su3.saving_item_id = si.id
+          AND date(su3.effective_date) <= d.effective_date
+      )
+      GROUP BY d.effective_date
+      ORDER BY d.effective_date
+    `);
+  }, [db]);
+
   return {
     createInvestment,
     createInvestmentWithExpense,
     updateInvestment,
     getInvestmentById,
     getInvestmentsList,
+    getPortfolioTimeline,
   };
 }

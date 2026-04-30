@@ -10,7 +10,6 @@ import {
 import { DatePickerField } from './DatePickerField';
 import { Button } from './ui/Button';
 import { Chip } from './ui/Chip';
-import { SegmentedControl } from './ui/SegmentedControl';
 import { type InvestmentCategory } from '../db/investments';
 import type { SupportedCurrency } from '../db/settings';
 import { parseMoneyToCents } from '../lib/money';
@@ -18,21 +17,35 @@ import { searchCoins, type CoinOption } from '../lib/coins';
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/tokens';
 
-const CATEGORY_OPTIONS: InvestmentCategory[] = [
-  'ETF',
-  'Stock',
-  'Crypto',
-  'Real Estate',
-  'Savings',
-  'Fund',
-  'Other',
+// ── Category config ───────────────────────────────────────────────────────────
+
+const ALL_CATEGORIES: InvestmentCategory[] = [
+  'ETF', 'Stock', 'Crypto', 'Fund', 'Real Estate', 'Savings', 'Other',
 ];
 
-const CURRENCY_LABEL: Record<SupportedCurrency, string> = {
-  ILS: 'NIS',
-  USD: 'USD',
-  EUR: 'EUR',
+// Shown when adding via "existing" or "budget" path — Savings has its own path
+const NON_SAVINGS_CATEGORIES: InvestmentCategory[] = [
+  'ETF', 'Stock', 'Crypto', 'Fund', 'Real Estate', 'Other',
+];
+
+const CATEGORY_LABEL: Record<InvestmentCategory, string> = {
+  ETF:           'ETF',
+  Stock:         'Stock',
+  Crypto:        'Crypto',
+  Fund:          'Fund',
+  'Real Estate': 'Real Estate',
+  Savings:       'Savings / Cash',
+  Other:         'Other',
 };
+
+const CURRENCY_LABEL: Record<SupportedCurrency, string> = {
+  ILS: 'NIS', USD: 'USD', EUR: 'EUR',
+};
+
+// ── Public types ──────────────────────────────────────────────────────────────
+
+/** How this investment is being added. Drives which fields are shown. */
+export type FormMode = 'new-budget' | 'existing' | 'balance';
 
 export type InvestmentFormValues = {
   name: string;
@@ -63,11 +76,10 @@ export type InvestmentFormInitialData = {
 };
 
 type Props = {
+  mode?: FormMode;
   eyebrow: string;
   title: string;
   subtitle?: string;
-  showIsNew?: boolean;
-  showFundedFromBudget?: boolean;
   saveLabel: string;
   saving: boolean;
   currency?: SupportedCurrency;
@@ -76,12 +88,13 @@ type Props = {
   onCancel?: () => void;
 };
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function InvestmentForm({
+  mode = 'existing',
   eyebrow,
   title,
   subtitle,
-  showIsNew = false,
-  showFundedFromBudget = false,
   saveLabel,
   saving,
   currency = 'ILS',
@@ -89,50 +102,81 @@ export function InvestmentForm({
   onSave,
   onCancel,
 }: Props) {
-  const [name, setName] = useState(initialData?.name ?? '');
-  const [category, setCategory] = useState<InvestmentCategory>(
-    initialData?.category ?? 'ETF'
+  const isBalanceMode  = mode === 'balance';
+  const isBudgetMode   = mode === 'new-budget';
+  const isExistingMode = mode === 'existing';
+  const isEditing      = !!initialData;
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [name,         setName]         = useState(initialData?.name ?? '');
+  const [category,     setCategory]     = useState<InvestmentCategory>(
+    isBalanceMode ? 'Savings' : (initialData?.category ?? 'ETF')
   );
-  const [assetSymbol, setAssetSymbol] = useState(initialData?.assetSymbol ?? '');
-  const [assetCoinId, setAssetCoinId] = useState(initialData?.assetCoinId ?? '');
-  const [assetQuantity, setAssetQuantity] = useState(
-    initialData?.assetQuantity ?? ''
-  );
-  const [coinQuery, setCoinQuery] = useState(
+  const [assetSymbol,  setAssetSymbol]  = useState(initialData?.assetSymbol ?? '');
+  const [assetCoinId,  setAssetCoinId]  = useState(initialData?.assetCoinId ?? '');
+  const [assetQuantity,setAssetQuantity]= useState(initialData?.assetQuantity ?? '');
+  const [coinQuery,    setCoinQuery]    = useState(
     initialData?.assetSymbol && initialData?.assetCoinId
       ? `${initialData.assetSymbol} (${initialData.assetCoinId})`
       : ''
   );
-  const [coinResults, setCoinResults] = useState<CoinOption[]>([]);
+  const [coinResults,      setCoinResults]      = useState<CoinOption[]>([]);
+  const [fundedFromBudget, setFundedFromBudget] = useState(isBudgetMode);
+  const [openingDate,      setOpeningDate]      = useState<Date>(initialData?.openingDate ?? new Date());
+  const [openingAmount,    setOpeningAmount]    = useState(initialData?.openingAmount ?? '');
+  const [currentValue,     setCurrentValue]     = useState(initialData?.currentValue ?? '');
+  const [note,             setNote]             = useState(initialData?.note ?? '');
+  const [triedSave,        setTriedSave]        = useState(false);
 
-  const [isNew, setIsNew] = useState(true);
-  const [fundedFromBudget, setFundedFromBudget] = useState(false);
-  const [openingDate, setOpeningDate] = useState(initialData?.openingDate ?? new Date());
-  const [openingAmount, setOpeningAmount] = useState(initialData?.openingAmount ?? '');
-  const [currentValue, setCurrentValue] = useState(initialData?.currentValue ?? '');
-  const [note, setNote] = useState(initialData?.note ?? '');
-
-  // Live price fetch states (existing crypto path)
+  // Live price (new existing-mode crypto only)
   const [livePriceFetching, setLivePriceFetching] = useState(false);
-  const [livePriceCents, setLivePriceCents] = useState<number | null>(null);
-  const [livePriceError, setLivePriceError] = useState('');
+  const [livePriceCents,    setLivePriceCents]    = useState<number | null>(null);
+  const [livePriceError,    setLivePriceError]    = useState('');
 
-  const openingAmountCents = useMemo(
-    () => parseMoneyToCents(openingAmount),
-    [openingAmount]
-  );
-  const currentValueCents = useMemo(
-    () => parseMoneyToCents(currentValue),
-    [currentValue]
-  );
-  const quantity = useMemo(() => Number(assetQuantity || 0), [assetQuantity]);
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const isCrypto       = category === 'Crypto';
+  const isSavings      = category === 'Savings';
+  const isRealEstate   = category === 'Real Estate';
+  const isMarketAsset  = ['Crypto', 'ETF', 'Stock', 'Fund'].includes(category);
+  const hasTickerField = ['ETF', 'Stock', 'Fund'].includes(category);
 
-  const isCrypto = category === 'Crypto';
+  const openingAmountCents = useMemo(() => parseMoneyToCents(openingAmount), [openingAmount]);
+  const currentValueCents  = useMemo(() => parseMoneyToCents(currentValue),  [currentValue]);
+  const quantity           = useMemo(() => Number(assetQuantity || 0),         [assetQuantity]);
+  const currencyLabel      = CURRENCY_LABEL[currency];
 
-  // Auto-fetch live price for existing crypto when adding (not editing)
+  // balance / budget modes: current value equals opening amount
+  const resolvedCurrentValueCents = isExistingMode ? currentValueCents : openingAmountCents;
+
+  // Which category chips to show
+  const categoryOptions: InvestmentCategory[] =
+    isBalanceMode ? [] :
+    isEditing     ? ALL_CATEGORIES :
+    NON_SAVINGS_CATEGORIES;
+
+  // ── Validation ────────────────────────────────────────────────────────────
+  const errors = {
+    name: !name.trim() ? 'Name is required' : null,
+    openingAmount: openingAmountCents <= 0 ? (
+      isBalanceMode ? 'Balance is required' :
+      isBudgetMode  ? 'Amount invested is required' :
+                      'Amount invested / cost basis is required'
+    ) : null,
+    currentValue: isExistingMode && currentValueCents <= 0
+      ? 'Current value is required'
+      : null,
+    coinId: isCrypto && !assetCoinId ? 'Please select a coin' : null,
+  };
+
+  const canSave = !errors.name && !errors.openingAmount && !errors.currentValue && !errors.coinId && !saving;
+
+  function fieldError(key: keyof typeof errors): string | null {
+    return triedSave ? errors[key] : null;
+  }
+
+  // ── Auto-fetch live price for new existing crypto ─────────────────────────
   useEffect(() => {
-    const shouldAutoFetch = showIsNew && !isNew && isCrypto && assetCoinId && quantity > 0;
-    if (!shouldAutoFetch) return;
+    if (isEditing || !isExistingMode || !isCrypto || !assetCoinId || quantity <= 0) return;
 
     let cancelled = false;
     setLivePriceFetching(true);
@@ -144,8 +188,8 @@ export function InvestmentForm({
     fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(assetCoinId)}&vs_currencies=${vs}`
     )
-      .then((r) => r.json())
-      .then((data) => {
+      .then(r => r.json())
+      .then(data => {
         if (cancelled) return;
         const unitPrice = data?.[assetCoinId]?.[vs];
         if (typeof unitPrice === 'number') {
@@ -157,54 +201,16 @@ export function InvestmentForm({
           setLivePriceError('No live price found for this coin.');
         }
       })
-      .catch(() => {
-        if (!cancelled) setLivePriceError('Failed to fetch live price.');
-      })
-      .finally(() => {
-        if (!cancelled) setLivePriceFetching(false);
-      });
+      .catch(() => { if (!cancelled) setLivePriceError('Failed to fetch live price.'); })
+      .finally(() => { if (!cancelled) setLivePriceFetching(false); });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [assetCoinId, quantity, currency, isCrypto, isNew, showIsNew]);
+    return () => { cancelled = true; };
+  }, [assetCoinId, quantity, currency, isCrypto, isExistingMode, isEditing]);
 
-  // Funding from this month only makes sense for new investments, not imports.
-  useEffect(() => {
-    if (!isNew) setFundedFromBudget(false);
-  }, [isNew]);
-
-  const isMarketAsset =
-    category === 'Crypto' ||
-    category === 'ETF' ||
-    category === 'Stock' ||
-    category === 'Fund';
-  const isSavings = category === 'Savings';
-  const isRealEstate = category === 'Real Estate';
-
-  // For new investments: current value = opening amount, date = today
-  const isNewFlow  = showIsNew && isNew;
-  // "Already had it" — single "Value" field, no separate opening/current split
-  const alreadyHad = showIsNew && !isNew;
-  const needsCurrentValue = !isNewFlow && !alreadyHad;
-  const showDatePicker_ = !isNewFlow;
-
-  const canSave =
-    name.trim().length > 0 &&
-    openingAmountCents > 0 &&
-    (!needsCurrentValue || currentValueCents > 0) &&
-    (!isCrypto || assetCoinId.trim().length > 0) &&
-    !saving;
-
-  const currencyLabel = CURRENCY_LABEL[currency];
-
+  // ── Handlers ──────────────────────────────────────────────────────────────
   function handleCoinSearch(query: string) {
     setCoinQuery(query);
-    if (query.trim().length >= 1) {
-      setCoinResults(searchCoins(query));
-    } else {
-      setCoinResults([]);
-    }
+    setCoinResults(query.trim().length >= 1 ? searchCoins(query) : []);
   }
 
   function selectCoin(item: CoinOption) {
@@ -212,9 +218,7 @@ export function InvestmentForm({
     setAssetSymbol(item.symbol.toUpperCase());
     setCoinQuery(`${item.name} (${item.symbol.toUpperCase()})`);
     setCoinResults([]);
-    if (!name.trim()) {
-      setName(item.name);
-    }
+    if (!name.trim()) setName(item.name);
   }
 
   function handleCategoryChange(option: InvestmentCategory) {
@@ -229,6 +233,7 @@ export function InvestmentForm({
   }
 
   function handleSave() {
+    setTriedSave(true);
     if (!canSave) return;
     onSave({
       name,
@@ -236,356 +241,138 @@ export function InvestmentForm({
       assetSymbol,
       assetCoinId,
       quantity,
-      isNew,
-      openingDate: isNewFlow ? new Date().toISOString() : openingDate.toISOString(),
+      isNew: isBudgetMode,
+      openingDate: isBudgetMode ? new Date().toISOString() : openingDate.toISOString(),
       openingAmountCents,
-      currentValueCents: (isNewFlow || alreadyHad) ? openingAmountCents : currentValueCents,
+      currentValueCents: resolvedCurrentValueCents,
       note,
       isMarketAsset,
       isCrypto,
-      fundedFromBudget,
+      fundedFromBudget: isBudgetMode ? fundedFromBudget : false,
     });
   }
 
-  function renderTypeQuestions() {
-    // "Already had it" — all categories: show coin picker (crypto only) + single Value field
-    if (alreadyHad) {
+  // ── Amount/value field renderer ───────────────────────────────────────────
+  function renderAmountFields() {
+    if (isBalanceMode) {
       return (
-        <>
-          {isCrypto && (
-            <>
-              <View style={styles.field}>
-                <Text style={styles.label}>Which coin is it?</Text>
-                <View style={styles.searchRow}>
-                  <TextInput
-                    value={coinQuery}
-                    onChangeText={handleCoinSearch}
-                    placeholder="Bitcoin, ETH, Solana..."
-                    placeholderTextColor={colors.textTertiary}
-                    style={[styles.input, styles.searchInput]}
-                  />
-                </View>
-              </View>
-              {coinResults.length > 0 && (
-                <View style={styles.resultsCard}>
-                  {coinResults.map((item) => (
-                    <Pressable key={item.id} onPress={() => selectCoin(item)} style={styles.resultRow}>
-                      <Text style={styles.resultName}>{item.name}</Text>
-                      <Text style={styles.resultMeta}>{item.symbol} · {item.id}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-              {!!assetCoinId && (
-                <View style={styles.selectedPill}>
-                  <Text style={styles.selectedPillText}>{assetSymbol} · {assetCoinId}</Text>
-                </View>
-              )}
-              <View style={styles.field}>
-                <Text style={styles.label}>How much do you hold?</Text>
-                <TextInput
-                  value={assetQuantity}
-                  onChangeText={setAssetQuantity}
-                  placeholder="0.5"
-                  keyboardType="decimal-pad"
-                  placeholderTextColor={colors.textTertiary}
-                  style={styles.input}
-                />
-              </View>
-            </>
-          )}
-          <View style={styles.field}>
-            <Text style={styles.label}>Value ({currencyLabel})</Text>
-            <TextInput
-              value={openingAmount}
-              onChangeText={setOpeningAmount}
-              placeholder="5000"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-          </View>
-        </>
-      );
-    }
-
-    if (isCrypto) {
-      return (
-        <>
-          <View style={styles.field}>
-            <Text style={styles.label}>Which coin is it?</Text>
-            <View style={styles.searchRow}>
-              <TextInput
-                value={coinQuery}
-                onChangeText={handleCoinSearch}
-                placeholder="Bitcoin, ETH, Solana..."
-                placeholderTextColor={colors.textTertiary}
-                style={[styles.input, styles.searchInput]}
-              />
-            </View>
-          </View>
-
-          {coinResults.length > 0 && (
-            <View style={styles.resultsCard}>
-              {coinResults.map((item) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => selectCoin(item)}
-                  style={styles.resultRow}
-                >
-                  <Text style={styles.resultName}>{item.name}</Text>
-                  <Text style={styles.resultMeta}>
-                    {item.symbol} · {item.id}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-
-          {!!assetCoinId && (
-            <View style={styles.selectedPill}>
-              <Text style={styles.selectedPillText}>
-                {assetSymbol} · {assetCoinId}
-              </Text>
-            </View>
-          )}
-
-          {/* Only show quantity for existing crypto */}
-          {!isNewFlow && (
-            <View style={styles.field}>
-              <Text style={styles.label}>How much do you currently hold?</Text>
-              <TextInput
-                value={assetQuantity}
-                onChangeText={setAssetQuantity}
-                placeholder="0.5"
-                keyboardType="decimal-pad"
-                placeholderTextColor={colors.textTertiary}
-                style={styles.input}
-              />
-            </View>
-          )}
-
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              {isNewFlow
-                ? `Amount you're investing (${currencyLabel})`
-                : `Opening value (${currencyLabel})`}
-            </Text>
-            {isNewFlow ? (
-              <TextInput
-                value={openingAmount}
-                onChangeText={setOpeningAmount}
-                placeholder="5000"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="decimal-pad"
-                style={styles.input}
-              />
-            ) : livePriceFetching ? (
-              <View style={styles.inputButton}>
-                <Text style={[styles.inputButtonText, { color: colors.textMuted }]}>
-                  Fetching live price...
-                </Text>
-              </View>
-            ) : livePriceCents !== null ? (
-              <View style={[styles.inputButton, { backgroundColor: colors.surfaceSoft }]}>
-                <Text style={styles.inputButtonText}>
-                  {(livePriceCents / 100).toLocaleString()} {currencyLabel} · live price
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.inputButton}>
-                <Text style={[styles.inputButtonText, { color: colors.danger }]}>
-                  {livePriceError || 'Select coin and enter quantity first'}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Only show current value for existing crypto */}
-          {!isNewFlow && (
-            <View style={styles.field}>
-              <Text style={styles.label}>
-                Current total value ({currencyLabel})
-              </Text>
-              {livePriceFetching ? (
-                <View style={styles.inputButton}>
-                  <Text style={[styles.inputButtonText, { color: colors.textMuted }]}>
-                    Fetching live price...
-                  </Text>
-                </View>
-              ) : (
-                <TextInput
-                  value={currentValue}
-                  onChangeText={setCurrentValue}
-                  placeholder="5300"
-                  placeholderTextColor={colors.textTertiary}
-                  keyboardType="decimal-pad"
-                  style={styles.input}
-                />
-              )}
-            </View>
-          )}
-        </>
-      );
-    }
-
-    if (isSavings) {
-      return (
-        <>
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              {isNewFlow
-                ? `Opening deposit (${currencyLabel})`
-                : `Opening amount (${currencyLabel})`}
-            </Text>
-            <TextInput
-              value={openingAmount}
-              onChangeText={setOpeningAmount}
-              placeholder="10000"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-          </View>
-
-          {!isNewFlow && (
-            <View style={styles.field}>
-              <Text style={styles.label}>Current balance ({currencyLabel})</Text>
-              <TextInput
-                value={currentValue}
-                onChangeText={setCurrentValue}
-                placeholder="12300"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="decimal-pad"
-                style={styles.input}
-              />
-            </View>
-          )}
-        </>
-      );
-    }
-
-    if (isRealEstate) {
-      return (
-        <>
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              Purchase / opening value ({currencyLabel})
-            </Text>
-            <TextInput
-              value={openingAmount}
-              onChangeText={setOpeningAmount}
-              placeholder="700000"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-          </View>
-
-          {!isNewFlow && (
-            <View style={styles.field}>
-              <Text style={styles.label}>
-                Current estimated value ({currencyLabel})
-              </Text>
-              <TextInput
-                value={currentValue}
-                onChangeText={setCurrentValue}
-                placeholder="850000"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="decimal-pad"
-                style={styles.input}
-              />
-            </View>
-          )}
-        </>
-      );
-    }
-
-    if (isMarketAsset) {
-      return (
-        <>
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              {isNewFlow ? 'Units purchased (optional)' : 'Units currently held (optional)'}
-            </Text>
-            <TextInput
-              value={assetQuantity}
-              onChangeText={setAssetQuantity}
-              placeholder="12"
-              keyboardType="decimal-pad"
-              placeholderTextColor={colors.textTertiary}
-              style={styles.input}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>
-              {isNewFlow
-                ? `Amount invested (${currencyLabel})`
-                : `Opening value / total invested (${currencyLabel})`}
-            </Text>
-            <TextInput
-              value={openingAmount}
-              onChangeText={setOpeningAmount}
-              placeholder="5000"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-          </View>
-
-          {!isNewFlow && (
-            <View style={styles.field}>
-              <Text style={styles.label}>Current total value ({currencyLabel})</Text>
-              <TextInput
-                value={currentValue}
-                onChangeText={setCurrentValue}
-                placeholder="5300"
-                placeholderTextColor={colors.textTertiary}
-                keyboardType="decimal-pad"
-                style={styles.input}
-              />
-            </View>
-          )}
-        </>
-      );
-    }
-
-    // Other
-    return (
-      <>
         <View style={styles.field}>
-          <Text style={styles.label}>Opening value ({currencyLabel})</Text>
+          <Text style={styles.label}>Current balance ({currencyLabel})</Text>
           <TextInput
             value={openingAmount}
             onChangeText={setOpeningAmount}
-            placeholder="5000"
-            placeholderTextColor={colors.textTertiary}
+            placeholder="10 000"
             keyboardType="decimal-pad"
-            style={styles.input}
+            placeholderTextColor={colors.textTertiary}
+            style={[styles.input, !!fieldError('openingAmount') && styles.inputError]}
           />
+          {!!fieldError('openingAmount') && (
+            <Text style={styles.errorMsg}>{fieldError('openingAmount')}</Text>
+          )}
+        </View>
+      );
+    }
+
+    if (isBudgetMode) {
+      return (
+        <View style={styles.field}>
+          <Text style={styles.label}>Amount invested ({currencyLabel})</Text>
+          <TextInput
+            value={openingAmount}
+            onChangeText={setOpeningAmount}
+            placeholder="5 000"
+            keyboardType="decimal-pad"
+            placeholderTextColor={colors.textTertiary}
+            style={[styles.input, !!fieldError('openingAmount') && styles.inputError]}
+          />
+          {!!fieldError('openingAmount') && (
+            <Text style={styles.errorMsg}>{fieldError('openingAmount')}</Text>
+          )}
+        </View>
+      );
+    }
+
+    // Existing mode: cost basis + current value
+    const costBasisLabel =
+      isSavings    ? `Opening deposit (${currencyLabel})` :
+      isRealEstate ? `Purchase price (${currencyLabel})` :
+                     `Amount invested / cost basis (${currencyLabel})`;
+
+    const currentValueLabel =
+      isSavings    ? `Current balance (${currencyLabel})` :
+      isRealEstate ? `Current estimated value (${currencyLabel})` :
+                     `Current value (${currencyLabel})`;
+
+    return (
+      <>
+        <View style={styles.field}>
+          <Text style={styles.label}>{costBasisLabel}</Text>
+          {isCrypto && livePriceFetching ? (
+            <View style={styles.inputPlaceholder}>
+              <Text style={styles.inputPlaceholderText}>Fetching live price…</Text>
+            </View>
+          ) : isCrypto && livePriceCents !== null && !livePriceError ? (
+            <View style={[styles.inputPlaceholder, styles.inputPlaceholderFilled]}>
+              <Text style={styles.inputPlaceholderFilledText}>
+                {(livePriceCents / 100).toLocaleString()} {currencyLabel} · live
+              </Text>
+            </View>
+          ) : isCrypto && !assetCoinId ? (
+            <View style={styles.inputPlaceholder}>
+              <Text style={styles.inputPlaceholderText}>
+                Select coin and enter quantity first
+              </Text>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                value={openingAmount}
+                onChangeText={setOpeningAmount}
+                placeholder={isRealEstate ? '700 000' : '5 000'}
+                keyboardType="decimal-pad"
+                placeholderTextColor={colors.textTertiary}
+                style={[styles.input, !!fieldError('openingAmount') && styles.inputError]}
+              />
+              {!!fieldError('openingAmount') && (
+                <Text style={styles.errorMsg}>{fieldError('openingAmount')}</Text>
+              )}
+            </>
+          )}
         </View>
 
-        {!isNewFlow && (
-          <View style={styles.field}>
-            <Text style={styles.label}>Current value ({currencyLabel})</Text>
-            <TextInput
-              value={currentValue}
-              onChangeText={setCurrentValue}
-              placeholder="5300"
-              placeholderTextColor={colors.textTertiary}
-              keyboardType="decimal-pad"
-              style={styles.input}
-            />
-          </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>{currentValueLabel}</Text>
+          {isCrypto && livePriceFetching ? (
+            <View style={styles.inputPlaceholder}>
+              <Text style={styles.inputPlaceholderText}>Fetching live price…</Text>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                value={currentValue}
+                onChangeText={setCurrentValue}
+                placeholder={isRealEstate ? '850 000' : '5 300'}
+                keyboardType="decimal-pad"
+                placeholderTextColor={colors.textTertiary}
+                style={[styles.input, !!fieldError('currentValue') && styles.inputError]}
+              />
+              {!!fieldError('currentValue') && (
+                <Text style={styles.errorMsg}>{fieldError('currentValue')}</Text>
+              )}
+            </>
+          )}
+        </View>
+
+        {isCrypto && !!livePriceError && (
+          <Text style={[styles.errorMsg, { marginTop: spacing[2] }]}>{livePriceError}</Text>
         )}
       </>
     );
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={styles.card}>
-      {/* Close button */}
       {!!onCancel && (
         <Pressable
           onPress={onCancel}
@@ -602,64 +389,147 @@ export function InvestmentForm({
       <Text style={styles.title}>{title}</Text>
       {!!subtitle && <Text style={styles.body}>{subtitle}</Text>}
 
+      {/* Name */}
       <View style={styles.field}>
         <Text style={styles.label}>Name</Text>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="BTC wallet, S&P 500, savings account..."
+          placeholder={
+            isBalanceMode
+              ? 'Savings account, emergency fund…'
+              : isCrypto
+              ? 'BTC wallet, ETH portfolio…'
+              : 'S&P 500, AAPL, my fund…'
+          }
           placeholderTextColor={colors.textTertiary}
-          style={styles.input}
+          style={[styles.input, !!fieldError('name') && styles.inputError]}
         />
+        {!!fieldError('name') && <Text style={styles.errorMsg}>{fieldError('name')}</Text>}
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Type</Text>
-        <View style={styles.chipsWrap}>
-          {CATEGORY_OPTIONS.map((option) => (
-            <Chip
-              key={option}
-              label={option}
-              active={category === option}
-              activeColor={colors.primary}
-              activeBgColor={colors.surfaceSoft}
-              onPress={() => handleCategoryChange(option)}
-            />
-          ))}
-        </View>
-      </View>
-
-      {showIsNew && (
+      {/* Type chips */}
+      {categoryOptions.length > 0 && (
         <View style={styles.field}>
-          <Text style={styles.label}>Is this new or already existed?</Text>
-          <SegmentedControl
-            value={isNew ? 'new' : 'existing'}
-            onChange={(v) => setIsNew(v === 'new')}
-            options={[
-              { value: 'new', label: 'New', activeColor: colors.primary, activeBgColor: colors.surfaceSoft },
-              { value: 'existing', label: 'Already had it', activeColor: colors.primary, activeBgColor: colors.surfaceSoft },
-            ]}
-          />
+          <Text style={styles.label}>Type</Text>
+          <View style={styles.chipsWrap}>
+            {categoryOptions.map(option => (
+              <Chip
+                key={option}
+                label={CATEGORY_LABEL[option]}
+                active={category === option}
+                activeColor={colors.primary}
+                activeBgColor={colors.surfaceSoft}
+                onPress={() => handleCategoryChange(option)}
+              />
+            ))}
+          </View>
         </View>
       )}
 
-      {renderTypeQuestions()}
+      {/* Crypto: coin picker + quantity */}
+      {isCrypto && (
+        <>
+          <View style={styles.field}>
+            <Text style={styles.label}>Coin</Text>
+            <TextInput
+              value={coinQuery}
+              onChangeText={handleCoinSearch}
+              placeholder="Bitcoin, ETH, Solana…"
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.input, !!fieldError('coinId') && styles.inputError]}
+            />
+            {!!fieldError('coinId') && (
+              <Text style={styles.errorMsg}>{fieldError('coinId')}</Text>
+            )}
+          </View>
+          {coinResults.length > 0 && (
+            <View style={styles.resultsCard}>
+              {coinResults.map(item => (
+                <Pressable key={item.id} onPress={() => selectCoin(item)} style={styles.resultRow}>
+                  <Text style={styles.resultName}>{item.name}</Text>
+                  <Text style={styles.resultMeta}>{item.symbol} · {item.id}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          {!!assetCoinId && (
+            <View style={styles.selectedPill}>
+              <Text style={styles.selectedPillText}>{assetSymbol} · {assetCoinId}</Text>
+            </View>
+          )}
+          <View style={styles.field}>
+            <Text style={styles.label}>
+              Quantity{'  '}<Text style={styles.optional}>(optional)</Text>
+            </Text>
+            <TextInput
+              value={assetQuantity}
+              onChangeText={setAssetQuantity}
+              placeholder="0.5"
+              keyboardType="decimal-pad"
+              placeholderTextColor={colors.textTertiary}
+              style={styles.input}
+            />
+          </View>
+        </>
+      )}
 
-      {/* Date picker only for existing investments */}
-      {showDatePicker_ && (
+      {/* ETF / Stock / Fund: ticker + units */}
+      {hasTickerField && (
+        <>
+          <View style={styles.field}>
+            <Text style={styles.label}>
+              Ticker / symbol{'  '}<Text style={styles.optional}>(optional)</Text>
+            </Text>
+            <TextInput
+              value={assetSymbol}
+              onChangeText={t => setAssetSymbol(t.toUpperCase())}
+              placeholder={
+                category === 'ETF'   ? 'VOO, QQQ…' :
+                category === 'Stock' ? 'AAPL, TSLA…' : 'Symbol…'
+              }
+              placeholderTextColor={colors.textTertiary}
+              autoCapitalize="characters"
+              style={styles.input}
+            />
+          </View>
+          <View style={styles.field}>
+            <Text style={styles.label}>
+              Units held{'  '}<Text style={styles.optional}>(optional)</Text>
+            </Text>
+            <TextInput
+              value={assetQuantity}
+              onChangeText={setAssetQuantity}
+              placeholder="12"
+              keyboardType="decimal-pad"
+              placeholderTextColor={colors.textTertiary}
+              style={styles.input}
+            />
+          </View>
+        </>
+      )}
+
+      {/* Amount / value fields */}
+      {renderAmountFields()}
+
+      {/* Date picker — existing and balance modes */}
+      {!isBudgetMode && (
         <View style={styles.field}>
-          <Text style={styles.label}>When did you first open / buy it?</Text>
+          <Text style={styles.label}>
+            {isBalanceMode
+              ? 'Date opened (optional)'
+              : 'Date acquired / first invested'}
+          </Text>
           <DatePickerField value={openingDate} onChange={setOpeningDate} />
         </View>
       )}
 
-      {showFundedFromBudget && (!showIsNew || isNew) && (
+      {/* Funded from budget toggle — budget mode only */}
+      {isBudgetMode && (
         <View style={styles.fundedRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.fundedLabelText}>{"Funded from this month's budget?"}</Text>
-            <Text style={styles.fundedHint}>
-              Counts toward your monthly Invest budget.
-            </Text>
+            <Text style={styles.fundedLabel}>{"Funded from this month's budget?"}</Text>
+            <Text style={styles.fundedHint}>Counts toward your monthly Invest budget.</Text>
           </View>
           <Switch
             value={fundedFromBudget}
@@ -671,8 +541,11 @@ export function InvestmentForm({
         </View>
       )}
 
+      {/* Note */}
       <View style={styles.field}>
-        <Text style={styles.label}>Note (optional)</Text>
+        <Text style={styles.label}>
+          Note{'  '}<Text style={styles.optional}>(optional)</Text>
+        </Text>
         <TextInput
           value={note}
           onChangeText={setNote}
@@ -686,13 +559,15 @@ export function InvestmentForm({
       <Button
         label={saving ? 'Saving…' : saveLabel}
         onPress={handleSave}
-        disabled={!canSave}
+        disabled={saving}
         loading={saving}
         style={{ marginTop: spacing[6] }}
       />
     </View>
   );
 }
+
+// ── Styles ─────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   card: {
@@ -710,7 +585,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
-    color: colors.textTertiary,        // neutral — no category color bleed
+    color: colors.textTertiary,
     marginBottom: spacing[2],
   },
   title: {
@@ -731,22 +606,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text,                // strong label, not muted uppercase
+    color: colors.text,
     marginBottom: spacing[2],
   },
-  inputButton: {
-    minHeight: 52,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing[4],
-    justifyContent: 'center',
-  },
-  inputButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.text,
+  optional: {
+    fontWeight: '400',
+    color: colors.textTertiary,
+    fontSize: 13,
   },
   input: {
     minHeight: 52,
@@ -759,11 +625,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  searchRow: {
-    flexDirection: 'row',
-    gap: spacing[3],
+  inputError: {
+    borderColor: colors.danger,
+    backgroundColor: colors.dangerSoft,
   },
-  searchInput: { flex: 1 },
+  errorMsg: {
+    marginTop: spacing[1],
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.danger,
+  },
+  inputPlaceholder: {
+    minHeight: 52,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing[4],
+    justifyContent: 'center',
+  },
+  inputPlaceholderText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textMuted,
+  },
+  inputPlaceholderFilled: {
+    backgroundColor: colors.surfaceSoft,
+  },
+  inputPlaceholderFilledText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  noteInput: {
+    minHeight: 96,
+    paddingTop: spacing[4],
+    textAlignVertical: 'top',
+  },
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   resultsCard: {
     marginTop: spacing[2],
     borderRadius: radius.lg,
@@ -796,12 +695,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
-  noteInput: {
-    minHeight: 96,
-    paddingTop: spacing[4],
-    textAlignVertical: 'top',
-  },
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   closeBtn: {
     position: 'absolute',
     top: spacing[4],
@@ -835,7 +728,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  fundedLabelText: {
+  fundedLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,

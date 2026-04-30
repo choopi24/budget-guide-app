@@ -111,6 +111,7 @@ type ExpenseDbRow = {
   title: string;
   amount_cents: number;
   final_bucket: string;
+  category: string | null;
   is_investment: number;
   is_recurring: number;
   note: string | null;
@@ -119,7 +120,7 @@ type ExpenseDbRow = {
 export async function exportExpenses(db: SQLiteDatabase): Promise<void> {
   const rows = await db.getAllAsync<ExpenseDbRow>(`
     SELECT m.month_key, e.spent_on, e.title, e.amount_cents,
-           e.final_bucket, e.is_investment, e.is_recurring, e.note
+           e.final_bucket, e.category, e.is_investment, e.is_recurring, e.note
     FROM expenses e
     JOIN months m ON e.month_id = m.id
     ORDER BY e.spent_on ASC, e.id ASC
@@ -127,13 +128,14 @@ export async function exportExpenses(db: SQLiteDatabase): Promise<void> {
 
   const header = [
     'month', 'date', 'title', 'amount',
-    'bucket', 'is_investment', 'is_recurring', 'note',
+    'bucket', 'category', 'is_investment', 'is_recurring', 'note',
   ];
 
   const data = rows.map((r) => [
     r.month_key, r.spent_on, r.title,
     cents(r.amount_cents),
     r.final_bucket,
+    r.category ?? '',
     r.is_investment ? 'yes' : 'no',
     r.is_recurring  ? 'yes' : 'no',
     r.note ?? '',

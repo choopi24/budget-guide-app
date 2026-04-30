@@ -7,9 +7,17 @@ import {
   type InvestmentFormInitialData,
   type InvestmentFormValues,
 } from '../components/InvestmentForm';
-import { useInvestmentsDb } from '../db/investments';
+import { useInvestmentsDb, type InvestmentCategory } from '../db/investments';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
 import { colors } from '../theme/colors';
+
+/** Normalize legacy stored values to current category labels. */
+function normalizeCategory(raw: string): InvestmentCategory {
+  const map: Record<string, InvestmentCategory> = {
+    'Savings': 'Savings',
+  };
+  return (map[raw] ?? raw) as InvestmentCategory;
+}
 
 export default function InvestmentEditScreen() {
   const router = useRouter();
@@ -19,8 +27,8 @@ export default function InvestmentEditScreen() {
   const { getInvestmentById, updateInvestment } = useInvestmentsDb();
   const { getCurrency } = useSettingsDb();
   const [initialData, setInitialData] = useState<InvestmentFormInitialData | null>(null);
-  const [currency, setCurrency] = useState<SupportedCurrency>('ILS');
-  const [saving, setSaving] = useState(false);
+  const [currency,    setCurrency]    = useState<SupportedCurrency>('ILS');
+  const [saving,      setSaving]      = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -33,16 +41,15 @@ export default function InvestmentEditScreen() {
       if (!mounted) return;
       if (item) {
         setInitialData({
-          name: item.name,
-          category: item.category,
-          assetSymbol: item.asset_symbol || '',
-          assetCoinId: item.asset_coin_id || '',
-          assetQuantity:
-            item.asset_quantity != null ? String(item.asset_quantity) : '',
-          openingDate: new Date(item.opening_date),
+          name:          item.name,
+          category:      normalizeCategory(item.category),
+          assetSymbol:   item.asset_symbol ?? '',
+          assetCoinId:   item.asset_coin_id ?? '',
+          assetQuantity: item.asset_quantity != null ? String(item.asset_quantity) : '',
+          openingDate:   new Date(item.opening_date),
           openingAmount: String(item.opening_amount_cents / 100),
-          currentValue: String(item.current_value_cents / 100),
-          note: item.note || '',
+          currentValue:  String(item.current_value_cents / 100),
+          note:          item.note ?? '',
         });
       }
       setCurrency(savedCurrency);
@@ -56,16 +63,16 @@ export default function InvestmentEditScreen() {
     setSaving(true);
     try {
       await updateInvestment({
-        id: investmentId,
-        name: values.name,
-        category: values.category,
-        assetSymbol: values.isCrypto ? values.assetSymbol : undefined,
-        assetCoinId: values.isCrypto ? values.assetCoinId : undefined,
-        assetQuantity: values.isMarketAsset ? values.quantity : null,
-        openingDate: values.openingDate,
+        id:                 investmentId,
+        name:               values.name,
+        category:           values.category,
+        assetSymbol:        values.assetSymbol || undefined,
+        assetCoinId:        values.isCrypto ? values.assetCoinId : undefined,
+        assetQuantity:      values.isMarketAsset ? values.quantity || null : null,
+        openingDate:        values.openingDate,
         openingAmountCents: values.openingAmountCents,
-        currentValueCents: values.currentValueCents,
-        note: values.note,
+        currentValueCents:  values.currentValueCents,
+        note:               values.note,
       });
       router.replace(`/investment/${investmentId}` as any);
     } finally {
@@ -83,6 +90,7 @@ export default function InvestmentEditScreen() {
 
       {initialData && (
         <InvestmentForm
+          mode="existing"
           eyebrow="Edit investment"
           title="Update the details"
           saveLabel="Save changes"

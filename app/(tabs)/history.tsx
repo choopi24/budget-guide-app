@@ -309,7 +309,11 @@ export default function HistoryScreen() {
                                     {bucket.label}
                                   </Text>
                                 </View>
-                                {item.note ? (
+                                {item.category ? (
+                                  <Text style={styles.rowCategory} numberOfLines={1}>
+                                    {item.category}
+                                  </Text>
+                                ) : item.note ? (
                                   <Text style={styles.rowNote} numberOfLines={1}>
                                     {item.note}
                                   </Text>
@@ -543,6 +547,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.4,
     textTransform: 'uppercase',
+  },
+  rowCategory: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500',
+    flexShrink: 1,
   },
   rowNote: {
     fontSize: 12,

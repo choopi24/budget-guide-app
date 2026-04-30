@@ -2,7 +2,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState } from 'react';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppScreen } from '../components/AppScreen';
 import { BackButton } from '../components/ui/BackButton';
 import { Button } from '../components/ui/Button';
@@ -15,8 +16,16 @@ import {
 } from '../db/settings';
 import { SectionLabel } from '../components/ui/SectionLabel';
 import { colors } from '../theme/colors';
-import { spacing } from '../theme/tokens';
+import { radius, spacing } from '../theme/tokens';
 import { exportMonths, exportExpenses, exportInvestments } from '../lib/export';
+import {
+  exportBackup,
+  pickAndValidateBackup,
+  readRestorePreview,
+  restoreFromBackup,
+  type BackupFile,
+  type RestorePreview,
+} from '../lib/backup';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -195,11 +204,18 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { getCurrency, updateCurrency, getRolloverSettings, updateRolloverSettings } = useSettingsDb();
 
+  const insets = useSafeAreaInsets();
   const [currency,       setCurrency]       = useState<SupportedCurrency>('ILS');
   const [mustRollover,   setMustRollover]   = useState<RolloverTarget>('invest');
   const [wantRollover,   setWantRollover]   = useState<WantRolloverTarget>('want');
   const [investRollover, setInvestRollover] = useState<InvestRolloverTarget>('invest');
   const [exporting, setExporting] = useState<'months' | 'expenses' | 'investments' | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [restoreCandidate, setRestoreCandidate] = useState<{
+    backup: BackupFile;
+    preview: RestorePreview;
+  } | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const mountedRef = useRef(true);
   useEffect(() => { return () => { mountedRef.current = false; }; }, []);
 
@@ -252,8 +268,53 @@ export default function SettingsScreen() {
     }
   }
 
+  async function handleCreateBackup() {
+    setBackupBusy(true);
+    try {
+      await exportBackup(db);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert('Backup failed', message);
+    } finally {
+      if (mountedRef.current) setBackupBusy(false);
+    }
+  }
+
+  async function handlePickRestore() {
+    setBackupBusy(true);
+    try {
+      const backup = await pickAndValidateBackup();
+      if (!backup) return; // cancelled
+      const preview = readRestorePreview(backup);
+      if (mountedRef.current) setRestoreCandidate({ backup, preview });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert('Could not read backup', message);
+    } finally {
+      if (mountedRef.current) setBackupBusy(false);
+    }
+  }
+
+  async function handleConfirmRestore() {
+    if (!restoreCandidate) return;
+    setRestoring(true);
+    try {
+      await restoreFromBackup(db, restoreCandidate.backup);
+      if (mountedRef.current) {
+        setRestoreCandidate(null);
+        router.replace('/(tabs)/home' as any);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert('Restore failed', `Your data was not changed.\n\n${message}`);
+      if (mountedRef.current) setRestoring(false);
+    }
+  }
+
   async function resetApp() {
     await db.execAsync(`
+      DELETE FROM recurring_logs;
+      DELETE FROM recurring_expenses;
       DELETE FROM expenses;
       DELETE FROM months;
       DELETE FROM savings_updates;
@@ -305,6 +366,98 @@ export default function SettingsScreen() {
   }
 
   return (
+    <>
+    {/* ── Restore preview modal ── */}
+    <Modal
+      visible={restoreCandidate !== null}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={() => !restoring && setRestoreCandidate(null)}
+    >
+      <View style={[modalStyles.root, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+        <ScrollView
+          contentContainerStyle={modalStyles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={modalStyles.header}>
+            <View style={modalStyles.headerIconWrap}>
+              <Ionicons name="cloud-download-outline" size={28} color={colors.primary} />
+            </View>
+            <Text style={modalStyles.headerTitle}>Restore Backup</Text>
+            <Text style={modalStyles.headerSub}>
+              Review the backup contents before restoring.
+            </Text>
+          </View>
+
+          {/* Preview card */}
+          {restoreCandidate && (
+            <View style={modalStyles.previewCard}>
+              <Text style={modalStyles.previewCardTitle}>Backup contents</Text>
+              <View style={modalStyles.previewRow}>
+                <Ionicons name="calendar-outline" size={15} color={colors.textMuted} />
+                <Text style={modalStyles.previewLabel}>Months</Text>
+                <Text style={modalStyles.previewValue}>{restoreCandidate.preview.monthCount}</Text>
+              </View>
+              <View style={[modalStyles.previewRow, modalStyles.previewRowBorder]}>
+                <Ionicons name="receipt-outline" size={15} color={colors.textMuted} />
+                <Text style={modalStyles.previewLabel}>Expenses</Text>
+                <Text style={modalStyles.previewValue}>{restoreCandidate.preview.expenseCount}</Text>
+              </View>
+              <View style={[modalStyles.previewRow, modalStyles.previewRowBorder]}>
+                <Ionicons name="stats-chart-outline" size={15} color={colors.textMuted} />
+                <Text style={modalStyles.previewLabel}>Investments</Text>
+                <Text style={modalStyles.previewValue}>{restoreCandidate.preview.investmentCount}</Text>
+              </View>
+              <View style={[modalStyles.previewRow, modalStyles.previewRowBorder]}>
+                <Ionicons name="repeat-outline" size={15} color={colors.textMuted} />
+                <Text style={modalStyles.previewLabel}>Recurring expenses</Text>
+                <Text style={modalStyles.previewValue}>{restoreCandidate.preview.recurringCount}</Text>
+              </View>
+              <View style={[modalStyles.previewRow, modalStyles.previewRowBorder]}>
+                <Ionicons name="time-outline" size={15} color={colors.textMuted} />
+                <Text style={modalStyles.previewLabel}>Exported</Text>
+                <Text style={[modalStyles.previewValue, modalStyles.previewValueSmall]}>
+                  {new Date(restoreCandidate.preview.exportedAt).toLocaleDateString(undefined, {
+                    year: 'numeric', month: 'short', day: 'numeric',
+                  })}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Warning */}
+          <View style={modalStyles.warningCard}>
+            <Ionicons name="warning-outline" size={18} color={colors.danger} style={{ flexShrink: 0 }} />
+            <Text style={modalStyles.warningText}>
+              Restoring will permanently replace{' '}
+              <Text style={{ fontWeight: '700' }}>all current data</Text>
+              {' '}— months, expenses, investments, and settings — with the contents of this backup. This cannot be undone.
+            </Text>
+          </View>
+
+          {/* Buttons */}
+          <Button
+            label={restoring ? 'Restoring…' : 'Restore & Replace Data'}
+            variant="danger"
+            size="md"
+            loading={restoring}
+            onPress={handleConfirmRestore}
+            style={modalStyles.restoreBtn}
+          />
+          <Pressable
+            onPress={() => !restoring && setRestoreCandidate(null)}
+            disabled={restoring}
+            style={({ pressed }) => [modalStyles.cancelBtn, pressed && { opacity: 0.5 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel restore"
+          >
+            <Text style={modalStyles.cancelBtnText}>Cancel</Text>
+          </Pressable>
+        </ScrollView>
+      </View>
+    </Modal>
+
     <AppScreen scroll>
 
       <BackButton onPress={() => router.back()} />
@@ -446,11 +599,11 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* ── Data & Backup ── */}
+      {/* ── Export CSV Files ── */}
       <View style={styles.sectionGroupHeader}>
-        <Text style={styles.sectionGroupTitle}>Data & Backup</Text>
+        <Text style={styles.sectionGroupTitle}>Export CSV Files</Text>
         <Text style={styles.sectionGroupSubtitle}>
-          Your data is stored locally on this device. Exporting creates a file you can save or share for backup.
+          CSV export is useful for spreadsheets and analysis. CSV files cannot be restored back to the app.
         </Text>
       </View>
       <View style={[styles.section, styles.exportSection]}>
@@ -489,7 +642,77 @@ export default function SettingsScreen() {
         })}
       </View>
 
-      {/* ── Privacy link ── */}
+      {/* ── Backup & Restore ── */}
+      <View style={styles.sectionGroupHeader}>
+        <Text style={styles.sectionGroupTitle}>Backup & Restore</Text>
+        <Text style={styles.sectionGroupSubtitle}>
+          Full backup saves everything — months, expenses, investments, and settings. To restore later: tap{' '}
+          <Text style={styles.sectionGroupSubtitleBold}>Create Full Backup</Text>, save the file to your{' '}
+          <Text style={styles.sectionGroupSubtitleBold}>Files app</Text>, then use{' '}
+          <Text style={styles.sectionGroupSubtitleBold}>Restore From Backup</Text> to pick it.
+        </Text>
+      </View>
+      <View style={[styles.section, styles.exportSection]}>
+        {/* Create backup */}
+        <Pressable
+          onPress={() => !backupBusy && handleCreateBackup()}
+          disabled={backupBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Create full backup as JSON"
+          accessibilityState={{ disabled: backupBusy, busy: backupBusy }}
+          style={({ pressed }) => [
+            styles.exportRow,
+            styles.exportRowBorder,
+            pressed && !backupBusy && styles.exportRowPressed,
+            backupBusy && styles.exportRowDimmed,
+          ]}
+        >
+          <View style={styles.exportIconBox}>
+            <Ionicons name="archive-outline" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.exportTextGroup}>
+            <Text style={styles.exportLabel}>Create Full Backup</Text>
+            <Text style={styles.exportDesc}>Saves all data to a .json file you can restore later</Text>
+          </View>
+          {backupBusy ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Ionicons name="share-outline" size={20} color={colors.textMuted} />
+          )}
+        </Pressable>
+
+        {/* Restore from backup */}
+        <Pressable
+          onPress={() => !backupBusy && handlePickRestore()}
+          disabled={backupBusy}
+          accessibilityRole="button"
+          accessibilityLabel="Restore from a backup file"
+          accessibilityState={{ disabled: backupBusy, busy: backupBusy }}
+          style={({ pressed }) => [
+            styles.exportRow,
+            pressed && !backupBusy && styles.exportRowPressed,
+            backupBusy && styles.exportRowDimmed,
+          ]}
+        >
+          <View style={styles.exportIconBox}>
+            <Ionicons name="cloud-download-outline" size={18} color={colors.keep} />
+          </View>
+          <View style={styles.exportTextGroup}>
+            <Text style={styles.exportLabel}>Restore From Backup</Text>
+            <Text style={styles.exportDesc}>Replace all app data with a previous backup file</Text>
+          </View>
+          {backupBusy ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          )}
+        </Pressable>
+      </View>
+
+      {/* ── Privacy & Data ── */}
+      <View style={styles.sectionGroupHeader}>
+        <Text style={styles.sectionGroupTitle}>Privacy & Data</Text>
+      </View>
       <Pressable
         onPress={() => router.push('/privacy' as any)}
         style={({ pressed }) => [styles.privacyLink, pressed && styles.privacyLinkPressed]}
@@ -497,7 +720,7 @@ export default function SettingsScreen() {
         accessibilityLabel="Privacy and Data"
       >
         <Ionicons name="shield-checkmark-outline" size={15} color={colors.textMuted} />
-        <Text style={styles.privacyLinkText}>Privacy & Data</Text>
+        <Text style={styles.privacyLinkText}>How your data is stored and used</Text>
         <Ionicons name="chevron-forward" size={13} color={colors.border} style={{ marginLeft: 'auto' }} />
       </Pressable>
 
@@ -517,6 +740,7 @@ export default function SettingsScreen() {
       </View>
 
     </AppScreen>
+    </>
   );
 }
 
@@ -594,6 +818,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     lineHeight: 18,
+  },
+  sectionGroupSubtitleBold: {
+    fontWeight: '600',
+    color: colors.text,
   },
 
   optionList: {
@@ -800,4 +1028,125 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   dangerTitle: { color: colors.danger },
+});
+
+// ─── Restore modal styles ─────────────────────────────────────────────────────
+
+const modalStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+
+  header: {
+    alignItems: 'center',
+    marginBottom: 28,
+    marginTop: 8,
+  },
+  headerIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.primary + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.3,
+    marginBottom: 6,
+  },
+  headerSub: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  previewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
+    overflow: 'hidden',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  previewCardTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: colors.textTertiary,
+    marginBottom: 12,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 11,
+  },
+  previewRowBorder: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  previewLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  previewValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  previewValueSmall: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textMuted,
+  },
+
+  warningCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.danger + '30',
+    padding: 14,
+    marginBottom: 24,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.danger,
+    lineHeight: 19,
+  },
+
+  restoreBtn: {
+    marginBottom: 12,
+  },
+  cancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  cancelBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
 });

@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DatePickerField } from '../components/DatePickerField';
 import { ExpenseBucketToggle } from '../components/expense/ExpenseBucketToggle';
 import { ExpenseCategoryChips } from '../components/expense/ExpenseCategoryChips';
 import { ExpenseSaveCta } from '../components/expense/ExpenseSaveCta';
@@ -32,9 +33,8 @@ export default function NewExpenseScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const amountRef      = useRef<TextInput>(null);
-  const customTitleRef = useRef<TextInput>(null);
-  const noteRef        = useRef<TextInput>(null);
+  const titleRef = useRef<TextInput>(null);
+  const noteRef  = useRef<TextInput>(null);
 
   const form = useExpenseForm({
     onSaved: () => router.replace('/(tabs)/home'),
@@ -73,13 +73,14 @@ export default function NewExpenseScreen() {
                 {CURRENCY_SYMBOL[form.currency]}
               </Text>
               <TextInput
-                ref={amountRef}
                 value={form.amount}
                 onChangeText={form.setAmount}
                 placeholder="0"
                 placeholderTextColor={colors.border}
                 keyboardType="decimal-pad"
-                returnKeyType="done"
+                returnKeyType="next"
+                onSubmitEditing={() => titleRef.current?.focus()}
+                blurOnSubmit={false}
                 style={styles.amountInput}
                 autoFocus
                 accessibilityLabel="Amount"
@@ -93,35 +94,39 @@ export default function NewExpenseScreen() {
             onChange={form.handleBucketChange}
           />
 
+          {/* ── Title / merchant ── */}
+          <View style={styles.fieldSection}>
+            <Text style={styles.sectionCap}>What was it for?</Text>
+            <TextInput
+              ref={titleRef}
+              value={form.title}
+              onChangeText={form.setTitle}
+              placeholder="Supermarket, gym, coffee shop…"
+              placeholderTextColor={colors.textTertiary}
+              returnKeyType="done"
+              style={styles.fieldInput}
+              accessibilityLabel="Expense description or merchant"
+            />
+          </View>
+
           {/* ── Category chips ── */}
           <ExpenseCategoryChips
             chips={form.visibleChips}
-            selected={form.selected}
-            isCustom={form.isCustom}
+            selected={form.category}
             bucketColor={form.bucketColor}
             bucketSoft={form.bucketSoft}
             onSelectCategory={form.pickCategory}
-            onSelectCustom={() => form.pickCustom(() => customTitleRef.current?.focus())}
+            onClearCategory={form.clearCategory}
           />
 
-          {/* ── Custom title ── */}
-          {form.isCustom && (
-            <View style={styles.fieldSection}>
-              <Text style={styles.sectionCap}>What was it for?</Text>
-              <TextInput
-                ref={customTitleRef}
-                value={form.customTitle}
-                onChangeText={form.handleCustomTitleChange}
-                placeholder="Birthday gift, parking fine…"
-                placeholderTextColor={colors.textTertiary}
-                returnKeyType="next"
-                onSubmitEditing={() => { if (form.showNote) noteRef.current?.focus(); }}
-                blurOnSubmit={false}
-                style={styles.fieldInput}
-                accessibilityLabel="Custom expense description"
-              />
-            </View>
-          )}
+          {/* ── Date ── */}
+          <View style={styles.fieldSection}>
+            <Text style={styles.sectionCap}>Date</Text>
+            <DatePickerField
+              value={form.spentOn}
+              onChange={form.setSpentOn}
+            />
+          </View>
 
           {/* ── Note ── */}
           {form.showNote ? (
@@ -156,17 +161,29 @@ export default function NewExpenseScreen() {
           {/* ── Recurring ── */}
           <View style={styles.switchRow}>
             <View style={styles.switchTextBlock}>
-              <Text style={styles.switchLabel}>Recurring</Text>
-              <Text style={styles.switchHint}>Repeats monthly</Text>
+              <Text style={styles.switchLabel}>Repeat monthly</Text>
+              <Text style={styles.switchHint}>
+                {form.isRecurring
+                  ? `Creates a template · day ${form.recurringDayOfMonth} each month`
+                  : 'Add to recurring templates'}
+              </Text>
             </View>
             <Switch
               value={form.isRecurring}
               onValueChange={form.setIsRecurring}
               trackColor={{ false: colors.border, true: colors.switchTrackOn }}
               thumbColor={form.isRecurring ? colors.primary : colors.white}
-              accessibilityLabel="Mark as recurring"
+              accessibilityLabel="Repeat monthly — creates a recurring template"
             />
           </View>
+          {form.isRecurring && (
+            <View style={styles.recurringCallout}>
+              <Text style={styles.recurringCalloutText}>
+                Saving will create a monthly template on day {form.recurringDayOfMonth}. You can edit or pause it in{' '}
+                <Text style={styles.recurringCalloutLink}>Recurring Expenses</Text>.
+              </Text>
+            </View>
+          )}
         </ScrollView>
 
         {/* ── Live CTA ── */}
@@ -244,9 +261,9 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
 
-  // ── Custom title / note ───────────────────────────────────────────────────
+  // ── Fields ───────────────────────────────────────────────────────────────
   fieldSection: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionCap: {
     fontSize: 11,
@@ -308,5 +325,23 @@ const styles = StyleSheet.create({
   switchHint: {
     fontSize: 12,
     color: colors.textTertiary,
+  },
+  recurringCallout: {
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: '#E6F9F3',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  recurringCalloutText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.textMuted,
+  },
+  recurringCalloutLink: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });

@@ -1,40 +1,42 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useRecurringDb } from '../db/recurring';
 import { useExpensesDb } from '../db/expenses';
 import { useSettingsDb, type SupportedCurrency } from '../db/settings';
-import { ESSENTIALS, LIFESTYLE, type Category } from '../lib/expenseCategories';
-import { detectExpenseBucket, type ExpenseBucket } from '../lib/expenseClassifier';
+import { MUST_CATEGORIES, WANT_CATEGORIES, type Category } from '../lib/expenseCategories';
+import { classifyExpenseInput, type ExpenseBucket } from '../lib/expenseClassifier';
 import { hapticLight, hapticSuccess } from '../lib/haptics';
 import { parseMoneyToCents } from '../lib/money';
 import { colors } from '../theme/colors';
 
 // ── Session-persistent smart defaults ────────────────────────────────────────
-// Module-level so they survive unmount/remount within the same JS session.
 let _lastCategory: string | null = null;
 let _lastBucket: ExpenseBucket = 'want';
 
 export function useExpenseForm(options: { onSaved: () => void }) {
   const { addExpense } = useExpensesDb();
+  const { createFromExpense } = useRecurringDb();
   const { getCurrency } = useSettingsDb();
 
   const [currency,    setCurrency]    = useState<SupportedCurrency>('ILS');
-  const [selected,    setSelected]    = useState<string | null>(_lastCategory);
-  const [customTitle, setCustomTitle] = useState('');
+  const [title,       setTitle]       = useState('');
+  const [category,    setCategory]    = useState<string | null>(_lastCategory);
   const [amount,      setAmount]      = useState('');
   const [note,        setNote]        = useState('');
   const [bucket,      setBucket]      = useState<ExpenseBucket>(_lastBucket);
-  const [saving,      setSaving]      = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [showNote,    setShowNote]    = useState(false);
+  const [spentOn,     setSpentOn]     = useState<Date>(() => new Date());
+  const [saving,          setSaving]          = useState(false);
+  const [isRecurring,     setIsRecurring]     = useState(false);
+  const [showNote,        setShowNote]        = useState(false);
+  const [categoryLocked,  setCategoryLocked]  = useState(false);
 
   useEffect(() => { getCurrency().then(setCurrency); }, [getCurrency]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const isCustom    = selected === 'custom';
-  const title       = isCustom ? customTitle : (selected ?? '');
-  const amountCents = useMemo(() => parseMoneyToCents(amount), [amount]);
-  const canSave     = title.trim().length > 0 && amountCents > 0 && !saving;
+  const amountCents         = useMemo(() => parseMoneyToCents(amount), [amount]);
+  const canSave             = title.trim().length > 0 && amountCents > 0 && !saving;
+  const recurringDayOfMonth = new Date().getDate();
 
-  const visibleChips = bucket === 'must' ? ESSENTIALS : LIFESTYLE;
+  const visibleChips = bucket === 'must' ? MUST_CATEGORIES : WANT_CATEGORIES;
   const bucketColor  = bucket === 'must' ? colors.must     : colors.want;
   const bucketSoft   = bucket === 'must' ? colors.mustSoft : colors.wantSoft;
 
@@ -44,47 +46,68 @@ export function useExpenseForm(options: { onSaved: () => void }) {
     hapticLight();
     setBucket(newBucket);
     _lastBucket = newBucket;
-    if (selected && selected !== 'custom') {
-      const wasEssential = ESSENTIALS.some(c => c.label === selected);
-      const wasLifestyle = LIFESTYLE.some(c => c.label === selected);
-      if (newBucket === 'must' && wasLifestyle) setSelected(null);
-      if (newBucket === 'want' && wasEssential) setSelected(null);
+    if (category) {
+      const inMust = MUST_CATEGORIES.some(c => c.label === category);
+      const inWant = WANT_CATEGORIES.some(c => c.label === category);
+      if ((newBucket === 'must' && inWant) || (newBucket === 'want' && inMust)) {
+        setCategory(null);
+        setCategoryLocked(false);
+        _lastCategory = null;
+      }
     }
   }
 
   function pickCategory(cat: Category) {
     hapticLight();
-    setSelected(cat.label);
+    setCategory(cat.label);
     setBucket(cat.bucket);
+    setCategoryLocked(true);
     _lastCategory = cat.label;
     _lastBucket   = cat.bucket;
   }
 
-  // The screen passes a focus callback so the hook stays ref-free.
-  function pickCustom(focusCustomInput: () => void) {
+  function clearCategory() {
     hapticLight();
-    setSelected('custom');
-    _lastCategory = 'custom';
-    setTimeout(focusCustomInput, 50);
+    setCategory(null);
+    setCategoryLocked(false);
+    _lastCategory = null;
   }
 
-  function handleCustomTitleChange(text: string) {
-    setCustomTitle(text);
-    setBucket(detectExpenseBucket(text));
+  function handleTitleChange(text: string) {
+    setTitle(text);
+    if (categoryLocked) return;
+    const result = classifyExpenseInput(text);
+    setBucket(result.bucket);
+    if (result.category !== null) {
+      setCategory(result.category);
+    } else {
+      setCategory(null);
+    }
   }
 
   async function handleSave() {
     if (!canSave) return;
     setSaving(true);
     try {
-      await addExpense({
+      const isoDate = spentOn.toISOString();
+      const { expenseId } = await addExpense({
         title: title.trim(),
         amountCents,
-        spentOn: new Date().toISOString(),
+        spentOn: isoDate,
         note,
         finalBucket: bucket,
         isRecurring,
+        category: category ?? undefined,
       });
+      if (isRecurring) {
+        await createFromExpense({
+          expenseId,
+          title: title.trim(),
+          amountCents,
+          bucket,
+          dayOfMonth: recurringDayOfMonth,
+        });
+      }
       hapticSuccess();
       options.onSaved();
     } finally {
@@ -93,15 +116,14 @@ export function useExpenseForm(options: { onSaved: () => void }) {
   }
 
   return {
-    // Raw state needed by inputs
-    currency, selected, customTitle, amount, setAmount,
-    note, setNote, bucket, saving, isRecurring, setIsRecurring,
-    showNote, setShowNote,
+    // State
+    currency, title, setTitle: handleTitleChange, category, amount, setAmount,
+    note, setNote, bucket, spentOn, setSpentOn, saving,
+    isRecurring, setIsRecurring, showNote, setShowNote,
     // Derived
-    isCustom, title, amountCents, canSave,
+    amountCents, canSave, recurringDayOfMonth,
     visibleChips, bucketColor, bucketSoft,
     // Handlers
-    handleBucketChange, pickCategory, pickCustom,
-    handleCustomTitleChange, handleSave,
+    handleBucketChange, pickCategory, clearCategory, handleSave,
   };
 }

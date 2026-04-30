@@ -171,5 +171,57 @@ export function useRecurringDb() {
     return { monthKey: activeMonth.month_key };
   }, [db]);
 
-  return { getAll, add, update, setActive, remove, getPendingForMonth, applyToActiveMonth };
+  /**
+   * Called after an expense is saved with "repeat monthly" toggled on.
+   * - If no active template with the same title exists → creates one.
+   * - Always inserts an OR IGNORE recurring_log entry so the template is not
+   *   suggested again in the same month (the expense was already added manually).
+   * Returns whether a new template was created.
+   */
+  const createFromExpense = useCallback(async function createFromExpense(input: {
+    expenseId: number;
+    title: string;
+    amountCents: number;
+    bucket: 'must' | 'want';
+    dayOfMonth: number;
+  }): Promise<{ templateCreated: boolean }> {
+    const now = new Date().toISOString();
+
+    const activeMonth = await db.getFirstAsync<{ id: number; month_key: string }>(
+      `SELECT id, month_key FROM months WHERE status = 'active' ORDER BY id DESC LIMIT 1`,
+    );
+    if (!activeMonth) return { templateCreated: false };
+
+    const existing = await db.getFirstAsync<{ id: number }>(
+      `SELECT id FROM recurring_expenses WHERE is_active = 1 AND lower(trim(title)) = lower(trim(?)) LIMIT 1`,
+      [input.title],
+    );
+
+    let templateId: number;
+    let templateCreated = false;
+
+    if (existing) {
+      templateId = existing.id;
+    } else {
+      const result = await db.runAsync(
+        `INSERT INTO recurring_expenses (title, amount_cents, bucket, day_of_month, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 1, ?, ?)`,
+        [input.title.trim(), input.amountCents, input.bucket, input.dayOfMonth, now, now],
+      );
+      templateId = result.lastInsertRowId;
+      templateCreated = true;
+    }
+
+    // Log the manual expense against the template for this month so it is not
+    // suggested again. INSERT OR IGNORE is safe if a log entry already exists.
+    await db.runAsync(
+      `INSERT OR IGNORE INTO recurring_logs (recurring_expense_id, month_key, expense_id, created_at)
+       VALUES (?, ?, ?, ?)`,
+      [templateId, activeMonth.month_key, input.expenseId, now],
+    );
+
+    return { templateCreated };
+  }, [db]);
+
+  return { getAll, add, update, setActive, remove, getPendingForMonth, applyToActiveMonth, createFromExpense };
 }

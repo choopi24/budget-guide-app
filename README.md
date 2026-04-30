@@ -21,12 +21,16 @@ Most budgeting apps are overwhelming. BudgetBull does one thing well: it forces 
 |---|---|
 | Must / Want / Invest split | Set percentages at onboarding, adjust anytime in Settings |
 | Monthly budget cycle | Income-based, rolls over unspent balances per your rollover rules |
-| Expense tracking | Auto-suggested bucket (Must/Want), editable after the fact |
-| Past-month corrections | Log missed expenses to closed months; carryover auto-adjusts |
-| Investment portfolio | Manual tracking with full value history and SVG line chart |
+| Expense tracking | Auto-suggested bucket (Must/Want), editable after the fact; auto-classifies by merchant name |
+| Past-month corrections | Log missed expenses to closed months; carryover auto-adjusts across all subsequent months |
+| Recurring expenses | Monthly templates with configurable day-of-month and bucket; apply to any month in one tap |
+| Investment portfolio | Manual tracking with full value history and SVG line chart; real portfolio timeline from dated snapshots |
 | Crypto support | CoinGecko live price refresh for tracked coins |
 | Budget grading | A+–F grade with per-bucket explanation and improvement hints |
-| Rollover settings | Per-bucket rules: route surplus to Invest, Want, or Must |
+| Rollover settings | Per-bucket rules: route surplus to Invest, Want, or Must; multi-month recalculation cascade |
+| CSV export | Export months, expenses, or investments as `.csv` from Settings |
+| Full backup / restore | JSON backup of all data; restore from file with a preview before overwrite |
+| Privacy & data screen | Explains exactly what data is stored, what is never collected, and what network calls are made |
 | Profile & streaks | Avatar customisation, achievements, daily streak tracking |
 | League system | Iron → Bronze → Silver → Gold → Apex, gated by score + months |
 | Multi-currency | ILS, USD, EUR throughout |
@@ -78,6 +82,18 @@ Scan the QR code with Expo Go, or press `i` to open the iOS Simulator.
 
 ---
 
+## Scripts
+
+```bash
+npm run typecheck    # TypeScript — zero errors required before release
+npm run lint         # ESLint via expo lint
+npm test             # Jest unit tests
+npm run format       # Prettier — write in-place
+npm run format:check # Prettier — check only (CI mode)
+```
+
+---
+
 ## Environment variables
 
 Copy `.env.example` to `.env` and fill in the values you need. `.env` is gitignored.
@@ -98,8 +114,10 @@ cp .env.example .env
 | Feature | Offline? | What it needs |
 |---|---|---|
 | Monthly budgeting, expense tracking | ✅ Always offline | Nothing |
+| Recurring expenses | ✅ Always offline | Nothing |
 | Investment portfolio, value history | ✅ Always offline | Nothing |
 | Budget grading (A+–F) | ✅ Always offline | Nothing |
+| CSV export, full backup / restore | ✅ Always offline | Nothing |
 | Apple Pay / Siri Shortcut | ✅ Always offline | Nothing |
 | AI budget review (`mock` provider) | ✅ Offline | Nothing — the mock runs on-device with your real data |
 | Crypto live price refresh | 🌐 Network | CoinGecko public API — no key needed |
@@ -156,16 +174,17 @@ app/
     history.tsx                # Full expense history with filters
     savings.tsx                # Investment portfolio overview (Invest tab)
     profile.tsx                # Profile, streak, achievements, nav to Settings
-    tips.tsx                   # Budget tips — opened from Profile
   investment/[id].tsx          # Investment detail: chart, history, buy/sell
-  settings.tsx                 # Currency, rollover rules, split — stack screen pushed from Profile
+  settings.tsx                 # Currency, rollover rules, split, export, backup — stack screen from Profile
+  privacy.tsx                  # Privacy & data screen — what is/isn't stored, network calls
+  recurring.tsx                # Recurring expenses — create, edit, pause, apply to current month
   onboarding.tsx               # 3-step onboarding wizard
   month-setup.tsx              # New-month setup flow
   expense-new.tsx              # Quick add expense modal
   expense-edit.tsx             # Edit or delete an expense
   expenses.tsx                 # Full expense list (current month)
   past-month-expense.tsx       # Log a missed expense on a closed month
-  investment-new.tsx           # Add investment
+  investment-new.tsx           # Add investment — path selector (existing / new purchase / cash balance)
   investment-edit.tsx          # Edit investment metadata
   investment-purchase.tsx      # Record a buy/sell with month contribution
   investment-value-update.tsx  # Record a total-value snapshot
@@ -183,17 +202,19 @@ components/
   AppLogo.tsx                  # Brand mark — red badge, white bull, gold nose ring
   DatePickerField.tsx          # Reusable Today / Yesterday / Pick date chip row
   HumanAvatar.tsx              # Composable SVG avatar
-  InvestmentForm.tsx           # Shared investment create/edit form
+  InvestmentForm.tsx           # Shared investment create/edit form; mode prop drives field set
   InvestmentLineChart.tsx      # SVG portfolio chart with smooth Catmull-Rom curve; supports a compact `sparkline` variant (no axes, thinner stroke) used in the portfolio hero card
 
 db/                            # All SQLite logic, one file per domain
-  migrations.ts                # Versioned schema (current: v15)
+  migrations.ts                # Versioned schema (current: v17)
   home.ts                      # Active month dashboard query
   months.ts                    # Month lifecycle: create, close, rollover
+  rollover.ts                  # Multi-month rollover recalculation cascade (past-month corrections)
   expenses.ts                  # Expense CRUD + past-month correction
   expense-history.ts           # History tab queries
-  investments.ts               # Investment CRUD
+  investments.ts               # Investment CRUD + portfolio timeline query
   investment-detail.ts         # Detail view + value updates
+  recurring.ts                 # Recurring expense CRUD and apply-to-month logic
   settings.ts                  # Currency, rollover rules, split defaults
   profile.ts                   # User profile, league, score
   achievements.ts              # Achievement unlock logic
@@ -203,9 +224,14 @@ db/                            # All SQLite logic, one file per domain
 lib/
   money.ts                     # Parse and format cents ↔ display strings
   date.ts                      # Date formatting and month key utilities
+  budget.ts                    # Pure budget-math: remainder and rollover bonus calculations
   grade.ts                     # A+–F budget grade + per-bucket explanation
   coins.ts                     # CoinGecko coin search
-  expenseClassifier.ts         # Suggest Must vs Want for new expenses
+  expenseCategories.ts         # Must/Want category chip definitions (labels + emoji)
+  expenseClassifier.ts         # Suggest Must vs Want for new expenses; auto-detect category from merchant name
+  recurring.ts                 # Recurring date helper (clamp day-of-month per month length)
+  export.ts                    # CSV export: months, expenses, and investments — shared via system share sheet
+  backup.ts                    # Full JSON backup and restore: all tables, versioned file format
   haptics.ts                   # Centralised haptic feedback helpers
   parseShortcutParams.ts       # Parse URL params from Siri Shortcut deep-link
   receiptClassifier.ts         # Map receipt category suggestions to Must/Want
@@ -225,6 +251,10 @@ lib/
     mockProvider.ts            # Returns fixture data for development
     index.ts                   # Public API: extractReceipt
 
+hooks/
+  useExpenseForm.ts            # Expense form state: auto-classify by title, category locking, save
+  useHomeData.ts               # Home screen data hook
+
 theme/
   colors.ts                    # Single source of truth for the colour palette (includes `ink` for hero cards, `gold` for achievements)
   fonts.ts                     # Font family constants (Space Grotesk)
@@ -237,15 +267,51 @@ theme/
 
 - All monetary values are stored as **integer cents** to avoid floating-point issues.
 - Monthly budget state lives in the `months` table; expenses are tied to a `month_id`.
-- Investments live in `savings_items`; value snapshots are in `savings_updates`.
+- Investments live in `savings_items`; every value snapshot (open, buy, sell, update, live-price refresh) is a row in `savings_updates`. The portfolio timeline chart on the Invest tab is built from these real snapshots — no data is invented.
+- Recurring expense templates live in `recurring_expenses`; each time one is applied to a month an entry is written to `recurring_logs` (prevents double-application).
 - App settings (currency, rollover targets, split defaults) are a single row in `app_settings`.
-- All data is **local-only** — nothing leaves the device.
+- All data is **local-only** — nothing leaves the device unless you explicitly use CSV export, full backup, or the configured backend endpoints.
+
+---
+
+## Data export and backup
+
+### CSV export
+
+Available in **Settings → Export CSV Files**. Three separate exports:
+
+| Export | What's included |
+|---|---|
+| Months | One row per month: income, budget splits, spent totals, rollover amounts, grade |
+| Expenses | Every expense across all months: date, title, amount, bucket, category, note |
+| Investments | Every holding: name, category, opening date, cost basis, current value |
+
+CSV files are shared via the system share sheet (AirDrop, Files, email, etc.). They are not uploaded anywhere.
+
+### Full backup
+
+Available in **Settings → Backup & Restore → Create Full Backup**. Creates a single `.json` file containing:
+
+- All months and their budget state
+- All expenses
+- All investments and their full value-update history
+- All recurring expense templates and their application log
+- Profile, avatar, achievements, streak
+- App settings (currency, rollover rules, split percentages)
+
+The file is tagged with a schema version so future app versions can detect and reject incompatible backups.
+
+### Restore
+
+Available in **Settings → Restore from backup**. Pick a `.json` file — the app shows a preview (month count, expense count, investment count, recurring count, and backup date) before you confirm. **Restore replaces all current data** — there is no merge. The operation is atomic; if anything fails, the existing data is left untouched.
+
+> Restoring to a device with a different schema version than the backup is blocked — you must be on the same app version or newer to restore.
 
 ---
 
 ## Database migrations
 
-Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v16**. Each version gate runs `ALTER TABLE` statements and bumps `PRAGMA user_version`. Fresh installs skip straight to the full schema at v0 and set `user_version = 16`.
+Schema changes use a linear versioning pattern in `db/migrations.ts`. The current target version is **v17**. Each version gate runs `ALTER TABLE` statements and bumps `PRAGMA user_version`. Fresh installs skip straight to the full schema at v0 and set `user_version = 17`.
 
 ---
 
@@ -302,21 +368,25 @@ Run through this list before building a release or submitting to the App Store.
 
 - [ ] Install an older build over an existing data set.
 - [ ] Confirm DB migrations run cleanly and no data is lost.
-- [ ] Check that the active month, expense history, and investments all display correctly after upgrade.
+- [ ] Check that the active month, expense history, investments, and recurring expenses all display correctly after upgrade.
+
+### Feature verification
+
+- [ ] Add a recurring expense template; apply it to the current month; confirm it appears in the expense list and cannot be applied twice.
+- [ ] Log expense via camera receipt scan (requires a configured backend).
+- [ ] Log expense via Apple Pay / Siri Shortcut deep link.
+- [ ] Crypto live price refresh on an investment with a valid coin ID; confirm a new `value_update` row appears in the investment history.
+- [ ] Add an investment value update; confirm the portfolio trend chart on the Invest tab updates with a new data point.
+- [ ] Export all three CSV types (Months, Expenses, Investments) via Settings — confirm the share sheet opens with a valid `.csv` file.
+- [ ] Run a full backup — confirm a `.json` file is produced and can be opened.
+- [ ] Restore from that backup — review the preview modal, confirm counts match, confirm data is intact after restore.
+- [ ] Camera and photo library permission denial — confirm "Open Settings" is shown, not a crash.
 
 ### Optional feature states
 
 - [ ] Build with `EXPO_PUBLIC_RECEIPT_SCAN_URL` unset. Confirm the receipt scan screen shows the "not available" notice and does not crash.
 - [ ] Build with `EXPO_PUBLIC_AI_PROVIDER=mock` (default). Confirm the AI budget review loads and shows local analysis.
 - [ ] Build with `EXPO_PUBLIC_AI_PROVIDER=remote` and a non-existent endpoint. Confirm the error state is shown with a retry option.
-
-### Features under test
-
-- [ ] Log expense via camera receipt scan (requires a configured backend).
-- [ ] Log expense via Apple Pay / Siri Shortcut deep link.
-- [ ] Crypto live price refresh on an investment with a valid coin ID.
-- [ ] Export all three CSV types (Months, Expenses, Investments) via Settings → Export.
-- [ ] Camera and photo library permission denial — confirm "Open Settings" is shown, not a crash.
 
 ### Data safety
 
@@ -340,28 +410,33 @@ The app is in active personal development. Core budgeting flows are complete and
 
 **Working now:**
 - Full monthly cycle (setup → track → close → rollover)
+- Multi-month rollover recalculation when past expenses are corrected
 - Expense add / edit / delete, including corrections to past months
+- Auto-classification of expenses by merchant name / keyword (Must vs Want + category)
+- Recurring expense templates — monthly, configurable day-of-month, per-bucket
 - Investment portfolio with value history and chart (buy, sell, value updates)
+- Real portfolio timeline chart built from dated value snapshots; range selector (1M / 3M / YTD / All)
 - Receipt scanning via camera or photo library with AI extraction
 - AI-powered monthly budget review via Claude
 - Apple Pay Siri Shortcut integration — expenses auto-added from notifications
 - Grading with plain-language explanation
 - Streaks, achievements, avatar, league progression
 - Multi-currency, rollover settings, onboarding
+- CSV export (months / expenses / investments) via Settings
+- Full backup and restore (JSON, all tables, versioned format) via Settings
+- Privacy & data screen documenting exactly what is and isn't stored
 - Finance calculators hub (UI scaffolded, logic coming)
-- Ink hero cards on Home, Investments, and Profile screens — large `HeroNumber` amount, eyebrow labels, and a mono pace/gain strip
-- Home breakdown replaced with a compact meters card: per-bucket name, used/planned amounts, pace label, and a 96px progress bar with a pace-position tick
-- Investments holdings list rebuilt with letter-avatar rows, percentage gain, and a 2-point sparkline in the hero card
-- Profile identity, streak, and league collapsed into a single hero card; achievements rendered as a 4-column locked/unlocked tile grid
 
 **Possible future improvements:**
-- Recurring expenses (infrastructure exists via `is_recurring` column)
-- iCloud / local backup / export to CSV
+- iCloud / cloud sync — all backup/export is currently local only; nothing syncs between devices
+- Merge restore — current restore is a full replace; a merge mode that upserts without wiping would be safer
+- Custom expense categories — currently hard-coded; user-editable lists would require schema changes and a management UI
+- Advanced recurring schedules — only monthly (fixed day-of-month) is supported; weekly, custom intervals, and end-dates are not
+- Better investment analytics — per-holding IRR, allocation breakdown, time-weighted return; current chart shows value history only
 - Widgets (Expo Widget extension)
 - Notification reminders
-- Multi-hop rollover cascade for past-month corrections
-- App Store distribution
 - Calculator implementations (compound interest, loan payment, net salary, etc.)
+- App Store distribution
 
 ---
 
@@ -373,6 +448,6 @@ BudgetBull stores everything in an SQLite database on your device. There is no a
 - **Receipt scanning backend** — only when `EXPO_PUBLIC_RECEIPT_SCAN_URL` is set
 - **AI analysis backend** — only when `EXPO_PUBLIC_AI_PROVIDER=remote` and `EXPO_PUBLIC_AI_ENDPOINT` is set
 
-All other features — budgeting, expense tracking, investment portfolio, grading, streaks, and the default AI review — work fully offline.
+All other features — budgeting, expense tracking, recurring expenses, investment portfolio, grading, CSV export, full backup/restore, streaks, and the default AI review — work fully offline.
 
-Uninstalling the app will erase all data. Back up your device regularly if this data matters to you.
+Uninstalling the app will erase all data. Use **Settings → Full backup** to save a copy before uninstalling or switching devices.

@@ -35,7 +35,7 @@ const SECTIONS: PrivacySection[] = [
     iconColor: colors.want,
     iconBg: '#FAF1E4',
     title: 'Before you uninstall',
-    body: 'Deleting the app removes its local database along with it. Export your data from Settings → Data & Backup before uninstalling if you want to keep a copy of your financial history.',
+    body: 'Deleting the app removes its local database. Create a full backup from Settings → Backup & Restore before uninstalling if you want to keep your financial history.',
   },
   {
     id: 'network',
@@ -70,9 +70,20 @@ const SECTIONS: PrivacySection[] = [
     icon: 'archive-outline',
     iconColor: colors.primary,
     iconBg: '#E6F9F3',
-    title: 'Back up regularly',
-    body: "Full backup and restore isn't built yet. Until it is, export your data regularly from Settings → Data & Backup. The CSV files you receive can be stored in iCloud, emailed to yourself, or kept anywhere safe.",
-    note: 'Profile details (name, occupation) and app preferences are not included in the current CSV export.',
+    title: 'Back up your data',
+    body: 'BudgetBull offers two ways to save your data. Create a full backup before deleting or resetting the app.',
+    bullets: [
+      {
+        icon: 'document-text-outline',
+        label: 'CSV export',
+        body: 'Good for spreadsheets and analysis. Available in Settings → Export CSV Files. Cannot be restored back to the app.',
+      },
+      {
+        icon: 'archive-outline',
+        label: 'Full backup (.json)',
+        body: 'Captures everything — months, expenses, investments, and settings. Available in Settings → Backup & Restore. Can be fully restored.',
+      },
+    ],
   },
 ];
 

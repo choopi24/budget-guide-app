@@ -6,7 +6,7 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
   );
 
   const currentVersion = result?.user_version ?? 0;
-  const targetVersion = 16;
+  const targetVersion = 17;
 
   if (currentVersion >= targetVersion) {
     return;
@@ -209,9 +209,11 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
         FOREIGN KEY (expense_id)           REFERENCES expenses(id)           ON DELETE CASCADE,
         UNIQUE (recurring_expense_id, month_key)
       );
+
+      ALTER TABLE expenses ADD COLUMN category TEXT;
     `);
 
-    await db.execAsync(`PRAGMA user_version = 16`);
+    await db.execAsync(`PRAGMA user_version = 17`);
     return;
   }
 
@@ -411,6 +413,14 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
       );
 
       PRAGMA user_version = 16;
+    `);
+    version = 16;
+  }
+
+  if (version === 16) {
+    await db.execAsync(`
+      ALTER TABLE expenses ADD COLUMN category TEXT;
+      PRAGMA user_version = 17;
     `);
   }
 }

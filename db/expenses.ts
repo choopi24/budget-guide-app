@@ -12,6 +12,7 @@ export type AddExpenseInput = {
   createInvestmentRecord?: boolean;
   investmentCategory?: string;
   isRecurring?: boolean;
+  category?: string;
 };
 
 export function useExpensesDb() {
@@ -36,9 +37,11 @@ export function useExpensesDb() {
     const isInvestment = input.createInvestmentRecord ? 1 : 0;
     const isRecurring = input.isRecurring ? 1 : 0;
     const finalBucket = input.finalBucket ?? suggestedBucket;
+    const category = input.category?.trim() || null;
 
+    let expenseId = 0;
     await db.withTransactionAsync(async () => {
-      await db.runAsync(
+      const result = await db.runAsync(
         `
         INSERT INTO expenses (
           month_id,
@@ -50,10 +53,11 @@ export function useExpensesDb() {
           final_bucket,
           is_investment,
           is_recurring,
+          category,
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           activeMonth.id,
@@ -65,10 +69,12 @@ export function useExpensesDb() {
           finalBucket,
           isInvestment,
           isRecurring,
+          category,
           now,
           now,
         ]
       );
+      expenseId = result.lastInsertRowId;
 
       if (isInvestment) {
         await db.runAsync(
@@ -91,6 +97,7 @@ export function useExpensesDb() {
     return {
       suggestedBucket,
       finalBucket,
+      expenseId,
     };
   }, [db]);
 

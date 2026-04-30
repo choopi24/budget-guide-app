@@ -13,6 +13,17 @@ export function getRecurringDateForMonth(dayOfMonth: number, monthKey: string): 
 }
 
 /**
+ * Extracts the day-of-month (1–31) from an ISO date or datetime string.
+ * Reads characters 8–9 of the string, which is always the DD portion of
+ * a YYYY-MM-DD... value.
+ */
+export function extractDayOfMonth(isoDate: string): number {
+  const day = parseInt(isoDate.slice(8, 10), 10);
+  if (isNaN(day) || day < 1 || day > 31) return 1;
+  return day;
+}
+
+/**
  * Returns the subset of active recurring expenses that have NOT yet been
  * applied in the current month.
  *

@@ -11,6 +11,7 @@ export type ExpenseHistoryItem = {
   suggested_bucket: 'must' | 'want';
   final_bucket: 'must' | 'want';
   is_investment: number;
+  category: string | null;
 };
 
 export type AllExpensesItem = {
@@ -23,6 +24,7 @@ export type AllExpensesItem = {
   final_bucket: 'must' | 'want';
   is_investment: number;
   month_key: string;
+  category: string | null;
 };
 
 export type ClosedMonth = {
@@ -44,6 +46,7 @@ export function useExpenseHistoryDb() {
         e.note,
         e.final_bucket,
         e.is_investment,
+        e.category,
         m.month_key
       FROM expenses e
       INNER JOIN months m ON m.id = e.month_id
@@ -71,7 +74,8 @@ export function useExpenseHistoryDb() {
         e.note,
         e.suggested_bucket,
         e.final_bucket,
-        e.is_investment
+        e.is_investment,
+        e.category
       FROM expenses e
       INNER JOIN months m ON m.id = e.month_id
       WHERE m.status = 'active'
@@ -89,8 +93,9 @@ export function useExpenseHistoryDb() {
       note: string | null;
       final_bucket: 'must' | 'want';
       is_investment: number;
+      category: string | null;
     }>(
-      `SELECT id, month_id, title, amount_cents, spent_on, note, final_bucket, is_investment
+      `SELECT id, month_id, title, amount_cents, spent_on, note, final_bucket, is_investment, category
        FROM expenses WHERE id = ? LIMIT 1`,
       [id]
     );
@@ -110,6 +115,7 @@ export function useExpenseHistoryDb() {
     spentOn: string;
     note?: string;
     finalBucket: 'must' | 'want';
+    category?: string | null;
   }) {
     const now = new Date().toISOString();
     const existing = await getExpenseById(input.id);
@@ -137,8 +143,8 @@ export function useExpenseHistoryDb() {
       }
 
       await db.runAsync(
-        `UPDATE expenses SET title = ?, amount_cents = ?, spent_on = ?, note = ?, final_bucket = ?, updated_at = ? WHERE id = ?`,
-        [input.title.trim(), input.amountCents, input.spentOn, input.note?.trim() || null, input.finalBucket, now, input.id]
+        `UPDATE expenses SET title = ?, amount_cents = ?, spent_on = ?, note = ?, final_bucket = ?, category = ?, updated_at = ? WHERE id = ?`,
+        [input.title.trim(), input.amountCents, input.spentOn, input.note?.trim() || null, input.finalBucket, input.category?.trim() || null, now, input.id]
       );
 
       // Investment expenses stay in invest_spent_cents after edit
