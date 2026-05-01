@@ -1,12 +1,14 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+/** The schema version this build of the app targets.
+ *  Imported by lib/backup.ts so BACKUP_SCHEMA_VERSION always stays in sync. */
+export const MIGRATIONS_TARGET_VERSION = 17;
+
 export async function migrateDbIfNeeded(db: SQLiteDatabase) {
-  const result = await db.getFirstAsync<{ user_version: number }>(
-    'PRAGMA user_version'
-  );
+  const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
 
   const currentVersion = result?.user_version ?? 0;
-  const targetVersion = 17;
+  const targetVersion = MIGRATIONS_TARGET_VERSION;
 
   if (currentVersion >= targetVersion) {
     return;
@@ -323,13 +325,19 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase) {
     const colNames = new Set(cols.map((c) => c.name));
 
     if (!colNames.has('skin_tone')) {
-      await db.execAsync(`ALTER TABLE avatar_config ADD COLUMN skin_tone TEXT NOT NULL DEFAULT 's2'`);
+      await db.execAsync(
+        `ALTER TABLE avatar_config ADD COLUMN skin_tone TEXT NOT NULL DEFAULT 's2'`,
+      );
     }
     if (!colNames.has('hair_style')) {
-      await db.execAsync(`ALTER TABLE avatar_config ADD COLUMN hair_style TEXT NOT NULL DEFAULT 'clean'`);
+      await db.execAsync(
+        `ALTER TABLE avatar_config ADD COLUMN hair_style TEXT NOT NULL DEFAULT 'clean'`,
+      );
     }
     if (!colNames.has('hair_color')) {
-      await db.execAsync(`ALTER TABLE avatar_config ADD COLUMN hair_color TEXT NOT NULL DEFAULT 'dkbrown'`);
+      await db.execAsync(
+        `ALTER TABLE avatar_config ADD COLUMN hair_color TEXT NOT NULL DEFAULT 'dkbrown'`,
+      );
     }
 
     await db.execAsync(`PRAGMA user_version = 9`);

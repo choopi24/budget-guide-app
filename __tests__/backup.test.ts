@@ -8,6 +8,7 @@ import {
   type BackupFile,
   type BackupData,
 } from '../lib/backup';
+import { MIGRATIONS_TARGET_VERSION } from '../db/migrations';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,10 @@ function minimalBackup(overrides: Partial<BackupFile> = {}): BackupFile {
 function backupWithData(): BackupFile {
   return minimalBackup({
     data: {
-      months: [{ id: 1, month_key: '2024-01' }, { id: 2, month_key: '2024-02' }],
+      months: [
+        { id: 1, month_key: '2024-01' },
+        { id: 2, month_key: '2024-02' },
+      ],
       expenses: [{ id: 1 }, { id: 2 }, { id: 3 }],
       investments: [{ id: 1 }],
       investmentUpdates: [{ id: 1 }, { id: 2 }],
@@ -52,9 +56,31 @@ function backupWithData(): BackupFile {
   });
 }
 
+// ─── Schema version sync ──────────────────────────────────────────────────────
+
+describe('schema version constants', () => {
+  it('BACKUP_SCHEMA_VERSION equals MIGRATIONS_TARGET_VERSION', () => {
+    // This test catches the case where someone bumps migrations.ts targetVersion
+    // but forgets to update backup.ts (or vice versa). If they diverge, every
+    // backup written by this build declares the wrong schema version.
+    expect(BACKUP_SCHEMA_VERSION).toBe(MIGRATIONS_TARGET_VERSION);
+  });
+
+  it('BACKUP_VERSION is a positive integer', () => {
+    expect(Number.isInteger(BACKUP_VERSION)).toBe(true);
+    expect(BACKUP_VERSION).toBeGreaterThan(0);
+  });
+
+  it('BACKUP_APP is the string "BudgetBull"', () => {
+    expect(BACKUP_APP).toBe('BudgetBull');
+  });
+});
+
 // ─── validateBackup ───────────────────────────────────────────────────────────
 
 describe('validateBackup', () => {
+  // ── Happy path ─────────────────────────────────────────────────────────────
+
   it('accepts a minimal valid backup', () => {
     const b = minimalBackup();
     expect(() => validateBackup(b)).not.toThrow();
@@ -66,28 +92,62 @@ describe('validateBackup', () => {
     expect(() => validateBackup(b)).not.toThrow();
   });
 
-  it('accepts backups with schemaVersion different from current (older backups)', () => {
+  it('accepts backups with schemaVersion different from current (older backups are restorable)', () => {
     const b = minimalBackup({ schemaVersion: 10 });
     expect(() => validateBackup(b)).not.toThrow();
   });
+
+  it('accepts schemaVersion = 0 (extremely old backup — no minimum enforced)', () => {
+    const b = minimalBackup({ schemaVersion: 0 });
+    expect(() => validateBackup(b)).not.toThrow();
+  });
+
+  // ── Newer backupVersion ────────────────────────────────────────────────────
 
   it('rejects backups with a higher backupVersion than current (newer app required)', () => {
     const b = minimalBackup({ backupVersion: BACKUP_VERSION + 1 });
     expect(() => validateBackup(b)).toThrow('newer version');
   });
 
+  // ── Null / primitive inputs ────────────────────────────────────────────────
+
   it('rejects null', () => {
     expect(() => validateBackup(null)).toThrow('not a JSON object');
+  });
+
+  it('rejects undefined', () => {
+    expect(() => validateBackup(undefined)).toThrow('not a JSON object');
   });
 
   it('rejects a plain string', () => {
     expect(() => validateBackup('hello')).toThrow('not a JSON object');
   });
 
+  it('rejects a number', () => {
+    expect(() => validateBackup(42)).toThrow('not a JSON object');
+  });
+
+  it('rejects an array (top-level)', () => {
+    expect(() => validateBackup([])).toThrow('not a JSON object');
+  });
+
+  it('rejects a boolean', () => {
+    expect(() => validateBackup(true)).toThrow('not a JSON object');
+  });
+
+  // ── Wrong app name ─────────────────────────────────────────────────────────
+
   it('rejects a wrong app name', () => {
     const b = { ...minimalBackup(), app: 'OtherApp' };
     expect(() => validateBackup(b)).toThrow('Not a BudgetBull backup');
   });
+
+  it('rejects app = null', () => {
+    const b = { ...minimalBackup(), app: null };
+    expect(() => validateBackup(b)).toThrow('Not a BudgetBull backup');
+  });
+
+  // ── backupVersion ──────────────────────────────────────────────────────────
 
   it('rejects missing backupVersion', () => {
     const { backupVersion: _bv, ...b } = minimalBackup();
@@ -99,15 +159,51 @@ describe('validateBackup', () => {
     expect(() => validateBackup(b)).toThrow('backupVersion');
   });
 
+  it('rejects negative backupVersion', () => {
+    const b = { ...minimalBackup(), backupVersion: -1 };
+    expect(() => validateBackup(b)).toThrow('backupVersion');
+  });
+
+  it('rejects backupVersion as a string', () => {
+    const b = { ...minimalBackup(), backupVersion: '1' };
+    expect(() => validateBackup(b)).toThrow('backupVersion');
+  });
+
+  // ── schemaVersion ──────────────────────────────────────────────────────────
+
   it('rejects missing schemaVersion', () => {
     const { schemaVersion: _sv, ...b } = minimalBackup();
     expect(() => validateBackup(b)).toThrow('schemaVersion');
   });
 
+  it('rejects schemaVersion as a string', () => {
+    const b = { ...minimalBackup(), schemaVersion: '17' };
+    expect(() => validateBackup(b)).toThrow('schemaVersion');
+  });
+
+  it('rejects schemaVersion as null', () => {
+    const b = { ...minimalBackup(), schemaVersion: null };
+    expect(() => validateBackup(b)).toThrow('schemaVersion');
+  });
+
+  // ── exportedAt ────────────────────────────────────────────────────────────
+
   it('rejects missing exportedAt', () => {
     const { exportedAt: _ea, ...b } = minimalBackup();
     expect(() => validateBackup(b)).toThrow('exportedAt');
   });
+
+  it('rejects exportedAt as a number', () => {
+    const b = { ...minimalBackup(), exportedAt: 1234567890 };
+    expect(() => validateBackup(b)).toThrow('exportedAt');
+  });
+
+  it('rejects exportedAt as null', () => {
+    const b = { ...minimalBackup(), exportedAt: null };
+    expect(() => validateBackup(b)).toThrow('exportedAt');
+  });
+
+  // ── data section ──────────────────────────────────────────────────────────
 
   it('rejects missing data', () => {
     const { data: _d, ...b } = minimalBackup();
@@ -118,6 +214,18 @@ describe('validateBackup', () => {
     const b = { ...minimalBackup(), data: [] };
     expect(() => validateBackup(b)).toThrow('data');
   });
+
+  it('rejects data = null', () => {
+    const b = { ...minimalBackup(), data: null };
+    expect(() => validateBackup(b)).toThrow('data');
+  });
+
+  it('rejects data = "string"', () => {
+    const b = { ...minimalBackup(), data: 'not-an-object' };
+    expect(() => validateBackup(b)).toThrow('data');
+  });
+
+  // ── required array fields ─────────────────────────────────────────────────
 
   it('rejects months that is not an array', () => {
     const b = { ...minimalBackup(), data: { ...minimalBackup().data, months: null } };
@@ -142,6 +250,37 @@ describe('validateBackup', () => {
   it('rejects recurringExpenses that is not an array', () => {
     const b = { ...minimalBackup(), data: { ...minimalBackup().data, recurringExpenses: true } };
     expect(() => validateBackup(b)).toThrow('recurringExpenses');
+  });
+
+  // ── optional / nullable fields are accepted ───────────────────────────────
+
+  it('accepts recurringLogs = undefined (older backups without this field)', () => {
+    const b = minimalBackup();
+    const withoutLogs = {
+      ...b,
+      data: { ...b.data, recurringLogs: undefined as unknown as BackupData['recurringLogs'] },
+    };
+    expect(() => validateBackup(withoutLogs)).not.toThrow();
+  });
+
+  it('accepts settings = null', () => {
+    const b = minimalBackup({ data: { ...minimalBackup().data, settings: null } });
+    expect(() => validateBackup(b)).not.toThrow();
+  });
+
+  it('accepts profile = null', () => {
+    const b = minimalBackup({ data: { ...minimalBackup().data, profile: null } });
+    expect(() => validateBackup(b)).not.toThrow();
+  });
+
+  it('accepts avatar = null', () => {
+    const b = minimalBackup({ data: { ...minimalBackup().data, avatar: null } });
+    expect(() => validateBackup(b)).not.toThrow();
+  });
+
+  it('accepts streak = null', () => {
+    const b = minimalBackup({ data: { ...minimalBackup().data, streak: null } });
+    expect(() => validateBackup(b)).not.toThrow();
   });
 });
 
@@ -174,6 +313,18 @@ describe('readRestorePreview', () => {
     const b = minimalBackup({ schemaVersion: 12 });
     const preview = readRestorePreview(b);
     expect(preview.schemaVersion).toBe(12);
+  });
+
+  it('investmentCount reflects savings_items (investments array), not investmentUpdates', () => {
+    const b = minimalBackup({
+      data: {
+        ...minimalBackup().data,
+        investments: [{ id: 1 }, { id: 2 }],
+        investmentUpdates: [{ id: 10 }, { id: 11 }, { id: 12 }],
+      },
+    });
+    const preview = readRestorePreview(b);
+    expect(preview.investmentCount).toBe(2);
   });
 });
 
@@ -216,7 +367,9 @@ describe('validateRestoreData', () => {
     expect(() => validateRestoreData(data)).not.toThrow();
   });
 
-  it('rejects expense with missing month_id', () => {
+  // ── expense → month FK ────────────────────────────────────────────────────
+
+  it('rejects expense with unknown month_id', () => {
     const data: BackupData = {
       ...emptyData(),
       months: [{ id: 1 }],
@@ -225,7 +378,29 @@ describe('validateRestoreData', () => {
     expect(() => validateRestoreData(data)).toThrow('month 99');
   });
 
-  it('rejects investment update with missing saving_item_id', () => {
+  it('passes when expense month_id is null (no FK constraint)', () => {
+    const data: BackupData = {
+      ...emptyData(),
+      expenses: [{ id: 10, month_id: null }],
+    };
+    expect(() => validateRestoreData(data)).not.toThrow();
+  });
+
+  it('rejects multiple expenses where one has a bad month_id', () => {
+    const data: BackupData = {
+      ...emptyData(),
+      months: [{ id: 1 }],
+      expenses: [
+        { id: 10, month_id: 1 },
+        { id: 11, month_id: 999 },
+      ],
+    };
+    expect(() => validateRestoreData(data)).toThrow('month 999');
+  });
+
+  // ── investmentUpdate → savings_item FK ───────────────────────────────────
+
+  it('rejects investment update with unknown saving_item_id', () => {
     const data: BackupData = {
       ...emptyData(),
       investments: [{ id: 20 }],
@@ -234,7 +409,17 @@ describe('validateRestoreData', () => {
     expect(() => validateRestoreData(data)).toThrow('investment 99');
   });
 
-  it('rejects recurring log with missing recurring_expense_id', () => {
+  it('passes when investmentUpdate saving_item_id is null', () => {
+    const data: BackupData = {
+      ...emptyData(),
+      investmentUpdates: [{ id: 30, saving_item_id: null }],
+    };
+    expect(() => validateRestoreData(data)).not.toThrow();
+  });
+
+  // ── recurringLog → recurringExpense FK ───────────────────────────────────
+
+  it('rejects recurring log with unknown recurring_expense_id', () => {
     const data: BackupData = {
       ...emptyData(),
       recurringExpenses: [{ id: 40 }],
@@ -243,7 +428,9 @@ describe('validateRestoreData', () => {
     expect(() => validateRestoreData(data)).toThrow('recurring expense 99');
   });
 
-  it('rejects recurring log with missing expense_id', () => {
+  // ── recurringLog → expense FK ─────────────────────────────────────────────
+
+  it('rejects recurring log with unknown expense_id', () => {
     const data: BackupData = {
       ...emptyData(),
       expenses: [{ id: 10, month_id: null }],
@@ -253,8 +440,27 @@ describe('validateRestoreData', () => {
     expect(() => validateRestoreData(data)).toThrow('expense 99');
   });
 
+  it('passes when recurringLog expense_id is null', () => {
+    const data: BackupData = {
+      ...emptyData(),
+      recurringExpenses: [{ id: 40 }],
+      recurringLogs: [{ id: 50, recurring_expense_id: 40, expense_id: null }],
+    };
+    expect(() => validateRestoreData(data)).not.toThrow();
+  });
+
+  // ── optional field tolerance ──────────────────────────────────────────────
+
   it('handles missing recurringLogs gracefully (older backups)', () => {
-    const data = { ...emptyData(), recurringLogs: undefined as unknown as BackupData['recurringLogs'] };
+    const data = {
+      ...emptyData(),
+      recurringLogs: undefined as unknown as BackupData['recurringLogs'],
+    };
+    expect(() => validateRestoreData(data)).not.toThrow();
+  });
+
+  it('handles empty recurringLogs array', () => {
+    const data = { ...emptyData(), recurringLogs: [] };
     expect(() => validateRestoreData(data)).not.toThrow();
   });
 });
@@ -262,24 +468,29 @@ describe('validateRestoreData', () => {
 // ─── BackupData shape completeness ───────────────────────────────────────────
 
 describe('BackupData shape completeness', () => {
-  it('BackupData includes all required table keys', () => {
+  it('BackupData includes all 11 user-data table keys', () => {
     const data = emptyData();
-    const keys: (keyof BackupData)[] = [
-      'months',
-      'expenses',
-      'investments',
-      'investmentUpdates',
-      'recurringExpenses',
-      'recurringLogs',
-      'settings',
-      'profile',
-      'avatar',
-      'achievements',
-      'streak',
+    // Every table in the v17 schema that holds user data must appear here.
+    // If a new table is added to migrations.ts, add it to BackupData and to this list.
+    const expectedKeys: (keyof BackupData)[] = [
+      'months', // months table
+      'expenses', // expenses table
+      'investments', // savings_items table
+      'investmentUpdates', // savings_updates table
+      'recurringExpenses', // recurring_expenses table
+      'recurringLogs', // recurring_logs table
+      'settings', // app_settings table (singleton)
+      'profile', // profile table (singleton)
+      'avatar', // avatar_config table (singleton)
+      'achievements', // achievements table
+      'streak', // streak table (singleton)
     ];
-    for (const key of keys) {
+    for (const key of expectedKeys) {
       expect(data).toHaveProperty(key);
     }
+    // Also assert the count so this test fails if a key is added to BackupData
+    // without a corresponding entry above.
+    expect(Object.keys(data).length).toBe(expectedKeys.length);
   });
 
   it('BackupFile shape includes app, versions, exportedAt, data', () => {

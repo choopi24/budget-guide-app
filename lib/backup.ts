@@ -2,12 +2,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { MIGRATIONS_TARGET_VERSION } from '../db/migrations';
 
 // ─── Versioning ───────────────────────────────────────────────────────────────
 
 export const BACKUP_APP = 'BudgetBull' as const;
 export const BACKUP_VERSION = 1;
-export const BACKUP_SCHEMA_VERSION = 17; // must stay in sync with migrations.ts targetVersion
+/** Derived from migrations.ts — always in sync with the live schema version. */
+export const BACKUP_SCHEMA_VERSION = MIGRATIONS_TARGET_VERSION;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +49,7 @@ export type RestorePreview = {
 // ─── Validation (pure — no DB access) ────────────────────────────────────────
 
 export function validateBackup(raw: unknown): BackupFile {
-  if (!raw || typeof raw !== 'object') {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('Not a valid BudgetBull backup: file is not a JSON object.');
   }
   const obj = raw as Record<string, unknown>;
@@ -61,7 +63,7 @@ export function validateBackup(raw: unknown): BackupFile {
   if (obj.backupVersion > BACKUP_VERSION) {
     throw new Error(
       `This backup was made with a newer version of BudgetBull (format v${obj.backupVersion}). ` +
-      `Update the app and try again.`
+        `Update the app and try again.`,
     );
   }
   if (typeof obj.schemaVersion !== 'number') {
@@ -76,7 +78,11 @@ export function validateBackup(raw: unknown): BackupFile {
 
   const data = obj.data as Record<string, unknown>;
   const requiredArrays: (keyof BackupData)[] = [
-    'months', 'expenses', 'investments', 'investmentUpdates', 'recurringExpenses',
+    'months',
+    'expenses',
+    'investments',
+    'investmentUpdates',
+    'recurringExpenses',
   ];
   for (const key of requiredArrays) {
     if (!Array.isArray(data[key])) {
@@ -189,7 +195,7 @@ export async function pickAndValidateBackup(): Promise<BackupFile | null> {
     content = new File(asset.uri).textSync();
   } catch {
     throw new Error(
-      'Could not read the backup file. Make sure you selected a BudgetBull backup (.json) saved in your Files app.'
+      'Could not read the backup file. Make sure you selected a BudgetBull backup (.json) saved in your Files app.',
     );
   }
 
@@ -198,7 +204,7 @@ export async function pickAndValidateBackup(): Promise<BackupFile | null> {
     parsed = JSON.parse(content);
   } catch {
     throw new Error(
-      'The selected file is not valid JSON. Make sure you chose a BudgetBull backup file.'
+      'The selected file is not valid JSON. Make sure you chose a BudgetBull backup file.',
     );
   }
 
@@ -214,7 +220,7 @@ export function validateRestoreData(data: BackupData): void {
   for (const e of data.expenses) {
     if (e.month_id != null && !monthIds.has(e.month_id)) {
       throw new Error(
-        `Backup is inconsistent: expense (id ${e.id}) references month ${e.month_id} which does not exist in this backup.`
+        `Backup is inconsistent: expense (id ${e.id}) references month ${e.month_id} which does not exist in this backup.`,
       );
     }
   }
@@ -223,22 +229,22 @@ export function validateRestoreData(data: BackupData): void {
   for (const u of data.investmentUpdates) {
     if (u.saving_item_id != null && !investmentIds.has(u.saving_item_id)) {
       throw new Error(
-        `Backup is inconsistent: investment update (id ${u.id}) references investment ${u.saving_item_id} which does not exist.`
+        `Backup is inconsistent: investment update (id ${u.id}) references investment ${u.saving_item_id} which does not exist.`,
       );
     }
   }
 
   const recurringIds = new Set(data.recurringExpenses.map((r) => r.id));
   const expenseIds = new Set(data.expenses.map((r) => r.id));
-  for (const log of (data.recurringLogs ?? [])) {
+  for (const log of data.recurringLogs ?? []) {
     if (log.recurring_expense_id != null && !recurringIds.has(log.recurring_expense_id)) {
       throw new Error(
-        `Backup is inconsistent: recurring log references recurring expense ${log.recurring_expense_id} which does not exist.`
+        `Backup is inconsistent: recurring log references recurring expense ${log.recurring_expense_id} which does not exist.`,
       );
     }
     if (log.expense_id != null && !expenseIds.has(log.expense_id)) {
       throw new Error(
-        `Backup is inconsistent: recurring log references expense ${log.expense_id} which does not exist.`
+        `Backup is inconsistent: recurring log references expense ${log.expense_id} which does not exist.`,
       );
     }
   }
@@ -259,10 +265,7 @@ function b(v: unknown): BindVal {
 
 /** Replaces all local app data with the contents of `backup`.
  *  Runs inside a single transaction — rolls back entirely if anything fails. */
-export async function restoreFromBackup(
-  db: SQLiteDatabase,
-  backup: BackupFile,
-): Promise<void> {
+export async function restoreFromBackup(db: SQLiteDatabase, backup: BackupFile): Promise<void> {
   const { data } = backup;
   validateRestoreData(data);
 
@@ -292,13 +295,28 @@ export async function restoreFromBackup(
             plan_score, plan_status, opened_at, closed_at, created_at, updated_at)
          VALUES (?,?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?,?, ?,?, ?,?,?,?)`,
         [
-          b(r.id), b(r.month_key), b(r.status), b(r.income_cents),
-          b(r.must_pct), b(r.want_pct), b(r.keep_pct),
-          b(r.must_budget_cents), b(r.want_budget_cents), b(r.keep_budget_cents),
-          b(r.want_rollover_cents) ?? 0, b(r.keep_rollover_cents) ?? 0, b(r.must_rollover_cents) ?? 0,
-          b(r.must_spent_cents) ?? 0, b(r.want_spent_cents) ?? 0, b(r.invest_spent_cents) ?? 0,
-          b(r.plan_score) ?? null, b(r.plan_status) ?? null,
-          b(r.opened_at), b(r.closed_at) ?? null, b(r.created_at), b(r.updated_at),
+          b(r.id),
+          b(r.month_key),
+          b(r.status),
+          b(r.income_cents),
+          b(r.must_pct),
+          b(r.want_pct),
+          b(r.keep_pct),
+          b(r.must_budget_cents),
+          b(r.want_budget_cents),
+          b(r.keep_budget_cents),
+          b(r.want_rollover_cents) ?? 0,
+          b(r.keep_rollover_cents) ?? 0,
+          b(r.must_rollover_cents) ?? 0,
+          b(r.must_spent_cents) ?? 0,
+          b(r.want_spent_cents) ?? 0,
+          b(r.invest_spent_cents) ?? 0,
+          b(r.plan_score) ?? null,
+          b(r.plan_status) ?? null,
+          b(r.opened_at),
+          b(r.closed_at) ?? null,
+          b(r.created_at),
+          b(r.updated_at),
         ],
       );
     }
@@ -311,11 +329,19 @@ export async function restoreFromBackup(
             suggested_bucket, final_bucket, is_investment, is_recurring, category, created_at, updated_at)
          VALUES (?,?,?,?,?,?, ?,?,?,?,?,?,?)`,
         [
-          b(r.id), b(r.month_id), b(r.title), b(r.amount_cents), b(r.spent_on), b(r.note) ?? null,
-          b(r.suggested_bucket), b(r.final_bucket),
-          b(r.is_investment) ?? 0, b(r.is_recurring) ?? 0,
+          b(r.id),
+          b(r.month_id),
+          b(r.title),
+          b(r.amount_cents),
+          b(r.spent_on),
+          b(r.note) ?? null,
+          b(r.suggested_bucket),
+          b(r.final_bucket),
+          b(r.is_investment) ?? 0,
+          b(r.is_recurring) ?? 0,
           b(r.category) ?? null,
-          b(r.created_at), b(r.updated_at),
+          b(r.created_at),
+          b(r.updated_at),
         ],
       );
     }
@@ -328,10 +354,18 @@ export async function restoreFromBackup(
             opening_date, opening_amount_cents, current_value_cents, note, created_at, updated_at)
          VALUES (?,?,?,?,?,?, ?,?,?,?,?,?)`,
         [
-          b(r.id), b(r.name), b(r.category),
-          b(r.asset_symbol) ?? null, b(r.asset_coin_id) ?? null, b(r.asset_quantity) ?? null,
-          b(r.opening_date), b(r.opening_amount_cents), b(r.current_value_cents),
-          b(r.note) ?? null, b(r.created_at), b(r.updated_at),
+          b(r.id),
+          b(r.name),
+          b(r.category),
+          b(r.asset_symbol) ?? null,
+          b(r.asset_coin_id) ?? null,
+          b(r.asset_quantity) ?? null,
+          b(r.opening_date),
+          b(r.opening_amount_cents),
+          b(r.current_value_cents),
+          b(r.note) ?? null,
+          b(r.created_at),
+          b(r.updated_at),
         ],
       );
     }
@@ -343,9 +377,14 @@ export async function restoreFromBackup(
            (id, saving_item_id, effective_date, value_cents, type, amount_cents, note, created_at)
          VALUES (?,?,?,?,?,?,?,?)`,
         [
-          b(r.id), b(r.saving_item_id), b(r.effective_date), b(r.value_cents),
-          b(r.type) ?? 'value_update', b(r.amount_cents) ?? null,
-          b(r.note) ?? null, b(r.created_at),
+          b(r.id),
+          b(r.saving_item_id),
+          b(r.effective_date),
+          b(r.value_cents),
+          b(r.type) ?? 'value_update',
+          b(r.amount_cents) ?? null,
+          b(r.note) ?? null,
+          b(r.created_at),
         ],
       );
     }
@@ -357,15 +396,20 @@ export async function restoreFromBackup(
            (id, title, amount_cents, bucket, day_of_month, is_active, created_at, updated_at)
          VALUES (?,?,?,?,?,?,?,?)`,
         [
-          b(r.id), b(r.title), b(r.amount_cents), b(r.bucket),
-          b(r.day_of_month), b(r.is_active) ?? 1,
-          b(r.created_at), b(r.updated_at),
+          b(r.id),
+          b(r.title),
+          b(r.amount_cents),
+          b(r.bucket),
+          b(r.day_of_month),
+          b(r.is_active) ?? 1,
+          b(r.created_at),
+          b(r.updated_at),
         ],
       );
     }
 
     // 7. Recurring logs (may be absent in older backups)
-    for (const r of (data.recurringLogs ?? [])) {
+    for (const r of data.recurringLogs ?? []) {
       await db.runAsync(
         `INSERT INTO recurring_logs
            (id, recurring_expense_id, month_key, expense_id, created_at)
@@ -408,16 +452,23 @@ export async function restoreFromBackup(
       const p = data.profile;
       await db.runAsync(
         `UPDATE profile SET name=?, email=?, age=?, birthday=?, occupation=?, updated_at=? WHERE id=1`,
-        [b(p.name) ?? null, b(p.email) ?? null, b(p.age) ?? null, b(p.birthday) ?? null, b(p.occupation) ?? null, now],
+        [
+          b(p.name) ?? null,
+          b(p.email) ?? null,
+          b(p.age) ?? null,
+          b(p.birthday) ?? null,
+          b(p.occupation) ?? null,
+          now,
+        ],
       );
     }
 
     // 10. Achievements
-    for (const r of (data.achievements ?? [])) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO achievements (id, unlocked_at) VALUES (?,?)`,
-        [b(r.id), b(r.unlocked_at) ?? null],
-      );
+    for (const r of data.achievements ?? []) {
+      await db.runAsync(`INSERT OR REPLACE INTO achievements (id, unlocked_at) VALUES (?,?)`, [
+        b(r.id),
+        b(r.unlocked_at) ?? null,
+      ]);
     }
 
     // 11. Streak (singleton row)
@@ -444,10 +495,14 @@ export async function restoreFromBackup(
            hat=?, glasses=?, extra=?, eye_shape=?
          WHERE id=1`,
         [
-          b(av.skin_tone) ?? 's2', b(av.hair_style) ?? 'clean',
-          b(av.hair_color) ?? 'dkbrown', b(av.suit_color) ?? 'navy',
-          b(av.hat) ?? 'none', b(av.glasses) ?? 'none',
-          b(av.extra) ?? 'none', b(av.eye_shape) ?? 'default',
+          b(av.skin_tone) ?? 's2',
+          b(av.hair_style) ?? 'clean',
+          b(av.hair_color) ?? 'dkbrown',
+          b(av.suit_color) ?? 'navy',
+          b(av.hat) ?? 'none',
+          b(av.glasses) ?? 'none',
+          b(av.extra) ?? 'none',
+          b(av.eye_shape) ?? 'default',
         ],
       );
     }
