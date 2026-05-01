@@ -10,21 +10,22 @@ Use this checklist before any release that touches `lib/backup.ts`, `db/migratio
 Every user-data table in the database must be included in the backup.
 Current coverage (all ✅):
 
-| DB table | BackupData key | Backup query | Restore step |
-|---|---|---|---|
-| `app_settings` | `settings` | `SELECT * FROM app_settings WHERE id = 1` | UPDATE singleton row |
-| `profile` | `profile` | `SELECT * FROM profile WHERE id = 1` | UPDATE singleton row |
-| `months` | `months` | `SELECT * FROM months ORDER BY month_key` | INSERT each row |
-| `expenses` | `expenses` | `SELECT * FROM expenses ORDER BY id` | INSERT each row |
-| `savings_items` | `investments` | `SELECT * FROM savings_items ORDER BY id` | INSERT each row |
-| `savings_updates` | `investmentUpdates` | `SELECT * FROM savings_updates ORDER BY id` | INSERT each row |
-| `recurring_expenses` | `recurringExpenses` | `SELECT * FROM recurring_expenses ORDER BY id` | INSERT each row |
-| `recurring_logs` | `recurringLogs` | `SELECT * FROM recurring_logs ORDER BY id` | INSERT each row |
-| `avatar_config` | `avatar` | `SELECT * FROM avatar_config WHERE id = 1` | UPDATE singleton row |
-| `achievements` | `achievements` | `SELECT * FROM achievements` | INSERT OR REPLACE each row |
-| `streak` | `streak` | `SELECT * FROM streak WHERE id = 1` | UPDATE singleton row |
+| DB table             | BackupData key      | Backup query                                   | Restore step               |
+| -------------------- | ------------------- | ---------------------------------------------- | -------------------------- |
+| `app_settings`       | `settings`          | `SELECT * FROM app_settings WHERE id = 1`      | UPDATE singleton row       |
+| `profile`            | `profile`           | `SELECT * FROM profile WHERE id = 1`           | UPDATE singleton row       |
+| `months`             | `months`            | `SELECT * FROM months ORDER BY month_key`      | INSERT each row            |
+| `expenses`           | `expenses`          | `SELECT * FROM expenses ORDER BY id`           | INSERT each row            |
+| `savings_items`      | `investments`       | `SELECT * FROM savings_items ORDER BY id`      | INSERT each row            |
+| `savings_updates`    | `investmentUpdates` | `SELECT * FROM savings_updates ORDER BY id`    | INSERT each row            |
+| `recurring_expenses` | `recurringExpenses` | `SELECT * FROM recurring_expenses ORDER BY id` | INSERT each row            |
+| `recurring_logs`     | `recurringLogs`     | `SELECT * FROM recurring_logs ORDER BY id`     | INSERT each row            |
+| `avatar_config`      | `avatar`            | `SELECT * FROM avatar_config WHERE id = 1`     | UPDATE singleton row       |
+| `achievements`       | `achievements`      | `SELECT * FROM achievements`                   | INSERT OR REPLACE each row |
+| `streak`             | `streak`            | `SELECT * FROM streak WHERE id = 1`            | UPDATE singleton row       |
 
 **If you add a new user-data table** to migrations.ts, you must:
+
 1. Add a key to `BackupData` in `lib/backup.ts`
 2. Add a `SELECT *` query to `createBackup`
 3. Add a DELETE + INSERT block to `restoreFromBackup`
@@ -210,6 +211,7 @@ npm run format:check # zero formatting violations
 Key test file: `__tests__/backup.test.ts`
 
 Tests cover:
+
 - Schema version constants in sync (`BACKUP_SCHEMA_VERSION === MIGRATIONS_TARGET_VERSION`)
 - `validateBackup` happy path (minimal, with data, old schemaVersion)
 - `validateBackup` rejection of: null, undefined, string, number, boolean, array, wrong app name,
