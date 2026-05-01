@@ -17,44 +17,44 @@ Most budgeting apps are overwhelming. BudgetBull does one thing well: it forces 
 
 ## Core features
 
-| Feature | Details |
-|---|---|
-| Must / Want / Invest split | Set percentages at onboarding, adjust anytime in Settings |
-| Monthly budget cycle | Income-based, rolls over unspent balances per your rollover rules |
-| Expense tracking | Auto-suggested bucket (Must/Want), editable after the fact; auto-classifies by merchant name |
-| Past-month corrections | Log missed expenses to closed months; carryover auto-adjusts across all subsequent months |
-| Recurring expenses | Monthly templates with configurable day-of-month and bucket; apply to any month in one tap |
-| Investment portfolio | Manual tracking with full value history and SVG line chart; real portfolio timeline from dated snapshots |
-| Crypto support | CoinGecko live price refresh for tracked coins |
-| Budget grading | A+–F grade with per-bucket explanation and improvement hints |
-| Rollover settings | Per-bucket rules: route surplus to Invest, Want, or Must; multi-month recalculation cascade |
-| CSV export | Export months, expenses, or investments as `.csv` from Settings |
-| Full backup / restore | JSON backup of all data; restore from file with a preview before overwrite |
-| Privacy & data screen | Explains exactly what data is stored, what is never collected, and what network calls are made |
-| Profile & streaks | Avatar customisation, achievements, daily streak tracking |
-| League system | Iron → Bronze → Silver → Gold → Apex, gated by score + months |
-| Multi-currency | ILS, USD, EUR throughout |
-| Receipt scanning | Camera or photo library → AI extracts merchant, amount, date |
-| AI budget review | Claude-powered monthly analysis with personalised recommendations |
-| Apple Pay shortcut | Siri Shortcut integration auto-adds expenses from Apple Pay notifications |
-| Calculators | Placeholder hub for finance tools (compound interest, loan, salary, etc.) |
-| Local-first | All data stored on-device in SQLite — no account, no sync |
+| Feature                    | Details                                                                                                    |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Must / Want / Invest split | Set percentages at onboarding, adjust anytime in Settings                                                  |
+| Monthly budget cycle       | Income-based, rolls over unspent balances per your rollover rules                                          |
+| Expense tracking           | Auto-suggested bucket (Must/Want), editable after the fact; auto-classifies by merchant name               |
+| Past-month corrections     | Log missed expenses to closed months; carryover auto-adjusts across all subsequent months                  |
+| Recurring expenses         | Monthly templates with configurable day-of-month and bucket; apply to any month in one tap                 |
+| Investment portfolio       | Manual tracking with full value history and SVG line chart; real portfolio timeline from dated snapshots   |
+| Crypto support             | CoinGecko live price refresh for tracked coins                                                             |
+| Budget grading             | A+–F grade with per-bucket explanation and improvement hints                                               |
+| Rollover settings          | Per-bucket rules: route surplus to Invest, Want, or Must; multi-month recalculation cascade                |
+| CSV export                 | Export months, expenses, or investments as `.csv` from Settings                                            |
+| Full backup / restore      | JSON backup of all data; restore from file with a preview before overwrite                                 |
+| Privacy & data screen      | Explains exactly what data is stored, what is never collected, and what network calls are made             |
+| Profile & streaks          | Avatar customisation, achievements, daily streak tracking                                                  |
+| League system              | Iron → Bronze → Silver → Gold → Apex, gated by score + months                                              |
+| Multi-currency             | ILS, USD, EUR throughout                                                                                   |
+| Receipt scanning           | Camera or photo library → AI extracts merchant, amount, date                                               |
+| AI budget review           | Claude-powered monthly analysis with personalised recommendations                                          |
+| Apple Pay shortcut         | Siri Shortcut integration auto-adds expenses from Apple Pay notifications                                  |
+| Calculators                | Six finance tools: compound interest, loan payment, net salary, savings goal, budget split, emergency fund |
+| Local-first                | All data stored on-device in SQLite — no account, no sync                                                  |
 
 ---
 
 ## Tech stack
 
-| Layer | Choice |
-|---|---|
-| Framework | React Native via Expo SDK 54 |
-| Routing | Expo Router (file-based, typed routes) |
-| Database | SQLite via `expo-sqlite` with versioned migrations |
-| Language | TypeScript (strict) |
-| State | React hooks — no external state library |
-| Charts | Custom SVG line chart via `react-native-svg` |
-| Icons | Ionicons (`@expo/vector-icons`) |
-| Crypto prices | CoinGecko public API (no key required) |
-| AI analysis | Claude API via a backend proxy (budget review + receipt scanning) |
+| Layer         | Choice                                                            |
+| ------------- | ----------------------------------------------------------------- |
+| Framework     | React Native via Expo SDK 54                                      |
+| Routing       | Expo Router (file-based, typed routes)                            |
+| Database      | SQLite via `expo-sqlite` with versioned migrations                |
+| Language      | TypeScript (strict)                                               |
+| State         | React hooks — no external state library                           |
+| Charts        | Custom SVG line chart via `react-native-svg`                      |
+| Icons         | Ionicons (`@expo/vector-icons`)                                   |
+| Crypto prices | CoinGecko public API (no key required)                            |
+| AI analysis   | Claude API via a backend proxy (budget review + receipt scanning) |
 
 ---
 
@@ -102,27 +102,27 @@ Copy `.env.example` to `.env` and fill in the values you need. `.env` is gitigno
 cp .env.example .env
 ```
 
-| Variable | Default | Required for |
-|---|---|---|
-| `EXPO_PUBLIC_RECEIPT_SCAN_URL` | _(empty)_ | Receipt scanning |
-| `EXPO_PUBLIC_AI_PROVIDER` | `mock` | AI budget review (remote mode) |
-| `EXPO_PUBLIC_AI_ENDPOINT` | _(empty)_ | AI budget review (remote mode) |
-| `EXPO_PUBLIC_AI_API_KEY` | _(empty)_ | AI budget review (remote mode, if your proxy requires auth) |
+| Variable                       | Default   | Required for                                                |
+| ------------------------------ | --------- | ----------------------------------------------------------- |
+| `EXPO_PUBLIC_RECEIPT_SCAN_URL` | _(empty)_ | Receipt scanning                                            |
+| `EXPO_PUBLIC_AI_PROVIDER`      | `mock`    | AI budget review (remote mode)                              |
+| `EXPO_PUBLIC_AI_ENDPOINT`      | _(empty)_ | AI budget review (remote mode)                              |
+| `EXPO_PUBLIC_AI_API_KEY`       | _(empty)_ | AI budget review (remote mode, if your proxy requires auth) |
 
 ### Offline vs. network features
 
-| Feature | Offline? | What it needs |
-|---|---|---|
-| Monthly budgeting, expense tracking | ✅ Always offline | Nothing |
-| Recurring expenses | ✅ Always offline | Nothing |
-| Investment portfolio, value history | ✅ Always offline | Nothing |
-| Budget grading (A+–F) | ✅ Always offline | Nothing |
-| CSV export, full backup / restore | ✅ Always offline | Nothing |
-| Apple Pay / Siri Shortcut | ✅ Always offline | Nothing |
-| AI budget review (`mock` provider) | ✅ Offline | Nothing — the mock runs on-device with your real data |
-| Crypto live price refresh | 🌐 Network | CoinGecko public API — no key needed |
-| Receipt scanning | 🌐 Network | `EXPO_PUBLIC_RECEIPT_SCAN_URL` pointing to your backend |
-| AI budget review (`remote` provider) | 🌐 Network | `EXPO_PUBLIC_AI_PROVIDER=remote` + `EXPO_PUBLIC_AI_ENDPOINT` |
+| Feature                              | Offline?          | What it needs                                                |
+| ------------------------------------ | ----------------- | ------------------------------------------------------------ |
+| Monthly budgeting, expense tracking  | ✅ Always offline | Nothing                                                      |
+| Recurring expenses                   | ✅ Always offline | Nothing                                                      |
+| Investment portfolio, value history  | ✅ Always offline | Nothing                                                      |
+| Budget grading (A+–F)                | ✅ Always offline | Nothing                                                      |
+| CSV export, full backup / restore    | ✅ Always offline | Nothing                                                      |
+| Apple Pay / Siri Shortcut            | ✅ Always offline | Nothing                                                      |
+| AI budget review (`mock` provider)   | ✅ Offline        | Nothing — the mock runs on-device with your real data        |
+| Crypto live price refresh            | 🌐 Network        | CoinGecko public API — no key needed                         |
+| Receipt scanning                     | 🌐 Network        | `EXPO_PUBLIC_RECEIPT_SCAN_URL` pointing to your backend      |
+| AI budget review (`remote` provider) | 🌐 Network        | `EXPO_PUBLIC_AI_PROVIDER=remote` + `EXPO_PUBLIC_AI_ENDPOINT` |
 
 ### Configuring receipt scanning
 
@@ -135,6 +135,7 @@ Receipt scanning is powered by a backend you control — the app never calls any
 When `EXPO_PUBLIC_RECEIPT_SCAN_URL` is unset, the receipt scan screen shows a "not available" notice and scanning is disabled. No crash.
 
 Your backend should:
+
 - Call a vision model (e.g. GPT-4o, Claude 3) with the image
 - Return the extracted fields (`merchant`, `amount`, `date`, `items`, `confidence`, etc.)
 - Handle auth and rate-limiting server-side
@@ -159,6 +160,7 @@ Your endpoint must accept `POST <AnalysisInput JSON>` and return `<BudgetAnalysi
 > **`EXPO_PUBLIC_*` variables are embedded in the JavaScript bundle** and are readable by anyone who downloads your app. Never put a production API key (Anthropic, OpenAI, etc.) directly in an `EXPO_PUBLIC_*` variable.
 
 Use a backend proxy:
+
 - The proxy holds the real API key server-side.
 - Authenticate the mobile app with a short-lived session token or device-check mechanism.
 - Set that session token as `EXPO_PUBLIC_AI_API_KEY` (or pass it at runtime) — it's not a secret even if extracted, because it's scoped and revocable.
@@ -195,7 +197,7 @@ app/
   receipt-review.tsx           # Review and confirm AI-extracted receipt data
   add-expense-from-shortcut.tsx  # Handles Siri Shortcut deep-link (Apple Pay)
   ai-budget-review.tsx         # Claude-powered monthly budget analysis screen
-  calculators.tsx              # Finance calculator hub (coming soon)
+  calculators.tsx              # Six finance calculators: compound interest, loan payment, net salary, savings goal, budget split, emergency fund
 
 components/
   AppScreen.tsx                # Scrollable/static screen wrapper with safe area
@@ -280,11 +282,11 @@ theme/
 
 Available in **Settings → Export CSV Files**. Three separate exports:
 
-| Export | What's included |
-|---|---|
-| Months | One row per month: income, budget splits, spent totals, rollover amounts, grade |
-| Expenses | Every expense across all months: date, title, amount, bucket, category, note |
-| Investments | Every holding: name, category, opening date, cost basis, current value |
+| Export      | What's included                                                                 |
+| ----------- | ------------------------------------------------------------------------------- |
+| Months      | One row per month: income, budget splits, spent totals, rollover amounts, grade |
+| Expenses    | Every expense across all months: date, title, amount, bucket, category, note    |
+| Investments | Every holding: name, category, opening date, cost basis, current value          |
 
 CSV files are shared via the system share sheet (AirDrop, Files, email, etc.). They are not uploaded anywhere.
 
@@ -299,13 +301,13 @@ Available in **Settings → Backup & Restore → Create Full Backup**. Creates a
 - Profile, avatar, achievements, streak
 - App settings (currency, rollover rules, split percentages)
 
-The file is tagged with a schema version so future app versions can detect and reject incompatible backups.
+The file is tagged with a schema version so the app can detect when a backup was created with an older or newer DB schema.
 
 ### Restore
 
-Available in **Settings → Restore from backup**. Pick a `.json` file — the app shows a preview (month count, expense count, investment count, recurring count, and backup date) before you confirm. **Restore replaces all current data** — there is no merge. The operation is atomic; if anything fails, the existing data is left untouched.
+Available in **Settings → Backup & Restore → Restore From Backup**. Pick a `.json` file — the app shows a preview (month count, expense count, investment count, recurring count, and backup date) before you confirm. **Restore replaces all current data** — there is no merge. The operation is atomic; if anything fails, the existing data is left untouched.
 
-> Restoring to a device with a different schema version than the backup is blocked — you must be on the same app version or newer to restore.
+> Backups made by a **newer** version of the app (higher `backupVersion`) are rejected with an "update the app" prompt. Backups from **older** schema versions are restorable — the restore logic handles missing columns with safe defaults, so you do not need to match schema versions exactly.
 
 ---
 
@@ -329,12 +331,12 @@ The Home screen shows the current grade alongside a 2–3 line plain-language ex
 
 ## Platform support
 
-| Platform | Status | Notes |
-|---|---|---|
-| iPhone | ✅ Primary target | All UI and safe-area handling is iPhone-optimised |
-| iPad | ⚠️ Enabled, not optimised | `supportsTablet: true` is set (Expo default). The app runs and is usable on iPad, but the layout is iPhone-sized and not adapted for the larger canvas. |
-| Android | ⚠️ Builds, not tested | Adaptive icons and edge-to-edge are configured. Core logic works. UI may have rough edges. Not a current focus. |
-| Web | 🚧 Scaffold only | `expo-router` web output is configured (`"output": "static"`) but the app is not tested or optimised for browsers. |
+| Platform | Status                    | Notes                                                                                                                                                   |
+| -------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iPhone   | ✅ Primary target         | All UI and safe-area handling is iPhone-optimised                                                                                                       |
+| iPad     | ⚠️ Enabled, not optimised | `supportsTablet: true` is set (Expo default). The app runs and is usable on iPad, but the layout is iPhone-sized and not adapted for the larger canvas. |
+| Android  | ⚠️ Builds, not tested     | Adaptive icons and edge-to-edge are configured. Core logic works. UI may have rough edges. Not a current focus.                                         |
+| Web      | 🚧 Scaffold only          | `expo-router` web output is configured (`"output": "static"`) but the app is not tested or optimised for browsers.                                      |
 
 If you intend to ship iPad or Android, audit safe area handling, font scaling, and the floating tab bar before release.
 
@@ -409,6 +411,7 @@ Run through this list before building a release or submitting to the App Store.
 The app is in active personal development. Core budgeting flows are complete and stable.
 
 **Working now:**
+
 - Full monthly cycle (setup → track → close → rollover)
 - Multi-month rollover recalculation when past expenses are corrected
 - Expense add / edit / delete, including corrections to past months
@@ -425,9 +428,10 @@ The app is in active personal development. Core budgeting flows are complete and
 - CSV export (months / expenses / investments) via Settings
 - Full backup and restore (JSON, all tables, versioned format) via Settings
 - Privacy & data screen documenting exactly what is and isn't stored
-- Finance calculators hub (UI scaffolded, logic coming)
+- Finance calculators (compound interest, loan payment, net salary, savings goal, budget split, emergency fund)
 
 **Possible future improvements:**
+
 - iCloud / cloud sync — all backup/export is currently local only; nothing syncs between devices
 - Merge restore — current restore is a full replace; a merge mode that upserts without wiping would be safer
 - Custom expense categories — currently hard-coded; user-editable lists would require schema changes and a management UI
@@ -435,7 +439,6 @@ The app is in active personal development. Core budgeting flows are complete and
 - Better investment analytics — per-holding IRR, allocation breakdown, time-weighted return; current chart shows value history only
 - Widgets (Expo Widget extension)
 - Notification reminders
-- Calculator implementations (compound interest, loan payment, net salary, etc.)
 - App Store distribution
 
 ---
@@ -450,4 +453,4 @@ BudgetBull stores everything in an SQLite database on your device. There is no a
 
 All other features — budgeting, expense tracking, recurring expenses, investment portfolio, grading, CSV export, full backup/restore, streaks, and the default AI review — work fully offline.
 
-Uninstalling the app will erase all data. Use **Settings → Full backup** to save a copy before uninstalling or switching devices.
+Uninstalling the app will erase all data. Use **Settings → Backup & Restore → Create Full Backup** to save a copy before uninstalling or switching devices.

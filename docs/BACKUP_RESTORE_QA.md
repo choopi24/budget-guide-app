@@ -99,14 +99,17 @@ Run through the following scenarios on a physical device or simulator before rel
 5. Pick the backup file.
 6. Review the preview modal — confirm the row counts match the backup.
 7. Tap **Restore & Replace Data**.
-8. Navigate through the app and verify:
+8. Confirm post-restore routing:
+   - The app automatically navigates to the **Home** tab immediately after restore completes (no manual navigation required).
+   - No error banner or loading spinner is stuck on screen.
+9. Navigate through the app and verify:
    - The correct month is active with the right income and split
    - All expenses are present with correct amounts, buckets, and categories
    - Both investments are listed with correct values
    - Recurring expenses are listed and the applied one shows as logged
    - Avatar and profile data match the original
 
-**Expected:** restore completes, app navigates to Home, all data is intact.
+**Expected:** restore completes, app navigates directly to the Home tab, all data is intact.
 
 ---
 
@@ -194,6 +197,19 @@ Update the app and try again." No data changed.
 
 **Expected:** error alert "Backup is inconsistent: expense (id …) references month 9999…"
 No data changed.
+
+---
+
+### Scenario 11 — CSV exports still work after a restore
+
+1. Complete Scenario 3 (restore over empty app) so you have real data in the app.
+2. Go to **Settings → Export CSV Files**.
+3. Tap **Monthly budgets** → confirm the share sheet opens with a `.csv` file containing the restored months.
+4. Tap **Expenses** → confirm the share sheet opens with a `.csv` file containing the restored expenses.
+5. Tap **Investments** → confirm the share sheet opens with a `.csv` file containing the restored investments.
+6. Open each file in a text editor or spreadsheet and verify the row counts match the data you restored.
+
+**Expected:** all three CSV exports complete successfully and reflect the restored data. CSV export is unaffected by backup/restore operations.
 
 ---
 

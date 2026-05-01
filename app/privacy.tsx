@@ -81,7 +81,7 @@ const SECTIONS: PrivacySection[] = [
       {
         icon: 'archive-outline',
         label: 'Full backup (.json)',
-        body: 'Captures everything — months, expenses, investments, and settings. Available in Settings → Backup & Restore. Can be fully restored.',
+        body: 'Captures everything: months, expenses, investments and their value history, recurring expense templates, profile, avatar, achievements, streak, and app settings. Available in Settings → Backup & Restore. Can be fully restored to any device running the same or a newer app version.',
       },
     ],
   },
@@ -94,7 +94,6 @@ export default function PrivacyScreen() {
 
   return (
     <AppScreen scroll>
-
       {/* ── Navigation ── */}
       <BackButton onPress={() => router.back()} />
 
@@ -111,14 +110,14 @@ export default function PrivacyScreen() {
       <View style={styles.callout}>
         <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
         <Text style={styles.calloutText}>
-          This app is local-first. Your financial data never leaves your device unless you choose to export it.
+          This app is local-first. Your financial data never leaves your device unless you choose to
+          export it.
         </Text>
       </View>
 
       {/* ── Sections ── */}
       {SECTIONS.map((section) => (
         <View key={section.id} style={styles.card}>
-
           {/* Header row */}
           <View style={styles.cardHeader}>
             <View style={[styles.iconBox, { backgroundColor: section.iconBg }]}>
@@ -154,15 +153,14 @@ export default function PrivacyScreen() {
               <Text style={styles.noteText}>{section.note}</Text>
             </View>
           )}
-
         </View>
       ))}
 
       {/* ── Footer ── */}
       <Text style={styles.footer}>
-        This information reflects how the app works today. It will be updated if new features change any of the above.
+        This information reflects how the app works today. It will be updated if new features change
+        any of the above.
       </Text>
-
     </AppScreen>
   );
 }
