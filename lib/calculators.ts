@@ -14,6 +14,13 @@ function fmt(value: number): string {
   }).format(Math.round(value));
 }
 
+/** Returns "Month YYYY" that is monthsFromNow months from today. */
+function fmtCompletionDate(monthsFromNow: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthsFromNow);
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 /** Formats a number with up to 2 decimal places (for % totals in error messages). */
 function fmt2(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -75,36 +82,25 @@ export function compoundInterest(vals: Record<string, string>): CalcResult {
 }
 
 // ─── Net Salary (estimate) ────────────────────────────────────────────────────
-// net_monthly = gross − (gross × income_tax%) − (gross × ni%) − other_deductions
-// This is a simplified model; actual take-home varies by country and tax bracket.
+// Simple model: net = gross × (1 − tax_rate/100).
+// Intentionally does not model country-specific brackets, NI, or other deductions.
 
 export function netSalary(vals: Record<string, string>): CalcResult {
   const gross = parseNum(vals.gross_monthly ?? '');
-  const incomeTaxRate = parseNum(vals.income_tax_rate ?? '');
-  const niRate = parseNum(vals.ni_rate ?? '');
-  const otherDeductions = parseNum(vals.other_deductions ?? '') ?? 0;
+  const taxRate = parseNum(vals.tax_rate ?? '');
 
   if (gross === null || gross <= 0)
-    return { ok: false, error: 'Monthly gross salary must be greater than 0.' };
-  if (incomeTaxRate === null || incomeTaxRate < 0 || incomeTaxRate > 100)
-    return { ok: false, error: 'Income tax rate must be between 0 and 100%.' };
-  if (niRate === null || niRate < 0 || niRate > 100)
-    return { ok: false, error: 'Social / NI rate must be between 0 and 100%.' };
-  if (incomeTaxRate + niRate > 100)
-    return { ok: false, error: 'Combined tax and NI rates exceed 100%.' };
-  if (otherDeductions < 0) return { ok: false, error: 'Other deductions must be 0 or more.' };
+    return { ok: false, error: 'Gross salary must be greater than 0.' };
+  if (taxRate === null || taxRate < 0 || taxRate > 100)
+    return { ok: false, error: 'Tax rate must be between 0 and 100%.' };
 
-  const incomeTax = gross * (incomeTaxRate / 100);
-  const ni = gross * (niRate / 100);
-  const netMonthly = gross - incomeTax - ni - otherDeductions;
-  const netAnnual = netMonthly * 12;
-  const taxMonthly = incomeTax + ni;
+  const taxMonthly = gross * (taxRate / 100);
+  const netMonthly = gross - taxMonthly;
 
   return {
     ok: true,
     values: {
       net_monthly: fmt(netMonthly),
-      net_annual: fmt(netAnnual),
       tax_monthly: fmt(taxMonthly),
     },
   };
@@ -199,6 +195,7 @@ export function savingsGoal(vals: Record<string, string>): CalcResult {
     ok: true,
     values: {
       months_to_goal: months.toString(),
+      completion_date: fmtCompletionDate(months),
       total_contributed: fmt(totalContributed),
       interest_earned: fmt(interestEarned),
     },
@@ -241,29 +238,28 @@ export function budgetSplit(vals: Record<string, string>): CalcResult {
 }
 
 // ─── Emergency Fund ───────────────────────────────────────────────────────────
-// fund_target   = monthly_expenses × months_to_cover
-// months_to_build = ⌈fund_target / monthly_saving⌉
+// fund_target      = monthly_expenses × months_to_cover
+// remaining_needed = max(0, fund_target − current_savings)
 
 export function emergencyFund(vals: Record<string, string>): CalcResult {
   const monthlyExpenses = parseNum(vals.monthly_expenses ?? '');
   const monthsToCover = parseNum(vals.months_to_cover ?? '') ?? 6;
-  const monthlySaving = parseNum(vals.monthly_saving ?? '');
+  const currentSavings = parseNum(vals.current_savings ?? '') ?? 0;
 
   if (monthlyExpenses === null || monthlyExpenses <= 0)
     return { ok: false, error: 'Monthly expenses must be greater than 0.' };
   if (monthsToCover <= 0) return { ok: false, error: 'Months to cover must be greater than 0.' };
   if (monthsToCover > 24) return { ok: false, error: 'Months to cover must be 24 or less.' };
-  if (monthlySaving === null || monthlySaving <= 0)
-    return { ok: false, error: 'Monthly saving capacity must be greater than 0.' };
+  if (currentSavings < 0) return { ok: false, error: 'Current savings must be 0 or more.' };
 
   const fundTarget = monthlyExpenses * monthsToCover;
-  const monthsToBuild = Math.ceil(fundTarget / monthlySaving);
+  const remaining = Math.max(0, fundTarget - currentSavings);
 
   return {
     ok: true,
     values: {
       fund_target: fmt(fundTarget),
-      months_to_build: monthsToBuild.toString(),
+      remaining_needed: remaining === 0 ? 'Covered ✓' : fmt(remaining),
     },
   };
 }

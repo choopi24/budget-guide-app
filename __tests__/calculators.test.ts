@@ -164,126 +164,53 @@ describe('compoundInterest', () => {
 // ─── Net Salary ───────────────────────────────────────────────────────────────
 
 describe('netSalary', () => {
-  it('normal case: standard tax + NI', () => {
-    const v = ok(
-      netSalary({
-        gross_monthly: '10000',
-        income_tax_rate: '30',
-        ni_rate: '12',
-        other_deductions: '0',
-      }),
-    );
-    // tax = 3000, NI = 1200, net = 5800, annual = 69600
-    expect(v.net_monthly).toBe('5,800');
-    expect(v.net_annual).toBe('69,600');
-    expect(v.tax_monthly).toBe('4,200');
-  });
-
-  it('includes other deductions', () => {
-    const v = ok(
-      netSalary({
-        gross_monthly: '10000',
-        income_tax_rate: '20',
-        ni_rate: '10',
-        other_deductions: '500',
-      }),
-    );
-    // tax = 2000, NI = 1000, other = 500, net = 6500
-    expect(v.net_monthly).toBe('6,500');
-    // tax_monthly reflects only % deductions, not other
+  it('normal case: 30% tax on 10,000', () => {
+    const v = ok(netSalary({ gross_monthly: '10000', tax_rate: '30' }));
+    // tax = 3000, net = 7000
+    expect(v.net_monthly).toBe('7,000');
     expect(v.tax_monthly).toBe('3,000');
   });
 
-  it('zero tax rates — gross equals net', () => {
-    const v = ok(
-      netSalary({
-        gross_monthly: '5000',
-        income_tax_rate: '0',
-        ni_rate: '0',
-        other_deductions: '0',
-      }),
-    );
+  it('zero tax — gross equals net', () => {
+    const v = ok(netSalary({ gross_monthly: '5000', tax_rate: '0' }));
     expect(v.net_monthly).toBe('5,000');
     expect(v.tax_monthly).toBe('0');
   });
 
-  it('omitted other_deductions defaults to 0', () => {
-    const v = ok(
-      netSalary({
-        gross_monthly: '8000',
-        income_tax_rate: '25',
-        ni_rate: '10',
-      }),
-    );
-    // net = 8000 - 2000 - 800 = 5200
-    expect(v.net_monthly).toBe('5,200');
+  it('100% tax — net is zero', () => {
+    const v = ok(netSalary({ gross_monthly: '5000', tax_rate: '100' }));
+    expect(v.net_monthly).toBe('0');
+    expect(v.tax_monthly).toBe('5,000');
   });
 
   it('rejects missing gross salary', () => {
-    const e = err(
-      netSalary({ gross_monthly: '', income_tax_rate: '30', ni_rate: '12', other_deductions: '0' }),
-    );
-    expect(e).toMatch(/gross salary/);
+    const e = err(netSalary({ gross_monthly: '', tax_rate: '30' }));
+    expect(e).toMatch(/[Gg]ross salary/);
   });
 
   it('rejects zero gross salary', () => {
-    const e = err(
-      netSalary({
-        gross_monthly: '0',
-        income_tax_rate: '30',
-        ni_rate: '12',
-        other_deductions: '0',
-      }),
-    );
-    expect(e).toMatch(/gross salary/);
+    const e = err(netSalary({ gross_monthly: '0', tax_rate: '30' }));
+    expect(e).toMatch(/[Gg]ross salary/);
   });
 
-  it('rejects income tax rate above 100', () => {
-    const e = err(
-      netSalary({
-        gross_monthly: '10000',
-        income_tax_rate: '101',
-        ni_rate: '0',
-        other_deductions: '0',
-      }),
-    );
-    expect(e).toMatch(/Income tax rate/);
+  it('rejects negative gross salary', () => {
+    const e = err(netSalary({ gross_monthly: '-1000', tax_rate: '30' }));
+    expect(e).toMatch(/[Gg]ross salary/);
   });
 
-  it('rejects negative NI rate', () => {
-    const e = err(
-      netSalary({
-        gross_monthly: '10000',
-        income_tax_rate: '30',
-        ni_rate: '-1',
-        other_deductions: '0',
-      }),
-    );
-    expect(e).toMatch(/NI rate/);
+  it('rejects missing tax rate', () => {
+    const e = err(netSalary({ gross_monthly: '10000', tax_rate: '' }));
+    expect(e).toMatch(/[Tt]ax rate/);
   });
 
-  it('rejects combined tax exceeding 100%', () => {
-    const e = err(
-      netSalary({
-        gross_monthly: '10000',
-        income_tax_rate: '60',
-        ni_rate: '50',
-        other_deductions: '0',
-      }),
-    );
-    expect(e).toMatch(/100%/);
+  it('rejects tax rate above 100', () => {
+    const e = err(netSalary({ gross_monthly: '10000', tax_rate: '101' }));
+    expect(e).toMatch(/[Tt]ax rate/);
   });
 
-  it('rejects negative other deductions', () => {
-    const e = err(
-      netSalary({
-        gross_monthly: '10000',
-        income_tax_rate: '30',
-        ni_rate: '12',
-        other_deductions: '-100',
-      }),
-    );
-    expect(e).toMatch(/Other deductions/);
+  it('rejects negative tax rate', () => {
+    const e = err(netSalary({ gross_monthly: '10000', tax_rate: '-5' }));
+    expect(e).toMatch(/[Tt]ax rate/);
   });
 });
 
@@ -367,6 +294,8 @@ describe('savingsGoal', () => {
     expect(months).toBeGreaterThan(0);
     expect(months).toBeLessThan(120);
     expect(num(v.interest_earned)).toBeGreaterThan(0);
+    // completion_date should be a "Month YYYY" string in the future
+    expect(v.completion_date).toMatch(/\d{4}/);
   });
 
   it('existing savings shortens time to goal', () => {
@@ -563,76 +492,101 @@ describe('budgetSplit', () => {
 // ─── Emergency Fund ───────────────────────────────────────────────────────────
 
 describe('emergencyFund', () => {
-  it('normal case: 6 months at low saving rate', () => {
+  it('normal case: no current savings', () => {
     const v = ok(
       emergencyFund({
         monthly_expenses: '5000',
         months_to_cover: '6',
-        monthly_saving: '500',
+        current_savings: '0',
       }),
     );
     expect(v.fund_target).toBe('30,000');
-    // 30000 / 500 = 60 months exactly
-    expect(v.months_to_build).toBe('60');
+    // still need the full 30,000
+    expect(v.remaining_needed).toBe('30,000');
   });
 
-  it('rounds up months to build (not exact division)', () => {
+  it('partial savings reduces remaining amount', () => {
     const v = ok(
       emergencyFund({
-        monthly_expenses: '1000',
-        months_to_cover: '3',
-        monthly_saving: '700',
+        monthly_expenses: '5000',
+        months_to_cover: '6',
+        current_savings: '10000',
       }),
     );
-    // target = 3000, 3000/700 = 4.28… → 5
-    expect(v.fund_target).toBe('3,000');
-    expect(v.months_to_build).toBe('5');
+    expect(v.fund_target).toBe('30,000');
+    expect(v.remaining_needed).toBe('20,000');
+  });
+
+  it('fully covered — shows Covered message', () => {
+    const v = ok(
+      emergencyFund({
+        monthly_expenses: '5000',
+        months_to_cover: '6',
+        current_savings: '30000',
+      }),
+    );
+    expect(v.fund_target).toBe('30,000');
+    expect(v.remaining_needed).toMatch(/[Cc]overed/);
+  });
+
+  it('over-funded — still covered', () => {
+    const v = ok(
+      emergencyFund({
+        monthly_expenses: '2000',
+        months_to_cover: '3',
+        current_savings: '99999',
+      }),
+    );
+    expect(v.remaining_needed).toMatch(/[Cc]overed/);
   });
 
   it('omitted months_to_cover defaults to 6', () => {
     const v = ok(
       emergencyFund({
         monthly_expenses: '2000',
-        monthly_saving: '1000',
+        current_savings: '0',
       }),
     );
     // fund_target = 2000 × 6 = 12000
     expect(v.fund_target).toBe('12,000');
   });
 
+  it('omitted current_savings defaults to 0', () => {
+    const v = ok(
+      emergencyFund({
+        monthly_expenses: '1000',
+        months_to_cover: '3',
+      }),
+    );
+    expect(v.remaining_needed).toBe('3,000');
+  });
+
   it('rejects missing monthly expenses', () => {
     const e = err(
-      emergencyFund({ monthly_expenses: '', months_to_cover: '6', monthly_saving: '500' }),
+      emergencyFund({ monthly_expenses: '', months_to_cover: '6', current_savings: '0' }),
     );
     expect(e).toMatch(/Monthly expenses/);
   });
 
   it('rejects zero monthly expenses', () => {
     const e = err(
-      emergencyFund({ monthly_expenses: '0', months_to_cover: '6', monthly_saving: '500' }),
+      emergencyFund({ monthly_expenses: '0', months_to_cover: '6', current_savings: '0' }),
     );
     expect(e).toMatch(/Monthly expenses/);
   });
 
   it('rejects months_to_cover above 24', () => {
     const e = err(
-      emergencyFund({ monthly_expenses: '5000', months_to_cover: '25', monthly_saving: '500' }),
+      emergencyFund({ monthly_expenses: '5000', months_to_cover: '25', current_savings: '0' }),
     );
     expect(e).toMatch(/24/);
   });
 
-  it('rejects zero monthly saving', () => {
+  it('rejects negative current savings', () => {
     const e = err(
-      emergencyFund({ monthly_expenses: '5000', months_to_cover: '6', monthly_saving: '0' }),
+      emergencyFund({ monthly_expenses: '5000', months_to_cover: '6', current_savings: '-100' }),
     );
-    expect(e).toMatch(/saving capacity/);
-  });
-
-  it('rejects negative monthly saving', () => {
-    const e = err(
-      emergencyFund({ monthly_expenses: '5000', months_to_cover: '6', monthly_saving: '-100' }),
-    );
-    expect(e).toMatch(/saving capacity/);
+    expect(e).toMatch(/[Cc]urrent savings/);
   });
 });
 
@@ -650,12 +604,7 @@ describe('compute', () => {
   });
 
   it('dispatches salary', () => {
-    const r = compute('salary', {
-      gross_monthly: '5000',
-      income_tax_rate: '20',
-      ni_rate: '10',
-      other_deductions: '0',
-    });
+    const r = compute('salary', { gross_monthly: '5000', tax_rate: '30' });
     expect(r.ok).toBe(true);
   });
 
@@ -688,7 +637,7 @@ describe('compute', () => {
     const r = compute('emergency', {
       monthly_expenses: '3000',
       months_to_cover: '6',
-      monthly_saving: '300',
+      current_savings: '0',
     });
     expect(r.ok).toBe(true);
   });

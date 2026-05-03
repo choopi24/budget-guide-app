@@ -90,29 +90,15 @@ const CALCULATORS: CalcDef[] = [
         keyboardType: 'decimal-pad',
       },
       {
-        id: 'income_tax_rate',
-        label: 'Income tax rate (%)',
+        id: 'tax_rate',
+        label: 'Estimated tax rate (%)',
         placeholder: '30',
         keyboardType: 'decimal-pad',
       },
-      {
-        id: 'ni_rate',
-        label: 'Social / NI rate (%)',
-        placeholder: '12',
-        keyboardType: 'decimal-pad',
-      },
-      {
-        id: 'other_deductions',
-        label: 'Other deductions',
-        placeholder: '0',
-        keyboardType: 'decimal-pad',
-        defaultValue: '0',
-      },
     ],
     results: [
-      { id: 'net_monthly', label: 'Net monthly pay' },
-      { id: 'net_annual', label: 'Net annual' },
-      { id: 'tax_monthly', label: 'Tax paid / month' },
+      { id: 'net_monthly', label: 'Est. net monthly pay' },
+      { id: 'tax_monthly', label: 'Est. tax / month' },
     ],
   },
   {
@@ -180,6 +166,7 @@ const CALCULATORS: CalcDef[] = [
     ],
     results: [
       { id: 'months_to_goal', label: 'Months to goal' },
+      { id: 'completion_date', label: 'Est. completion' },
       { id: 'total_contributed', label: 'Total contributed' },
       { id: 'interest_earned', label: 'Interest earned' },
     ],
@@ -248,15 +235,16 @@ const CALCULATORS: CalcDef[] = [
         defaultValue: '6',
       },
       {
-        id: 'monthly_saving',
-        label: 'Monthly saving capacity',
-        placeholder: '500',
+        id: 'current_savings',
+        label: 'Current emergency savings',
+        placeholder: '0',
         keyboardType: 'decimal-pad',
+        defaultValue: '0',
       },
     ],
     results: [
       { id: 'fund_target', label: 'Fund target' },
-      { id: 'months_to_build', label: 'Months to build it' },
+      { id: 'remaining_needed', label: 'Still needed' },
     ],
   },
 ];
